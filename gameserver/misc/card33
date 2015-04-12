@@ -1,0 +1,24 @@
+0     = 1 check
+2h    = 8 check
+2h+2v = 10 check
+2h+3h = 4 check
+2h+3v = 3 check
+3h    = 3 check
+2v    = 2 check
+2v+3h = 2 check
+3v    = 1 check
+2h+2v+3h = 2 check
+Total = 36
+
+Eliminating full boards
+0     = 1 check
+2h    = 8 check
+2h+2v = 10 check
+2h+3h = 4 check
+2h+3v = 2 check
+3h    = 3 check
+2v    = 2 check
+2v+3h = 2 check
+3v    = 1 check
+2h+2v+3h = 0 check
+Total = 33
