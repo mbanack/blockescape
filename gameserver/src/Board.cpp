@@ -1,6 +1,55 @@
 #include "../inc/Board.hpp"
+#include <SDL/SDL_image.h>
 #include <cstdlib>
 using namespace std;
+multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
+    multimap<SDL_Surface *, SDL_Rect> ret;
+    vvc board=this->board; //Local copy since we don't want to overwrite
+    for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
+        char piece=board[i/BOARD_COLS][i%BOARD_COLS];
+        SDL_Rect rect;
+        rect.x = i%BOARD_COLS*BOARD_CELL_SIZE;
+        rect.y = i/BOARD_COLS*BOARD_CELL_SIZE;
+        rect.w = BOARD_CELL_SIZE;
+        rect.h = BOARD_CELL_SIZE;
+        if(piece==PIECE_HORIZONTAL2||piece==PIECE_PLAYER){
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+            rect.w*=2;
+        } 
+        else if(piece==PIECE_HORIZONTAL3){
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+2)%BOARD_COLS]=EMPTY_SPACE;
+            rect.w*=3;
+        } 
+        else if(piece==PIECE_VERTICAL2){
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            rect.h*=2;
+        }  
+        else if(piece==PIECE_VERTICAL3){
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            rect.h*=3;
+        }  
+        ret.insert(make_pair(pieceGraphics.find(piece)->second, rect));
+    }
+    return ret;
+}
+void Board::render(SDL_Surface *screen, SDL_Surface *background){
+    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    SDL_Rect r;
+    r.w=r.h=600;
+    r.x=r.y=0;
+    SDL_BlitSurface(background, NULL, screen, &r);
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+        i!=pieces.end();++i) {
+        r=i->second;
+        SDL_BlitSurface(i->first,NULL,screen,&r);
+    }
+}
 void Board::move(int x, int y, int xp, int yp){
     if(!validMove(x, y, xp, yp)){
         cerr << "Invalid Move" << '\n';
@@ -76,12 +125,18 @@ bool Board::validMove(int x, int y, int xp, int yp){
     }
     return true;
 }
-Board::Board(char width, char height){
+Board::Board(char width, char height, 
+    const map<int, SDL_Surface *> &pieceGraphics){
+    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
     vector<char> row(width, EMPTY_SPACE);
     vvc ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
+}
+Board::Board(char width, char height, 
+    const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){
+    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
 }
 Board::Board(char width, char height, std::ifstream &f){
     for(int i=0;i<height;++i){

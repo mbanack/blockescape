@@ -1,4 +1,6 @@
-all: solver
-
+all: solver graphical
+	
 solver:
-	g++ -ggdb -o obj/solver src/main.cpp src/Board.cpp
+	g++ -ggdb -o obj/solver src/SolverMain.cpp src/Board.cpp -lSDL -lSDL_image -std=c++11
+graphical:
+	g++ -ggdb -o obj/graphical src/GraphicalMain.cpp src/Board.cpp -lSDL -lSDL_image -std=c++11
