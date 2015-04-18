@@ -4,6 +4,32 @@
 #include <iostream>
 #include "../inc/Board.hpp"
 using namespace std;
+bool getMouseInput(bool &down, SDL_Rect &coordinates){
+    SDL_Event event;
+    while(SDL_PollEvent(&event)) {
+        switch(event.type){
+        case SDL_MOUSEBUTTONDOWN:
+            if(event.button.button == SDL_BUTTON_LEFT){
+                coordinates.x = event.button.x;
+                coordinates.y = event.button.y;
+                down = true;
+            }
+            break;
+        case SDL_MOUSEBUTTONUP:
+            if(event.button.button == SDL_BUTTON_LEFT)
+                down = false;
+            break;
+        case SDL_MOUSEMOTION:
+            coordinates.x=event.motion.x;
+            coordinates.y=event.motion.y;
+            break;
+        case SDL_QUIT:
+            return false;
+        break;
+        }
+    }
+    return true;
+}
 int main(int argc, char **argv){
     SDL_Init(SDL_INIT_EVERYTHING);
     IMG_Init(IMG_INIT_PNG);
@@ -22,9 +48,16 @@ int main(int argc, char **argv){
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
     Board b(6, 6, pieceGraphics, f);
     SDL_Surface *s=SDL_SetVideoMode(800,600,32,0);
-    b.render(s, backgroundGraphic);
-    SDL_Flip(s);
-    SDL_Delay(5000);
+    bool down=false;
+    SDL_Rect coordinates;
+    while(getMouseInput(down, coordinates)){
+        if(down==true)
+            b.mouseDrag(coordinates);
+        else
+            b.mouseRelease();
+        b.render(s, backgroundGraphic);
+        SDL_Flip(s);
+    }
     SDL_FreeSurface(backgroundGraphic);
     SDL_FreeSurface(piecePlayerGraphic);
     SDL_FreeSurface(pieceHoriz2Graphic);

@@ -5,8 +5,8 @@
 #include <iostream>
 #include <map>
 #include <SDL/SDL.h>
-typedef std::vector<std::vector<char> > vvc;
-typedef std::vector<char> vc;
+typedef std::vector<std::vector<int> > vvi;
+typedef std::vector<int> vi;
 const int BOARD_ROWS=6;
 const int BOARD_COLS=6;
 const int BOARD_CELL_SIZE=100;
@@ -15,28 +15,37 @@ public:
     enum PIECE_TYPES { PIECE_PLAYER, EMPTY_SPACE, PIECE_HORIZONTAL2, 
         PIECE_HORIZONTAL3, PIECE_VERTICAL2, PIECE_VERTICAL3, 
         PIECE_TYPE_SIZE };
-    Board(char width, char height, 
+    Board(int width, int height, 
         const std::map<int, SDL_Surface *> &pieceGraphics);
-    Board(char width, char height, 
+    Board(int width, int height, 
         const std::map<int, SDL_Surface *> &pieceGraphics, 
         std::ifstream &f);
-    Board(char width, char height, std::ifstream &f); //Text based
-    char numFree();
+    Board(int width, int height, std::ifstream &f); //Text based
+    int numFree();
     bool fullBoard();
     bool oneMoveSolution();
-    bool oneMoveSolution(vvc board, int x, int y, char pieceType);
-    bool isCollision(char x, char y, char pieceType);
-    void placePiece(char x, char y, char pieceType);
+    bool oneMoveSolution(vvi board, int x, int y, int pieceType);
+    bool isCollision(int x, int y, int pieceType);
+    void placePiece(int x, int y, int pieceType);
     void print(std::ostream &s);
     void move(int x, int y, int xp, int yp);
     void render(SDL_Surface *screen, SDL_Surface *background);
+    void mouseDrag(SDL_Rect coordinates);
+    void mouseRelease();
 private:
     std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
-    bool fullBoard(vvc board);
-    void placePiece(vvc board, char x, char y, char pieceType);
-    bool fullBoard(vvc board, int x, int y, char pieceType);
+    bool fullBoard(vvi board);
+    void placePiece(vvi &board, int x, int y, int pieceType);
+    bool fullBoard(vvi board, int x, int y, int pieceType);
     bool validMove(int x, int y, int xp, int yp);
+    void grabFloatingPiece(SDL_Rect rect);
+    bool checkCollision(SDL_Rect rect);
+    void removePiece(int index, vvi &board, SDL_Rect &r, int &c);
     std::map<int, SDL_Surface *> pieceGraphics;
-    vvc board;
+    vvi board;
+    bool mouseDown;
+    SDL_Rect floatingPieceRect;
+    int floatingPieceType;
+    bool stopLeft, stopRight, stopUp, stopDown;
 };
 #endif
