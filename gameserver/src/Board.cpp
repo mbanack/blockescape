@@ -26,6 +26,9 @@ void Board::mouseDrag(SDL_Rect rect){
         }
     }
     else{
+        if(board[rect.y/BOARD_CELL_SIZE][rect.x/BOARD_CELL_SIZE]
+            == EMPTY_SPACE)
+            return;
         mouseDown=true;
         mouseInitialRect=rect;
         grabFloatingPiece(rect);
