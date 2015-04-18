@@ -41,10 +41,13 @@ private:
     void grabFloatingPiece(SDL_Rect rect);
     bool checkCollision(SDL_Rect rect);
     void removePiece(int index, vvi &board, SDL_Rect &r, int &c);
+    int getFirstBlockIndex(int index);
     std::map<int, SDL_Surface *> pieceGraphics;
     vvi board;
     bool mouseDown;
+    SDL_Rect mouseInitialRect;
     SDL_Rect floatingPieceRect;
+    SDL_Rect floatingPieceInitial;
     int floatingPieceType;
     bool stopLeft, stopRight, stopUp, stopDown;
 };

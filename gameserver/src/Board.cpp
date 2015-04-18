@@ -13,20 +13,24 @@ void Board::mouseDrag(SDL_Rect rect){
             xd=rect.x-floatingPieceRect.x;
             if((stopRight && xd>0) || (stopLeft && xd < 0)); //ps intended
             else
-                floatingPieceRect.x=rect.x;
+                floatingPieceRect.x=floatingPieceInitial.x + 
+                    (rect.x - mouseInitialRect.x);
         }
         else if(floatingPieceType==PIECE_VERTICAL2||
             floatingPieceType==PIECE_VERTICAL3){
             yd=rect.y-floatingPieceRect.y;
             if((stopUp && yd<0) || (stopDown && yd>0)); //ps intended
             else
-                floatingPieceRect.y=rect.y;
+                floatingPieceRect.y=floatingPieceInitial.y + 
+                    (rect.y - mouseInitialRect.y);
         }
     }
     else{
         mouseDown=true;
+        mouseInitialRect=rect;
         grabFloatingPiece(rect);
         last=floatingPieceRect;
+        floatingPieceInitial=floatingPieceRect;
     }
     if(mouseDown && checkCollision(floatingPieceRect)){
         floatingPieceRect=last;
@@ -50,7 +54,16 @@ void Board::mouseDrag(SDL_Rect rect){
 }
 void Board::grabFloatingPiece(SDL_Rect rect){
     int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
-    removePiece(index,board,floatingPieceRect,floatingPieceType);
+    int newIndex=getFirstBlockIndex(index);
+    removePiece(newIndex,board,floatingPieceRect,floatingPieceType);
+    if(newIndex-index==1)
+        floatingPieceRect.x+=BOARD_CELL_SIZE;
+    if(newIndex-index==2)
+        floatingPieceRect.x+=2*BOARD_CELL_SIZE;
+    if(newIndex-index==BOARD_COLS)
+        floatingPieceRect.y+=BOARD_CELL_SIZE;
+    if(newIndex-index==2*BOARD_COLS)
+        floatingPieceRect.y+=2*BOARD_CELL_SIZE;
 }
 //Before running this make sure floating piece not still on board
 bool Board::checkCollision(SDL_Rect rect){
@@ -83,8 +96,13 @@ void Board::mouseRelease(){
         int y = floatingPieceRect.y/BOARD_CELL_SIZE;
         placePiece(x,y,floatingPieceType);
         floatingPieceType = EMPTY_SPACE;
+        stopLeft = false;
+        stopRight = false;
+        stopUp = false;
+        stopDown = false;
     }
 }
+//Doesn't work if i not first section of piece
 void Board::removePiece(int i, vvi &board,
     SDL_Rect &rect, int &p){
     int piece=board[i/BOARD_COLS][i%BOARD_COLS];
@@ -115,6 +133,17 @@ void Board::removePiece(int i, vvi &board,
         board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=3;
     } 
+}
+int Board::getFirstBlockIndex(int index){
+    vvi board=this->board; //Local copy since we don't want to overwrite
+    int piece = board[index/BOARD_CELL_SIZE][index%BOARD_CELL_SIZE];
+    for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
+        SDL_Rect rect;
+        removePiece(i, board, rect, piece);
+        if(board[index/BOARD_COLS][index%BOARD_COLS]==EMPTY_SPACE)
+            return i;
+    }
+    return 0; //Err
 }
 multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
     multimap<SDL_Surface *, SDL_Rect> ret;
