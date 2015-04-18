@@ -39,7 +39,7 @@ private:
     bool fullBoard(vvi board, int x, int y, int pieceType);
     bool validMove(int x, int y, int xp, int yp);
     void grabFloatingPiece(SDL_Rect rect);
-    bool checkCollision(SDL_Rect rect);
+    bool checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd);
     void removePiece(int index, vvi &board, SDL_Rect &r, int &c);
     int getFirstBlockIndex(int index);
     std::map<int, SDL_Surface *> pieceGraphics;

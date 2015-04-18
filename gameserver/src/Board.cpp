@@ -10,7 +10,7 @@ void Board::mouseDrag(SDL_Rect rect){
         if(floatingPieceType==PIECE_HORIZONTAL2
             ||floatingPieceType==PIECE_HORIZONTAL3
             ||floatingPieceType==PIECE_PLAYER){
-            xd=rect.x-floatingPieceRect.x;
+            xd=rect.x-mouseInitialRect.x;
             if((stopRight && xd>0) || (stopLeft && xd < 0)); //ps intended
             else
                 floatingPieceRect.x=floatingPieceInitial.x + 
@@ -18,7 +18,7 @@ void Board::mouseDrag(SDL_Rect rect){
         }
         else if(floatingPieceType==PIECE_VERTICAL2||
             floatingPieceType==PIECE_VERTICAL3){
-            yd=rect.y-floatingPieceRect.y;
+            yd=rect.y-mouseInitialRect.y;
             if((stopUp && yd<0) || (stopDown && yd>0)); //ps intended
             else
                 floatingPieceRect.y=floatingPieceInitial.y + 
@@ -35,8 +35,7 @@ void Board::mouseDrag(SDL_Rect rect){
         last=floatingPieceRect;
         floatingPieceInitial=floatingPieceRect;
     }
-    if(mouseDown && checkCollision(floatingPieceRect)){
-        floatingPieceRect=last;
+    if(mouseDown && checkCollision(floatingPieceRect, floatingPieceType, xd, yd)){
         if(xd>0)
             stopRight=true;
         else
@@ -69,10 +68,23 @@ void Board::grabFloatingPiece(SDL_Rect rect){
         floatingPieceRect.y+=2*BOARD_CELL_SIZE;
 }
 //Before running this make sure floating piece not still on board
-bool Board::checkCollision(SDL_Rect rect){
-    if(rect.x<0||rect.y<0||rect.x+rect.w>BOARD_COLS*BOARD_CELL_SIZE
-        ||rect.y+rect.h>BOARD_ROWS*BOARD_CELL_SIZE)
+bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
+    if(rect.x<0){
+        rect.x=0;
         return true;
+    }
+    if(rect.y<0){
+        rect.y=0;
+        return true;
+    }
+    if(rect.x+rect.w>BOARD_COLS*BOARD_CELL_SIZE){
+        rect.x=BOARD_COLS*BOARD_CELL_SIZE-rect.w;
+        return true;
+    }
+    if(rect.y+rect.h>BOARD_ROWS*BOARD_CELL_SIZE){
+        rect.y=BOARD_ROWS*BOARD_CELL_SIZE-rect.h;
+        return true;
+    }
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
     for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
         i != pieces.end(); ++i){
@@ -81,14 +93,68 @@ bool Board::checkCollision(SDL_Rect rect){
                 continue;
             if((rect.x+rect.w>i->second.x 
                 && rect.x<i->second.x+i->second.w)
-                || (rect.x < i->second.x + i->second.w
-                && rect.x > i->second.x)){
+                ||(rect.x < i->second.x + i->second.w
+                    && rect.x > i->second.x)){
                 if((rect.y+rect.h>i->second.y 
                     && rect.y<i->second.y+i->second.h)
-                    || (rect.y < i->second.y + i->second.h
-                    && rect.y > i->second.y))
+                || (rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y)){
+                    if(xd>0)
+                        rect.x=i->second.x-rect.w;
+                    else if(xd<0)
+                        rect.x=i->second.x+i->second.w;
+                    if(yd>0)
+                        rect.y=i->second.y-rect.h;
+                    else if(yd<0)
+                        rect.y=i->second.y+i->second.h;
                     return true;
+                }
             }
+/****
+            if(rect.x+rect.w>i->second.x 
+                && rect.x<i->second.x+i->second.w)
+            {
+                if(rect.y+rect.h>i->second.y 
+                    && rect.y<i->second.y+i->second.h){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x-rect.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y-rect.h;
+                    return true;
+                }
+                if(rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x-rect.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y+i->second.h;
+                    return true;
+                }
+            }
+            if(rect.x < i->second.x + i->second.w
+                && rect.x > i->second.x){
+                if(rect.y+rect.h>i->second.y 
+                    && rect.y<i->second.y+i->second.h){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x+i->second.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y-rect.h;
+                    return true;
+                }
+                if(rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                         rect.x=i->second.x+i->second.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y+i->second.h;
+                    return true;
+                }
+            }
+*****/
     }
     return false;
 }
