@@ -2,8 +2,30 @@
 #include <SDL/SDL_image.h>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include "../inc/Board.hpp"
+#include "sio_client.h"
 using namespace std;
+SDL_Rect coordinates;
+bool down=false;
+bool newInput = false;
+void networkMouseInput(sio::event &e){
+    newInput=true;
+    stringstream s;
+    s.str(e.get_message()->get_string());
+    string downStr;
+    string xStr;
+    string yStr;
+    s >> downStr;
+    s >> xStr;
+    s >> yStr;
+    if(atoi(downStr.c_str())==0)
+        down = false;
+    else
+        down = true;
+    coordinates.x = atoi(xStr.c_str());
+    coordinates.y = atoi(yStr.c_str());
+}
 bool getMouseInput(bool &down, SDL_Rect &coordinates){
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
@@ -47,16 +69,18 @@ int main(int argc, char **argv){
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL2,pieceVert2Graphic));
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
     Board b(6, 6, pieceGraphics, f);
-    SDL_Surface *s=SDL_SetVideoMode(800,600,32,0);
-    bool down=false;
-    SDL_Rect coordinates;
-    while(getMouseInput(down, coordinates)){
-        if(down==true)
-            b.mouseDrag(coordinates);
-        else
-            b.mouseRelease();
-        b.render(s, backgroundGraphic);
-        SDL_Flip(s);
+    sio::client h;
+    h.connect("http://127.0.0.1:9002");
+    h.socket()->on("mouse input", &networkMouseInput);
+    while(true){
+        if(newInput){
+            newInput = false;
+            if(down==true)
+                b.mouseDrag(coordinates);
+            else
+                b.mouseRelease();
+        }
+        b.sendPieceLocations(h);
     }
     SDL_FreeSurface(backgroundGraphic);
     SDL_FreeSurface(piecePlayerGraphic);

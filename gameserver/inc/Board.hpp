@@ -5,6 +5,8 @@
 #include <iostream>
 #include <map>
 #include <SDL/SDL.h>
+#include <string>
+#include "../src/sio_client.h"
 typedef std::vector<std::vector<int> > vvi;
 typedef std::vector<int> vi;
 const int BOARD_ROWS=6;
@@ -32,6 +34,7 @@ public:
     void render(SDL_Surface *screen, SDL_Surface *background);
     void mouseDrag(SDL_Rect coordinates);
     void mouseRelease();
+    void sendPieceLocations(sio::client &h);
 private:
     std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
     bool fullBoard(vvi board);
@@ -50,5 +53,6 @@ private:
     SDL_Rect floatingPieceInitial;
     int floatingPieceType;
     bool stopLeft, stopRight, stopUp, stopDown;
+    std::string lastNetworkMessage;
 };
 #endif

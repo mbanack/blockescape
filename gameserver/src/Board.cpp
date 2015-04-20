@@ -1,7 +1,41 @@
 #include "../inc/Board.hpp"
 #include <SDL/SDL_image.h>
 #include <cstdlib>
+#include <sstream>
 using namespace std;
+void Board::sendPieceLocations(sio::client &h){
+    stringstream s;
+    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    if(lastNetworkMessage.empty()){
+        int numPieces = 0;
+        for(multimap<SDL_Surface *, SDL_Rect>::const_iterator 
+            i=pieces.begin(); i!=pieces.end();++i) {
+            if(i->second.w!=i->second.h)
+                numPieces++;
+            
+        }
+        s << numPieces + 1; //+ 1 is floating piece
+        h.socket()->emit("num pieces", s.str().c_str());
+        s.str("");
+    }
+    SDL_Rect r;
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+        i!=pieces.end();++i) {
+        r=i->second;
+        if(r.w != r.h)
+            s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+    }
+    r=floatingPieceRect;
+    if(floatingPieceType==EMPTY_SPACE)
+        r.w=r.h=0;
+    s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+        
+    string message=s.str();
+    if(message!=lastNetworkMessage){
+        h.socket()->emit("draw pieces", message.c_str());
+        lastNetworkMessage=message;
+    }
+}
 void Board::mouseDrag(SDL_Rect rect){
     SDL_Rect last = floatingPieceRect;
     int xd=0;
@@ -318,7 +352,8 @@ bool Board::validMove(int x, int y, int xp, int yp){
 }
 Board::Board(int width, int height, 
     const map<int, SDL_Surface *> &pieceGraphics):mouseDown(false),
-    stopLeft(false), stopRight(false), stopUp(false), stopDown(false){
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE){
     this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
     vector<int> row(width, EMPTY_SPACE);
     vvi ret(height, row);
@@ -327,11 +362,12 @@ Board::Board(int width, int height,
     board=ret;
 }
 Board::Board(int width, int height, 
-    const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){
+    const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){ 
     this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
-    stopLeft(false), stopRight(false), stopUp(false), stopDown(false){
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE){
     for(int i=0;i<height;++i){
         string line;
         f >> line;
