@@ -1,14 +1,288 @@
 #include "../inc/Board.hpp"
+#include <SDL/SDL_image.h>
 #include <cstdlib>
+#include <sstream>
 using namespace std;
+void Board::sendPieceLocations(sio::client &h){
+    stringstream s;
+    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    if(lastNetworkMessage.empty()){
+        int numPieces = 0;
+        for(multimap<SDL_Surface *, SDL_Rect>::const_iterator 
+            i=pieces.begin(); i!=pieces.end();++i) {
+            if(i->second.w!=i->second.h)
+                numPieces++;
+            
+        }
+        s << numPieces + 1; //+ 1 is floating piece
+        h.socket()->emit("num pieces", s.str().c_str());
+        s.str("");
+    }
+    SDL_Rect r;
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+        i!=pieces.end();++i) {
+        r=i->second;
+        if(r.w != r.h)
+            s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+    }
+    r=floatingPieceRect;
+    if(floatingPieceType==EMPTY_SPACE)
+        r.w=r.h=0;
+    s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+        
+    string message=s.str();
+    if(message!=lastNetworkMessage){
+        h.socket()->emit("draw pieces", message.c_str());
+        lastNetworkMessage=message;
+    }
+}
+void Board::mouseDrag(SDL_Rect rect){
+    SDL_Rect last = floatingPieceRect;
+    int xd=0;
+    int yd=0;
+    if(mouseDown){
+        if(floatingPieceType==PIECE_HORIZONTAL2
+            ||floatingPieceType==PIECE_HORIZONTAL3
+            ||floatingPieceType==PIECE_PLAYER){
+            xd=rect.x-mouseInitialRect.x;
+            if((stopRight && xd>0) || (stopLeft && xd < 0)); //ps intended
+            else
+                floatingPieceRect.x=floatingPieceInitial.x + 
+                    (rect.x - mouseInitialRect.x);
+        }
+        else if(floatingPieceType==PIECE_VERTICAL2||
+            floatingPieceType==PIECE_VERTICAL3){
+            yd=rect.y-mouseInitialRect.y;
+            if((stopUp && yd<0) || (stopDown && yd>0)); //ps intended
+            else
+                floatingPieceRect.y=floatingPieceInitial.y + 
+                    (rect.y - mouseInitialRect.y);
+        }
+    }
+    else{
+        if(board[rect.y/BOARD_CELL_SIZE][rect.x/BOARD_CELL_SIZE]
+            == EMPTY_SPACE)
+            return;
+        mouseDown=true;
+        mouseInitialRect=rect;
+        grabFloatingPiece(rect);
+        last=floatingPieceRect;
+        floatingPieceInitial=floatingPieceRect;
+    }
+    if(mouseDown && checkCollision(floatingPieceRect, floatingPieceType, xd, yd)){
+        if(xd>0)
+            stopRight=true;
+        else
+            stopRight=false;
+        if(xd<0)
+            stopLeft=true;
+        else
+            stopLeft=false;
+        if(yd>0)
+            stopDown=true;
+        else
+            stopDown=false;
+        if(yd<0)
+            stopUp=true;
+        else
+            stopUp=false;
+    }
+}
+void Board::grabFloatingPiece(SDL_Rect rect){
+    int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
+    int newIndex=getFirstBlockIndex(index);
+    removePiece(newIndex,board,floatingPieceRect,floatingPieceType);
+    if(newIndex-index==1)
+        floatingPieceRect.x+=BOARD_CELL_SIZE;
+    if(newIndex-index==2)
+        floatingPieceRect.x+=2*BOARD_CELL_SIZE;
+    if(newIndex-index==BOARD_COLS)
+        floatingPieceRect.y+=BOARD_CELL_SIZE;
+    if(newIndex-index==2*BOARD_COLS)
+        floatingPieceRect.y+=2*BOARD_CELL_SIZE;
+}
+//Before running this make sure floating piece not still on board
+bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
+    if(rect.x<0){
+        rect.x=0;
+        return true;
+    }
+    if(rect.y<0){
+        rect.y=0;
+        return true;
+    }
+    if(rect.x+rect.w>BOARD_COLS*BOARD_CELL_SIZE){
+        rect.x=BOARD_COLS*BOARD_CELL_SIZE-rect.w;
+        return true;
+    }
+    if(rect.y+rect.h>BOARD_ROWS*BOARD_CELL_SIZE){
+        rect.y=BOARD_ROWS*BOARD_CELL_SIZE-rect.h;
+        return true;
+    }
+    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+        i != pieces.end(); ++i){
+            //Skip empty space pieces, which are square
+            if(i->second.w == i->second.h)
+                continue;
+            if((rect.x+rect.w>i->second.x 
+                && rect.x<i->second.x+i->second.w)
+                ||(rect.x < i->second.x + i->second.w
+                    && rect.x > i->second.x)){
+                if((rect.y+rect.h>i->second.y 
+                    && rect.y<i->second.y+i->second.h)
+                || (rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y)){
+                    if(xd>0)
+                        rect.x=i->second.x-rect.w;
+                    else if(xd<0)
+                        rect.x=i->second.x+i->second.w;
+                    if(yd>0)
+                        rect.y=i->second.y-rect.h;
+                    else if(yd<0)
+                        rect.y=i->second.y+i->second.h;
+                    return true;
+                }
+            }
+/****
+            if(rect.x+rect.w>i->second.x 
+                && rect.x<i->second.x+i->second.w)
+            {
+                if(rect.y+rect.h>i->second.y 
+                    && rect.y<i->second.y+i->second.h){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x-rect.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y-rect.h;
+                    return true;
+                }
+                if(rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x-rect.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y+i->second.h;
+                    return true;
+                }
+            }
+            if(rect.x < i->second.x + i->second.w
+                && rect.x > i->second.x){
+                if(rect.y+rect.h>i->second.y 
+                    && rect.y<i->second.y+i->second.h){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                        rect.x=i->second.x+i->second.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y-rect.h;
+                    return true;
+                }
+                if(rect.y < i->second.y + i->second.h
+                    && rect.y > i->second.y){
+                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
+                        ||pieceType==PIECE_HORIZONTAL3)
+                         rect.x=i->second.x+i->second.w;
+                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
+                        rect.y=i->second.y+i->second.h;
+                    return true;
+                }
+            }
+*****/
+    }
+    return false;
+}
+void Board::mouseRelease(){
+    if(mouseDown){
+        mouseDown=false;
+        int x = floatingPieceRect.x/BOARD_CELL_SIZE;
+        int y = floatingPieceRect.y/BOARD_CELL_SIZE;
+        placePiece(x,y,floatingPieceType);
+        floatingPieceType = EMPTY_SPACE;
+        stopLeft = false;
+        stopRight = false;
+        stopUp = false;
+        stopDown = false;
+    }
+}
+//Doesn't work if i not first section of piece
+void Board::removePiece(int i, vvi &board,
+    SDL_Rect &rect, int &p){
+    int piece=board[i/BOARD_COLS][i%BOARD_COLS];
+    p=piece;
+    rect.x = i%BOARD_COLS*BOARD_CELL_SIZE;
+    rect.y = i/BOARD_COLS*BOARD_CELL_SIZE;
+    rect.w = BOARD_CELL_SIZE;
+    rect.h = BOARD_CELL_SIZE;
+    if(piece==PIECE_HORIZONTAL2||piece==PIECE_PLAYER){
+        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+        rect.w*=2;
+    } 
+    else if(piece==PIECE_HORIZONTAL3){
+        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+        board[i/BOARD_COLS][(i+2)%BOARD_COLS]=EMPTY_SPACE;
+        rect.w*=3;
+    } 
+    else if(piece==PIECE_VERTICAL2){
+        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        rect.h*=2;
+    }  
+    else if(piece==PIECE_VERTICAL3){
+        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        rect.h*=3;
+    } 
+}
+int Board::getFirstBlockIndex(int index){
+    vvi board=this->board; //Local copy since we don't want to overwrite
+    int piece = board[index/BOARD_CELL_SIZE][index%BOARD_CELL_SIZE];
+    for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
+        SDL_Rect rect;
+        removePiece(i, board, rect, piece);
+        if(board[index/BOARD_COLS][index%BOARD_COLS]==EMPTY_SPACE)
+            return i;
+    }
+    return 0; //Err
+}
+multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
+    multimap<SDL_Surface *, SDL_Rect> ret;
+    vvi board=this->board; //Local copy since we don't want to overwrite
+    for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
+        SDL_Rect rect;
+        int piece;
+        removePiece(i, board, rect, piece);
+        ret.insert(make_pair(pieceGraphics.find(piece)->second, rect));
+    }
+    return ret;
+}
+void Board::render(SDL_Surface *screen, SDL_Surface *background){
+    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    SDL_Rect r;
+    r.w=r.h=600;
+    r.x=r.y=0;
+    SDL_BlitSurface(background, NULL, screen, &r);
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+        i!=pieces.end();++i) {
+        r=i->second;
+        SDL_BlitSurface(i->first,NULL,screen,&r);
+    }
+    r=floatingPieceRect;
+    if(floatingPieceType!=EMPTY_SPACE)
+        SDL_BlitSurface(pieceGraphics.find(floatingPieceType)->second,NULL,
+            screen,&r);
+}
 void Board::move(int x, int y, int xp, int yp){
     if(!validMove(x, y, xp, yp)){
         cerr << "Invalid Move" << '\n';
         return;
     }
-    char pieceType=board[y][x];
-    char width=1;
-    char height=1;
+    int pieceType=board[y][x];
+    int width=1;
+    int height=1;
     if(pieceType==PIECE_HORIZONTAL2)
         width=2;
     if(pieceType==PIECE_HORIZONTAL3)
@@ -27,15 +301,15 @@ void Board::move(int x, int y, int xp, int yp){
         board[i][xp]=pieceType;
 }
 bool Board::validMove(int x, int y, int xp, int yp){
-    char pieceType=board[y][x];
+    int pieceType=board[y][x];
     if(pieceType != PIECE_PLAYER
         && pieceType != PIECE_HORIZONTAL2
         && pieceType != PIECE_HORIZONTAL3
         && pieceType != PIECE_VERTICAL2
         && pieceType != PIECE_VERTICAL3)
         return false;
-    char width=1;
-    char height=1;
+    int width=1;
+    int height=1;
     if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2)
         width=2;
     if(pieceType==PIECE_HORIZONTAL3)
@@ -76,18 +350,28 @@ bool Board::validMove(int x, int y, int xp, int yp){
     }
     return true;
 }
-Board::Board(char width, char height){
-    vector<char> row(width, EMPTY_SPACE);
-    vvc ret(height, row);
+Board::Board(int width, int height, 
+    const map<int, SDL_Surface *> &pieceGraphics):mouseDown(false),
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE){
+    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
+    vector<int> row(width, EMPTY_SPACE);
+    vvi ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
 }
-Board::Board(char width, char height, std::ifstream &f){
+Board::Board(int width, int height, 
+    const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){ 
+    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
+}
+Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE){
     for(int i=0;i<height;++i){
         string line;
         f >> line;
-        vc row;
+        vi row;
         for(string::iterator j=line.begin();j!=line.end();++j)
         {
             char s[2];
@@ -98,9 +382,9 @@ Board::Board(char width, char height, std::ifstream &f){
         board.push_back(row);
     }
 }
-bool Board::isCollision(char x, char y, char pieceType){
-    char width=1;
-    char height=1;
+bool Board::isCollision(int x, int y, int pieceType){
+    int width=1;
+    int height=1;
     if(pieceType==PIECE_HORIZONTAL2)
         width=2;
     if(pieceType==PIECE_HORIZONTAL3)
@@ -111,15 +395,15 @@ bool Board::isCollision(char x, char y, char pieceType){
         height=3;
     if(x+width>board[0].size() || y+height>board.size())
         return true;
-    for(char i=y;i<y+height;++i){
-        for(char j=x;j<x+width;++j){
+    for(int i=y;i<y+height;++i){
+        for(int j=x;j<x+width;++j){
             if(board[i][j] != EMPTY_SPACE)
                 return true;
         }
     }
     return false;
 }
-bool Board::oneMoveSolution(vvc board, int x, int y, char pieceType){
+bool Board::oneMoveSolution(vvi board, int x, int y, int pieceType){
     placePiece(board,x,y,pieceType);
     return oneMoveSolution();
 }
@@ -131,40 +415,40 @@ bool Board::oneMoveSolution(){
     }
     return ret;
 }
-char Board::numFree(){
-    char ret=0;
-    for(vvc::const_iterator i=board.begin();i!=board.end();++i){
-        for(vc::const_iterator j=i->begin();j!=i->end();++j){
+int Board::numFree(){
+    int ret=0;
+    for(vvi::const_iterator i=board.begin();i!=board.end();++i){
+        for(vi::const_iterator j=i->begin();j!=i->end();++j){
             if(*j!=EMPTY_SPACE)
                 ++ret;
         }
     }
     return ret;
 }
-bool Board::fullBoard(vvc board, int x, int y, char pieceType){
+bool Board::fullBoard(vvi board, int x, int y, int pieceType){
     placePiece(board,x,y,pieceType);
     return fullBoard(board);
 }
 bool Board::fullBoard(){
     fullBoard(board);
 }
-bool Board::fullBoard(vvc board){
+bool Board::fullBoard(vvi board){
     bool ret=true;
-    for(vvc::const_iterator i=board.begin();i!=board.end();++i){
-        for(vector<char>::const_iterator j=i->begin();j!=i->end();++j){
+    for(vvi::const_iterator i=board.begin();i!=board.end();++i){
+        for(vector<int>::const_iterator j=i->begin();j!=i->end();++j){
             if(*j==EMPTY_SPACE)
                 ret=false;
         }
     }
     return ret;
 }
-void Board::placePiece(char x, char y, char pieceType){
+void Board::placePiece(int x, int y, int pieceType){
     placePiece(board,x,y,pieceType);
 }
-void Board::placePiece(vvc board, char x, char y, char pieceType){
-    char width=1;
-    char height=1;
-    if(pieceType==PIECE_HORIZONTAL2)
+void Board::placePiece(vvi &board, int x, int y, int pieceType){
+    int width=1;
+    int height=1;
+    if(pieceType==PIECE_HORIZONTAL2||pieceType==PIECE_PLAYER)
         width=2;
     if(pieceType==PIECE_HORIZONTAL3)
         width=3;
@@ -172,8 +456,8 @@ void Board::placePiece(vvc board, char x, char y, char pieceType){
         height=2;
     if(pieceType==PIECE_VERTICAL3)
         height=3;
-    for(char i=y;i<y+height;++i){
-        for(char j=x;j<x+width;++j){
+    for(int i=y;i<y+height;++i){
+        for(int j=x;j<x+width;++j){
             board[i][j]=pieceType;
         }
     }
