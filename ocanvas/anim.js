@@ -1,6 +1,6 @@
 function init() {
   //working on the file on git?
- 
+  var rectangle;
   //Block 1
   var canvas = oCanvas.create({
     canvas: "#canvas",
@@ -19,17 +19,20 @@ function init() {
   });
   canvas.addChild(quadrado);
 
-  var rectangle = canvas.display.rectangle({
-    x: 100,
-    y: 250,
-    width: 100,
-    height: 50, 
+function init_rect(rectangle_temp,xpos,ypos,rw,rh){
+    rectangle_temp = canvas.display.rectangle({
+    x: xpos,
+    y: ypos,
+    width: rw,
+    height: rh, 
     fill: "#f1f",
   });
-  canvas.addChild(rectangle);
+  canvas.addChild(rectangle_temp);
+  return rectangle_temp;
+}
 
-
-
+rectangle = init_rect(rectangle,100,350,100,50);
+const temp_y = rectangle.y; //lock movement of rectangle to its current y position
   //Block 3
   canvas.bind("click tap", function() {
     quadrado.x = canvas.mouse.x;
@@ -42,17 +45,20 @@ function init() {
     },
     move: function() {
       this.fill = "0f0";
-      this.y = 250; //restrict to horizontal movement only
-    },
-    end: function() {
-      this.fill = "f00";
-      if(this.x <= 0)
+      this.y = temp_y; //restrict to horizontal movement only
+      if(this.x <= 0) //restrict is now tested on movement rather than snap after mouse release
         this.x = 0;
       if((rectangle.x+rectangle.width) >= (canvas.width))
         rectangle.x = (canvas.width - rectangle.width);
+    },
+    end: function() {
+      this.fill = "f00";
       //this.y = 400; //snap it to this location after release mouse
     }
   });
+
+rectangle.bind("mouseenter", function(){canvas.mouse.cursor("pointer");})
+         .bind("mouseleave", function() {canvas.mouse.cursor("default");});
 
 var text = canvas.display.text({
   x: 177,
@@ -80,7 +86,8 @@ canvas.addChild(text);
       "X: " + canvas.mouse.x + "\n" +
       "Y: " + canvas.mouse.y + "\n" +
       "rectangle.x = " + rectangle.x + "\n" +
-      "rectangle.y = " + rectangle.y + "\n";
+      "rectangle.y = " + rectangle.y + "\n" +
+      "temp_y = " + temp_y + "\n";
   }).start();
 
 
