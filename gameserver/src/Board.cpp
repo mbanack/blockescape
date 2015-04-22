@@ -3,6 +3,39 @@
 #include <cstdlib>
 #include <sstream>
 using namespace std;
+void Board::makeLotsOBoards(){
+    vvi b = board;
+    for(int i=1;i<=5;++i){
+        if(!isCollision(board,0,0,i));
+            makeLotsOBoards(board,-1,0,i);
+    }
+    for(svvi::const_iterator it = lotsOBoards.begin(); 
+        it != lotsOBoards.end(); ++it){
+        board=*it;
+        print(cout);
+        cout << endl;
+    }
+    board = b;
+    cout << "Number of boards generated is " << lotsOBoards.size() << endl;
+}
+void Board::makeLotsOBoards(vvi b, int x, int y, int type){
+    if(y>=BOARD_ROWS){
+        lotsOBoards.insert(b);
+        return;
+    }
+    x++;
+    if(x>=BOARD_COLS){
+        x-=BOARD_COLS;
+        y++;
+    }
+    for(int i=1;i<=5;++i){
+        vvi bp=b;
+        if(!isCollision(bp, x, y, type)){
+            placePiece(bp,x,y,type);
+        }
+        makeLotsOBoards(bp,x,y,i);
+    }
+}
 void Board::sendPieceLocations(sio::client &h){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
@@ -350,6 +383,15 @@ bool Board::validMove(int x, int y, int xp, int yp){
     }
     return true;
 }
+Board::Board(int width, int height):mouseDown(false),
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE){
+    vector<int> row(width, EMPTY_SPACE);
+    vvi ret(height, row);
+    ret[(height+1)/2-1][0]=PIECE_PLAYER;
+    ret[(height+1)/2-1][1]=PIECE_PLAYER;
+    board=ret;
+}
 Board::Board(int width, int height, 
     const map<int, SDL_Surface *> &pieceGraphics):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
@@ -383,6 +425,9 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     }
 }
 bool Board::isCollision(int x, int y, int pieceType){
+    return isCollision(board, x, y, pieceType);
+}
+bool Board::isCollision(const vvi &board, int x, int y, int pieceType){
     int width=1;
     int height=1;
     if(pieceType==PIECE_HORIZONTAL2)

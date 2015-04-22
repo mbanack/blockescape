@@ -6,9 +6,11 @@
 #include <map>
 #include <SDL/SDL.h>
 #include <string>
+#include <set>
 #include "../src/sio_client.h"
 typedef std::vector<std::vector<int> > vvi;
 typedef std::vector<int> vi;
+typedef std::set<std::vector<std::vector<int> > > svvi;
 const int BOARD_ROWS=6;
 const int BOARD_COLS=6;
 const int BOARD_CELL_SIZE=100;
@@ -17,6 +19,7 @@ public:
     enum PIECE_TYPES { PIECE_PLAYER, EMPTY_SPACE, PIECE_HORIZONTAL2, 
         PIECE_HORIZONTAL3, PIECE_VERTICAL2, PIECE_VERTICAL3, 
         PIECE_TYPE_SIZE };
+    Board(int width, int height);
     Board(int width, int height, 
         const std::map<int, SDL_Surface *> &pieceGraphics);
     Board(int width, int height, 
@@ -28,6 +31,7 @@ public:
     bool oneMoveSolution();
     bool oneMoveSolution(vvi board, int x, int y, int pieceType);
     bool isCollision(int x, int y, int pieceType);
+    bool isCollision(const vvi &board, int x, int y, int pieceType);
     void placePiece(int x, int y, int pieceType);
     void print(std::ostream &s);
     void move(int x, int y, int xp, int yp);
@@ -35,7 +39,9 @@ public:
     void mouseDrag(SDL_Rect coordinates);
     void mouseRelease();
     void sendPieceLocations(sio::client &h);
+    void makeLotsOBoards();
 private:
+    void makeLotsOBoards(vvi b, int x, int y, int type);
     std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
     bool fullBoard(vvi board);
     void placePiece(vvi &board, int x, int y, int pieceType);
@@ -54,5 +60,6 @@ private:
     int floatingPieceType;
     bool stopLeft, stopRight, stopUp, stopDown;
     std::string lastNetworkMessage;
+    svvi lotsOBoards;
 };
 #endif
