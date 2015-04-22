@@ -57,6 +57,7 @@ private:
     SDL_Rect mouseInitialRect;
     SDL_Rect floatingPieceRect;
     SDL_Rect floatingPieceInitial;
+    SDL_Rect floatingPieceStuckRect;
     int floatingPieceType;
     bool stopLeft, stopRight, stopUp, stopDown;
     std::string lastNetworkMessage;

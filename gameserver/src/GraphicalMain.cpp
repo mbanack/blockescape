@@ -26,6 +26,15 @@ void networkMouseInput(sio::event &e){
     coordinates.x = atoi(xStr.c_str());
     coordinates.y = atoi(yStr.c_str());
 }
+void sdlExit(){
+    SDL_Event event;
+    while(SDL_PollEvent(&event)) {
+        switch(event.type){
+        case SDL_QUIT:
+            exit(0);
+        }
+    }
+}
 bool getMouseInput(bool &down, SDL_Rect &coordinates){
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
@@ -81,6 +90,7 @@ int main(int argc, char **argv){
                 b.mouseRelease();
         }
         b.sendPieceLocations(h);
+        sdlExit();
     }
     SDL_FreeSurface(backgroundGraphic);
     SDL_FreeSurface(piecePlayerGraphic);

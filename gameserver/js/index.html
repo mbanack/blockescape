@@ -49,14 +49,7 @@
                         stroke: "1px rgba(128, 128, 128, 1)"
                     }));
                 }
-                canvas.bind("mousedown", function () {
-                    md=1;
-                    newInput=1;
-                });
-                canvas.bind("mouseup", function () {
-                    md=0;
-                    newInput=1;
-                });
+                inputLoop();
                 canvas.setLoop(inputLoop).start();
             }
             function initObjects(numberOfObjects) {
@@ -78,11 +71,15 @@
             }
 
             function inputLoop() {
-               if(canvas.mouse.onCanvas()==false&&md==1){
+                if(canvas.mouse.buttonState=="up"&&md==1){
                     md=0;
                     newInput=1;
-               }
-               if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
+                }
+                if(canvas.mouse.buttonState=="down"&&md==0){
+                    md=1;
+                    newInput=1;
+                }
+                if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
                     mx=canvas.mouse.x;
                     my=canvas.mouse.y;
                     newInput=1;

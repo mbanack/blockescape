@@ -121,7 +121,14 @@ void Board::mouseDrag(SDL_Rect rect){
             stopUp=true;
         else
             stopUp=false;
+        if(!stopRight && !stopLeft && !stopDown && !stopUp)
+            floatingPieceStuckRect=rect;
     }
+    if(xd>0&&rect.x>floatingPieceStuckRect.x
+        || xd<0&&rect.x<floatingPieceStuckRect.x
+        || yd>0&&rect.y>floatingPieceStuckRect.y
+        || yd<0&&rect.y<floatingPieceStuckRect.y)
+        stopRight=stopLeft=stopUp=stopDown=false;
 }
 void Board::grabFloatingPiece(SDL_Rect rect){
     int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
@@ -179,51 +186,6 @@ bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
                     return true;
                 }
             }
-/****
-            if(rect.x+rect.w>i->second.x 
-                && rect.x<i->second.x+i->second.w)
-            {
-                if(rect.y+rect.h>i->second.y 
-                    && rect.y<i->second.y+i->second.h){
-                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
-                        ||pieceType==PIECE_HORIZONTAL3)
-                        rect.x=i->second.x-rect.w;
-                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
-                        rect.y=i->second.y-rect.h;
-                    return true;
-                }
-                if(rect.y < i->second.y + i->second.h
-                    && rect.y > i->second.y){
-                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
-                        ||pieceType==PIECE_HORIZONTAL3)
-                        rect.x=i->second.x-rect.w;
-                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
-                        rect.y=i->second.y+i->second.h;
-                    return true;
-                }
-            }
-            if(rect.x < i->second.x + i->second.w
-                && rect.x > i->second.x){
-                if(rect.y+rect.h>i->second.y 
-                    && rect.y<i->second.y+i->second.h){
-                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
-                        ||pieceType==PIECE_HORIZONTAL3)
-                        rect.x=i->second.x+i->second.w;
-                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
-                        rect.y=i->second.y-rect.h;
-                    return true;
-                }
-                if(rect.y < i->second.y + i->second.h
-                    && rect.y > i->second.y){
-                    if(pieceType==PIECE_PLAYER||pieceType==PIECE_HORIZONTAL2
-                        ||pieceType==PIECE_HORIZONTAL3)
-                         rect.x=i->second.x+i->second.w;
-                    if(pieceType==PIECE_VERTICAL2||pieceType==PIECE_VERTICAL3)
-                        rect.y=i->second.y+i->second.h;
-                    return true;
-                }
-            }
-*****/
     }
     return false;
 }
