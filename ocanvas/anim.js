@@ -22,24 +22,46 @@ function init() {
       height: h,
       fill: "#f1f"
     });
-    temp_rect.bind("mouseenter", function(){canvas.mouse.cursor("pointer"); string2 = "now in rect" + temp_rect.id; string = "restrict y to "+getYOfId(temp_rect.id);})
-                       .bind("mouseleave", function() {canvas.mouse.cursor("default"); string2 = ""});
+    temp_rect.bind("mouseenter", function(){canvas.mouse.cursor("pointer"); string2 = "now in rect" + 
+              temp_rect.id; string = "restrict y to "+getYOfId(temp_rect.id) + 
+              " or restrict x to "+getXOfId(temp_rect.id);})
+             .bind("mouseleave", function() {canvas.mouse.cursor("default"); string = ""; string2 = ""});
     rectangle_array.unshift(temp_rect);
     const_array.unshift(ypos);
     counter++;
   }
 
-  make_rect(270,50,100,50);
-  make_rect(270,150,100,50);
-  make_rect(270,250,100,50);
-  make_rect(270,350,100,50);
-
+  make_rect(270,50,100,50);  //horizontal piece
+  make_rect(270,150,100,50); //horizontal piece
+  make_rect(270,250,100,50); //horizontal piece
+  make_rect(270,350,100,50); //horizontal piece
+  make_rect(390,350,50,100); //vertical piece
   function getYOfId(temp_id)
   {
     for(i = 0; i < rectangle_array.length; i++)
     {
       if(rectangle_array[i].id == temp_id)
         return rectangle_array[i].y;
+    }
+    return -1;
+  }
+
+  function getXOfId(temp_id)
+  {
+    for(i = 0; i < rectangle_array.length; i++)
+    {
+      if(rectangle_array[i].id == temp_id)
+        return rectangle_array[i].x;
+    }
+    return -1;
+  }
+
+  function getWOfId(temp_id)
+  {
+    for(i = 0; i < rectangle_array.length; i++)
+    {
+      if(rectangle_array[i].id == temp_id)
+        return rectangle_array[i].width;
     }
     return -1;
   }
@@ -56,6 +78,7 @@ function init() {
   
   var flag = true;
   var yholder;
+  var xholder;
   
   for(i = 0; i < rectangle_array.length; i++)
   {
@@ -68,13 +91,27 @@ function init() {
       move: function() {
         this.fill = "0f0";
         if(flag == true) 
+        {
           yholder = getYOfId((rectangle_array.length-i));
+          xholder = getXOfId((rectangle_array.length-i));
+        }
         flag = false;
-        this.y = yholder; //restrict to horizontal movement only
-        if(this.x <= 0) //restrict is now tested on movement rather than snap after mouse release
-          this.x = 0;
-        if((rectangle_array[0].x+rectangle_array[0].width) >= (canvas.width))
-          rectangle_array[0].x = (canvas.width - rectangle_array[0].width);
+        if(getWOfId((rectangle_array.length-i)) == 100) //this means horizontal piece
+        {//restrict to horizontal movement
+          this.y = yholder; 
+          if(this.x <= 0) //restrict is now tested on movement rather than snap after mouse release
+            this.x = 0;
+          if((rectangle_array[i].x+rectangle_array[i].width) >= (canvas.width))
+            rectangle_array[i].x = (canvas.width - rectangle_array[i].width);
+        }
+        else //this means vertical piece
+        {
+          this.x = xholder; 
+          if(this.y <= 0) //restrict is now tested on movement rather than snap after mouse release
+            this.y = 0;
+          if((rectangle_array[i].y+rectangle_array[i].height) >= (canvas.height))
+            rectangle_array[i].y = (canvas.height - rectangle_array[i].height);
+        }
       },
       end: function() {
        this.fill = "f00";
