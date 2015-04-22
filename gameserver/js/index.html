@@ -17,6 +17,7 @@
             var my = 0;
             var md = 0;
             var objects = [];
+            var types = [];
             var numObjects = 0;
             var newInput = 0;
 
@@ -69,8 +70,7 @@
                 y: 0,
                 width: 200,
                 height: 100,
-                fill: "#077",
-                stroke: "inside 1px rgba(220, 220, 220, 1)"
+                fill: "#077"
                 });
                 objects.push(rectangle);
                 numObjects = objects.length;
@@ -96,18 +96,26 @@
 
             socket.on('num pieces', function(msg){
                 initObjects(+msg);
-                console.log(+msg);
             });
 
             socket.on('draw pieces', function(msg){
                 rect=msg.split(/[ ,]+/);
                 for(var i=0;i<numObjects;i++) {
-                    objects[i].x = +rect[i*4];
-                    objects[i].y = +rect[i*4+1];
-                    objects[i].width = +rect[i*4+2];
-                    objects[i].height = +rect[i*4+3];
+                    if(+rect[i*5]==0){//0 is player piece type
+                        objects[i].fill="#707";
+                    }
+                    else{
+                        objects[i].fill="#077";
+                    }
+                    objects[i].x = +rect[i*5+1];
+                    objects[i].y = +rect[i*5+2];
+                    objects[i].width = +rect[i*5+3];
+                    objects[i].height = +rect[i*5+4];
                     if(objects[i].width == 0){
-                        objects[i].stroke="inside: 0px";
+                        objects[i].stroke="0px";
+                    }
+                    else{
+                        objects[i].stroke="inside 1px rgba(220, 220, 220, 1)";
                     }
                 }
             });
@@ -115,6 +123,5 @@
     </head>
     <body>
         <canvas id="myCanvas" width="600" height="600"></canvas>
-        <pre>asdf</pre>
     </body>
 </html>

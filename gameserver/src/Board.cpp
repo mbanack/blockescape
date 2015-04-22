@@ -56,12 +56,14 @@ void Board::sendPieceLocations(sio::client &h){
         i!=pieces.end();++i) {
         r=i->second;
         if(r.w != r.h)
-            s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+            s << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
+                << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
     }
     r=floatingPieceRect;
     if(floatingPieceType==EMPTY_SPACE)
         r.w=r.h=0;
-    s << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
+    s << floatingPieceType << " " << r.x << " " << r.y << " " 
+        << r.w << " " << r.h << " ";
         
     string message=s.str();
     if(message!=lastNetworkMessage){
