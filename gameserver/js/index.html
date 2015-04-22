@@ -26,6 +26,36 @@
                 canvas = oCanvas.create({
                     canvas: "#myCanvas"
                 });
+                canvas.addChild(canvas.display.rectangle({
+                    x: 0,
+                    y: 0,
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=0;i<=600;i+=100){
+                    canvas.addChild(canvas.display.line({
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas.addChild(canvas.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:600},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                canvas.bind("mousedown", function () {
+                    md=1;
+                    newInput=1;
+                });
+                canvas.bind("mouseup", function () {
+                    md=0;
+                    newInput=1;
+                });
                 canvas.setLoop(inputLoop).start();
             }
             function initObjects(numberOfObjects) {
@@ -39,29 +69,24 @@
                 y: 0,
                 width: 200,
                 height: 100,
-                fill: "#0aa",
-                stroke: "inside 5px rgba(128, 128, 128, 1)"
-                });
-                rectangle.bind("mousedown", function () {
-                    md=1;
-                    newInput=1;
-                });
-                rectangle.bind("mouseup", function () {
-                    md=0;
-                    newInput=1;
-                });
-                rectangle.bind("mousemove", function () {
-                    mx=canvas.mouse.x;
-                    my=canvas.mouse.y;
-                    newInput=1;
+                fill: "#077",
+                stroke: "inside 1px rgba(220, 220, 220, 1)"
                 });
                 objects.push(rectangle);
                 numObjects = objects.length;
                 canvas.addChild(rectangle);
             }
 
-
             function inputLoop() {
+               if(canvas.mouse.onCanvas()==false&&md==1){
+                    md=0;
+                    newInput=1;
+               }
+               if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
+                    mx=canvas.mouse.x;
+                    my=canvas.mouse.y;
+                    newInput=1;
+                }
                 if(newInput == 1){
                     newInput = 0;
                     message = md + ' ' + mx + ' ' + my;
@@ -81,6 +106,9 @@
                     objects[i].y = +rect[i*4+1];
                     objects[i].width = +rect[i*4+2];
                     objects[i].height = +rect[i*4+3];
+                    if(objects[i].width == 0){
+                        objects[i].stroke="inside: 0px";
+                    }
                 }
             });
         </script>
