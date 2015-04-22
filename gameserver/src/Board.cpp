@@ -105,6 +105,8 @@ void Board::mouseDrag(SDL_Rect rect){
         floatingPieceInitial=floatingPieceRect;
     }
     if(mouseDown && checkCollision(floatingPieceRect, floatingPieceType, xd, yd)){
+        if(!stopRight && !stopLeft && !stopDown && !stopUp)
+            floatingPieceStuckRect=rect;
         if(xd>0)
             stopRight=true;
         else
@@ -121,14 +123,15 @@ void Board::mouseDrag(SDL_Rect rect){
             stopUp=true;
         else
             stopUp=false;
-        if(!stopRight && !stopLeft && !stopDown && !stopUp)
-            floatingPieceStuckRect=rect;
     }
-    if(xd>0&&rect.x>floatingPieceStuckRect.x
-        || xd<0&&rect.x<floatingPieceStuckRect.x
-        || yd>0&&rect.y>floatingPieceStuckRect.y
-        || yd<0&&rect.y<floatingPieceStuckRect.y)
-        stopRight=stopLeft=stopUp=stopDown=false;
+    if(xd>0&&rect.x<floatingPieceStuckRect.x)
+        stopRight=false;
+    if(xd<0&&rect.x>floatingPieceStuckRect.x)
+        stopLeft=false;
+    if(yd>0&&rect.y<floatingPieceStuckRect.y)
+        stopDown=false;
+    if(yd<0&&rect.y>floatingPieceStuckRect.y)
+        stopUp=false;
 }
 void Board::grabFloatingPiece(SDL_Rect rect){
     int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
@@ -145,22 +148,6 @@ void Board::grabFloatingPiece(SDL_Rect rect){
 }
 //Before running this make sure floating piece not still on board
 bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
-    if(rect.x<0){
-        rect.x=0;
-        return true;
-    }
-    if(rect.y<0){
-        rect.y=0;
-        return true;
-    }
-    if(rect.x+rect.w>BOARD_COLS*BOARD_CELL_SIZE){
-        rect.x=BOARD_COLS*BOARD_CELL_SIZE-rect.w;
-        return true;
-    }
-    if(rect.y+rect.h>BOARD_ROWS*BOARD_CELL_SIZE){
-        rect.y=BOARD_ROWS*BOARD_CELL_SIZE-rect.h;
-        return true;
-    }
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
     for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
         i != pieces.end(); ++i){
@@ -186,6 +173,22 @@ bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
                     return true;
                 }
             }
+    }
+    if(rect.x<0){
+        rect.x=0;
+        return true;
+    }
+    if(rect.y<0){
+        rect.y=0;
+        return true;
+    }
+    if(rect.x+rect.w>BOARD_COLS*BOARD_CELL_SIZE){
+        rect.x=BOARD_COLS*BOARD_CELL_SIZE-rect.w;
+        return true;
+    }
+    if(rect.y+rect.h>BOARD_ROWS*BOARD_CELL_SIZE){
+        rect.y=BOARD_ROWS*BOARD_CELL_SIZE-rect.h;
+        return true;
     }
     return false;
 }
