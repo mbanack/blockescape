@@ -215,6 +215,8 @@ set<int> unproductive;
 //stack<int> board_history;
 
 boardstate board_init;
+// TODO: use this :)
+boardstate curboard;
 // the bottom of board_history is the initial board state.
 stack<hash> board_history;
 stack<move> move_history;
@@ -233,18 +235,17 @@ stack<move> move_history;
 // wait...
 // if we're not collapsing zeroes, it doesnt matter that
 //   we only store the topleft.
-void rewind(int hash) {
-    int top = board_history.top();
-    while (top != hash) {
+void rewind(hash h) {
+    hash top = board_history.top();
+    while (top != h) {
         unproductive.insert(top);
         board_history.pop();
         top = board_history.top();
     }
 }
 
-// TODO: should iterate on a pre-loaded board_history
-//       only using global board_init for rewinds
-int is_solvable(boardstate *bs) {
+// iterate on a pre-loaded board_history
+int is_solvable() {
     int steps = 0;
     node *cur;
     while (steps < 0xFFFF) {
@@ -259,12 +260,12 @@ int is_solvable(boardstate *bs) {
         if (steps == 0) {
             cur = &ss.map[ID_P];
             // starting from P (id 1)
-            calc_blockers(bs, &ss, ID_P);
+            calc_blockers(&curboard, &ss, ID_P);
         }
 
         // is it solved right now?
         int px, py;
-        find_piece(bs, ID_P, &px, &py);
+        find_piece(&curboard, ID_P, &px, &py);
         if (px == 4) {
             return 1;
         }
@@ -273,7 +274,7 @@ int is_solvable(boardstate *bs) {
         for (int i = 0; i < 6; i++) {
             node *a = &ss.map[cur->l[i]];
             if (a->init == 0) {
-                calc_blockers(bs, &ss, a->id);
+                calc_blockers(&curboard, &ss, a->id);
             }
         }
 
@@ -309,14 +310,14 @@ int is_solvable(boardstate *bs) {
         // add new hash to "seen board states"
         //   else rewind
         hash pre_hash;
-        hash_board(bs, &pre_hash);
+        hash_board(&curboard, &pre_hash);
 
         // TODO: alter the boardstate to reflect the move
         // ...
         // TODO: calc new_x, new_y
         int horiz = is_horiz(cur->id);
         int old_x, old_y;
-        find_piece(bs, cur->id, &old_x, &old_y);
+        find_piece(&curboard, cur->id, &old_x, &old_y);
         int new_x, new_y;
         if (moved == -1) {
             if (horiz) {
@@ -332,12 +333,14 @@ int is_solvable(boardstate *bs) {
             }
         }
         // TODO: call out to john board code
-        make_move(bs, cur->id, new_x, new_y);
+        make_move(&curboard, cur->id, new_x, new_y);
 
         steps++;
 
         hash post_hash;
 
+        // TODO: revisit... also reorg this whole func
+        //   into helper modules :)
         if (seen.count(post_hash) != 0) {
             if (unproductive.count(post_hash) != 0) {
                 // TODO: need to revisit rewind algo
@@ -346,13 +349,13 @@ int is_solvable(boardstate *bs) {
                 // so do we just rewind one?
                 rewind(post_hash);
             } else {
-                int last_hash = board_history.top();
+                hash last_hash = board_history.top();
                 unproductive.insert(last_hash);
                 board_history.pop();
             }
         } else {
-            seen.insert(hash);
-            board_history.push(hash);
+            seen.insert(post_hash);
+            board_history.push(post_hash);
         }
     }
     printf("0xFFFF\n");
@@ -360,9 +363,19 @@ int is_solvable(boardstate *bs) {
 }
 
 int main() {
-    // TODO: initialize global boardstate board_init
-    //       with test board
-    if (is_solvable(&board_init)) {
+    // initialize global boardstate board_init with test board
+    board_init->id[12] = 0;
+    board_init->id[11] = 1;
+    board_init->id[10] = 2;
+    board_init->id[14] = 3;
+    board_init->id[18] = 4;
+    board_init->id[22] = 5;
+    // preload bottom of board_history
+    hash init_hash;
+    hash_board(board_init, &init_hash);
+    board_history.push(init_hash);
+
+    if (is_solvable()) {
         printf("solve\n");
     } else {
         printf("no solve\n");
