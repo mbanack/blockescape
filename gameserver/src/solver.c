@@ -19,7 +19,9 @@ using namespace std;
 //
 // TODO: helper sugars for "print current board state"
 //         and "print current tree/table state"
+//
 
+#define ID_BLANK 0x00
 #define ID_P 0x01
 
 typedef struct node {
@@ -42,6 +44,79 @@ typedef struct boardstate {
     uint8_t id[36];
     uint8_t type[36];
 } boardstate;
+
+int is_piece(boardstate *bs, int x, int y) {
+    if (bs->id[XY_TO_BIDX(x, y)] != ID_BLANK) {
+        return 1;
+    }
+    return 0;
+}
+
+int is_topleft(boardstate *bs, int idx) {
+    if (bs->id[idx] == ID_BLANK) {
+        return 0;
+    }
+    int row = idx / 6;
+    int col = idx % 6;
+    if (row > 0) {
+        if (bs->id[idx - 6] == bs->id[idx]) {
+            return 0;
+        }
+    }
+    if (col > 0) {
+        if (bs->id[idx - 1] == bs->id[idx]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// convert board idx in 0 .. 35 to x, y in 0 .. 5
+#define BIDX_TO_X(bidx) ((bidx) / 6)
+#define BIDX_TO_Y(bidx) ((bidx) % 6)
+// convert x,y to board idx
+#define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
+
+// attempts to find a piece with given id, and returns its loc in x,y
+void find_piece(boardstate *bs, int id, int *x, int *y) {
+    *x = -1;
+    *y = -1;
+
+    for (int i = 0; i < 36; i++) {
+        if (bs->id[i] == id && is_topleft(bs, i)) {
+            *x = BIDX_TO_X(i);
+            *y = BIDX_TO_Y(i);
+            return;
+        }
+    }
+}
+
+int get_id(boardstate *bs, int x, int y) {
+    return bs->id[XY_TO_BIDX(x, y)];
+}
+
+typedef struct hash {
+    // 4 bits per square * 36 => 144 bits
+    // a square is only set if it is the top-left position of
+    //   a piece, and is set to the id of that piece
+    uint32_t b[5];
+} hash;
+
+void hash_board(boardstate *bs, hash *h) {
+    for (int i = 0; i < 5; i++) {
+        h->b[i] = 0;
+    }
+    // do two at a time
+    for (int i = 0; i < 36; i+=2) {
+        uint32_t bits = 0;
+        if (is_topleft(bs, i)) {
+            bits |= (bs->id[i] << 4);
+        }
+        if (is_topleft(bs, i+1)) {
+            bits |= bs->id[i];
+        }
+    }
+}
 
 typedef struct solvestate {
     // map[PIECE_IDX] = tree node
@@ -108,8 +183,8 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
         nomove(&c, RIGHT);
     }
     for (int i = 0; i < 6; i++) {
-        int other_id = get_id(x, y);
-        if (is_piece(i, y) && id != other_id) {
+        int other_id = bs->id[XY_TO_BIDX(i, y)];
+        if (is_piece(bs, i, y) && id != other_id) {
             if (i < x) {
                 add_blocker(&c, other_id, LEFT);
             } else {
