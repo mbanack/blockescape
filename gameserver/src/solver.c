@@ -38,6 +38,12 @@ typedef struct node {
 #define RIGHT 1
 #define LEFT  0
 
+// convert board idx in 0 .. 35 to x, y in 0 .. 5
+#define BIDX_TO_X(bidx) ((bidx) / 6)
+#define BIDX_TO_Y(bidx) ((bidx) % 6)
+// convert x,y to board idx
+#define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
+
 typedef struct boardstate {
     // 2 lists, mapping ids and type
     // (or bitmasks)
@@ -70,12 +76,6 @@ int is_topleft(boardstate *bs, int idx) {
     }
     return 1;
 }
-
-// convert board idx in 0 .. 35 to x, y in 0 .. 5
-#define BIDX_TO_X(bidx) ((bidx) / 6)
-#define BIDX_TO_Y(bidx) ((bidx) % 6)
-// convert x,y to board idx
-#define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
 
 // attempts to find a piece with given id, and returns its loc in x,y
 void find_piece(boardstate *bs, int id, int *x, int *y) {
