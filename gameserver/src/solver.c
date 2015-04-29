@@ -298,7 +298,7 @@ int is_solvable() {
         // TODO: alter the boardstate to reflect the move
         // ...
         // TODO: calc new_x, new_y
-        int horiz = is_horiz(bs, cur->id);
+        int horiz = is_horiz(&curboard, cur->id);
         int old_x, old_y;
         find_piece(&curboard, cur->id, &old_x, &old_y);
         int new_x, new_y;
