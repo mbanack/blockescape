@@ -305,26 +305,14 @@ int is_solvable(boardstate *bs) {
             return 0;
         }
 
-        // TODO: alter the boardstate to reflect the move
-        // ...
 
         // add new hash to "seen board states"
-        // else rewind
-        // TODO: rework for new hash struct
-        int hash = hash_board(bs);
-        if (seen.count(hash) != 0) {
-            if (unproductive.count(hash) != 0) {
-                rewind(hash);
-            } else {
-                int last_hash = board_history.top();
-                unproductive.insert(last_hash);
-                board_history.pop();
-            }
-        } else {
-            seen.insert(hash);
-            board_history.push(hash);
-        }
+        //   else rewind
+        hash premove_hash;
+        hash_board(bs, &premove_hash);
 
+        // TODO: alter the boardstate to reflect the move
+        // ...
         // TODO: calc new_x, new_y
         int horiz = is_horiz(cur->id);
         int old_x, old_y;
@@ -347,6 +335,19 @@ int is_solvable(boardstate *bs) {
         make_move(bs, cur->id, new_x, new_y);
 
         steps++;
+
+        if (seen.count(hash) != 0) {
+            if (unproductive.count(hash) != 0) {
+                rewind(hash);
+            } else {
+                int last_hash = board_history.top();
+                unproductive.insert(last_hash);
+                board_history.pop();
+            }
+        } else {
+            seen.insert(hash);
+            board_history.push(hash);
+        }
     }
     printf("0xFFFF\n");
     return 0;
