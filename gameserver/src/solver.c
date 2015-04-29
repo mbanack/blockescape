@@ -308,8 +308,8 @@ int is_solvable(boardstate *bs) {
 
         // add new hash to "seen board states"
         //   else rewind
-        hash premove_hash;
-        hash_board(bs, &premove_hash);
+        hash pre_hash;
+        hash_board(bs, &pre_hash);
 
         // TODO: alter the boardstate to reflect the move
         // ...
@@ -336,9 +336,15 @@ int is_solvable(boardstate *bs) {
 
         steps++;
 
-        if (seen.count(hash) != 0) {
-            if (unproductive.count(hash) != 0) {
-                rewind(hash);
+        hash post_hash;
+
+        if (seen.count(post_hash) != 0) {
+            if (unproductive.count(post_hash) != 0) {
+                // TODO: need to revisit rewind algo
+                //   just because we looped doesnt mean the entire
+                //   loop is unproductive
+                // so do we just rewind one?
+                rewind(post_hash);
             } else {
                 int last_hash = board_history.top();
                 unproductive.insert(last_hash);
