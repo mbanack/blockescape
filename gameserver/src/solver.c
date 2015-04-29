@@ -51,6 +51,13 @@ typedef struct boardstate {
     uint8_t type[36];
 } boardstate;
 
+boardstate board_init;
+boardstate curboard;
+set<hash> seen;
+set<hash> unproductive;
+// the bottom of board_history is the initial board state.
+stack<hash> board_history;
+
 int is_piece(boardstate *bs, int x, int y) {
     if (bs->id[XY_TO_BIDX(x, y)] != ID_BLANK) {
         return 1;
@@ -206,28 +213,6 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
 
     return 1;
 }
-
-// TODO: move to top/header
-typedef struct move {
-    int hash; // after applying this move
-    int id;
-    int old_x;
-    int old_y;
-    int new_x;
-    int new_y;
-} move;
-
-set<int> seen;
-set<int> unproductive;
-// TODO: replace board_history with move struct {move desc, board hash (before?after?)}
-//stack<int> board_history;
-
-boardstate board_init;
-// TODO: use this :)
-boardstate curboard;
-// the bottom of board_history is the initial board state.
-stack<hash> board_history;
-stack<move> move_history;
 
 // pop all hashes until we see the given hash
 //   adding all popped hashes to an "unproductive" list
