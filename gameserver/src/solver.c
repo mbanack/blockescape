@@ -5,6 +5,8 @@
 #include <stack>
 #include <set>
 
+#include "solver.h"
+
 using namespace std;
 
 // board is 6x6
@@ -24,14 +26,6 @@ using namespace std;
 #define ID_BLANK 0x00
 #define ID_P 0x01
 
-typedef struct node {
-    uint8_t id;
-    uint8_t init;
-    // node ids blocking left and right respectively
-    uint8_t l[5];
-    uint8_t r[5];
-} node;
-
 #define NOMOVE 0xFF
 #define FREE   0x00
 
@@ -44,13 +38,6 @@ typedef struct node {
 // convert x,y to board idx
 #define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
 
-typedef struct boardstate {
-    // 2 lists, mapping ids and type
-    // (or bitmasks)
-    uint8_t id[36];
-    uint8_t type[36];
-} boardstate;
-
 boardstate board_init;
 boardstate curboard;
 set<hash> seen;
@@ -61,6 +48,21 @@ stack<hash> board_history;
 int is_piece(boardstate *bs, int x, int y) {
     if (bs->id[XY_TO_BIDX(x, y)] != ID_BLANK) {
         return 1;
+    }
+    return 0;
+}
+
+int is_horiz(boardstate *bs, int idx) {
+    int col = idx % 6;
+    if (col != 0) {
+        if (bs->id[idx - 1] == bs->id[idx]) {
+            return 1;
+        }
+    }
+    if (col != 5) {
+        if (bs->id[idx + 1] == bs->id[idx]) {
+            return 1;
+        }
     }
     return 0;
 }
@@ -102,13 +104,6 @@ int get_id(boardstate *bs, int x, int y) {
     return bs->id[XY_TO_BIDX(x, y)];
 }
 
-typedef struct hash {
-    // 4 bits per square * 36 => 144 bits
-    // a square is only set if it is the top-left position of
-    //   a piece, and is set to the id of that piece
-    // so with 6 columns, each u32 is an entire row
-    uint32_t b[5];
-} hash;
 
 bool operator==(const hash& l, const hash& r) {
     return l.b == r.b;
@@ -135,11 +130,6 @@ void hash_board(boardstate *bs, hash *h) {
         }
     }
 }
-
-typedef struct solvestate {
-    // map[PIECE_IDX] = tree node
-    node map[36];
-} solvestate;
 
 void add_blocker(node *c, int id, int right) {
     if (right) {
@@ -308,7 +298,7 @@ int is_solvable() {
         // TODO: alter the boardstate to reflect the move
         // ...
         // TODO: calc new_x, new_y
-        int horiz = is_horiz(cur->id);
+        int horiz = is_horiz(bs, cur->id);
         int old_x, old_y;
         find_piece(&curboard, cur->id, &old_x, &old_y);
         int new_x, new_y;
