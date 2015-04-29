@@ -355,7 +355,7 @@ int main() {
     board_init.id[22] = 5;
     // preload bottom of board_history
     hash init_hash;
-    hash_board(board_init, &init_hash);
+    hash_board(&board_init, &init_hash);
     board_history.push(init_hash);
 
     if (is_solvable()) {
