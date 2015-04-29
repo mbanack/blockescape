@@ -9,6 +9,17 @@ using namespace std;
 
 // board is 6x6
 
+// XXX: integration notes
+// Board::move(oldx, oldy, x, y)
+//        validmove(...)
+//        isCollision()
+//
+// in addition to the move history stack, we need to store an initial
+//   board state to be able to do any forward tracking
+//
+// TODO: helper sugars for "print current board state"
+//         and "print current tree/table state"
+
 #define ID_P 0x01
 
 typedef struct node {
