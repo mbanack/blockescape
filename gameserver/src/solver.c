@@ -45,11 +45,17 @@ set<hash> unproductive;
 // the bottom of board_history is the initial board state.
 stack<hash> board_history;
 
-int is_piece(boardstate *bs, int x, int y) {
-    if (bs->id[XY_TO_BIDX(x, y)] != ID_BLANK) {
-        return 1;
+void insert_piece(boardstate *bs, int id, int width, int height, int new_x, int new_y) {
+    int bidx = XY_TO_BIDX(new_x, new_y);
+    if (width != 1) {
+        for (int i = 0; i < width; i++) {
+            bs->id[bidx + i] = id;
+        }
+    } else {
+        for (int i = 0; i < height; i++) {
+            bs->id[bidx + (6 * i)] = id;
+        }
     }
-    return 0;
 }
 
 int is_horiz(boardstate *bs, int idx) {
@@ -63,6 +69,53 @@ int is_horiz(boardstate *bs, int idx) {
         if (bs->id[idx + 1] == bs->id[idx]) {
             return 1;
         }
+    }
+    return 0;
+}
+
+// attempts to find a piece with given id, and returns its loc in x,y
+void find_piece(boardstate *bs, int id, int *x, int *y) {
+    *x = -1;
+    *y = -1;
+
+    for (int i = 0; i < 36; i++) {
+        if (bs->id[i] == id && is_topleft(bs, i)) {
+            *x = BIDX_TO_X(i);
+            *y = BIDX_TO_Y(i);
+            return;
+        }
+    }
+}
+
+int calc_width(boardstate *bs, int id) {
+    int x, y;
+    find_piece(bs, id, &x, &y);
+    if (x != -1) {
+        int w = 1;
+        for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx++) {
+            if (bs->id[bidx] != id) {
+                return w;
+            }
+            w++;
+        }
+    }
+    return -1;
+}
+
+void make_move(boardstate *bs, int id, int old_x, int old_y, int new_x, int new_y) {
+    int bidx = XY_TO_BIDX(old_x, old_y);
+    if (is_horiz(bs, bidx)) {
+        int width = calc_width(bs, id);
+        insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
+        insert_piece(bs, id, width, 1, new_x, new_y);
+    } else {
+        printf("!! NO VERT\n");
+    }
+}
+
+int is_piece(boardstate *bs, int x, int y) {
+    if (bs->id[XY_TO_BIDX(x, y)] != ID_BLANK) {
+        return 1;
     }
     return 0;
 }
@@ -84,20 +137,6 @@ int is_topleft(boardstate *bs, int idx) {
         }
     }
     return 1;
-}
-
-// attempts to find a piece with given id, and returns its loc in x,y
-void find_piece(boardstate *bs, int id, int *x, int *y) {
-    *x = -1;
-    *y = -1;
-
-    for (int i = 0; i < 36; i++) {
-        if (bs->id[i] == id && is_topleft(bs, i)) {
-            *x = BIDX_TO_X(i);
-            *y = BIDX_TO_Y(i);
-            return;
-        }
-    }
 }
 
 int get_id(boardstate *bs, int x, int y) {
@@ -323,8 +362,8 @@ int is_solvable() {
                 new_y = old_y + 1;
             }
         }
-        // TODO: call out to john board code
-        make_move(&curboard, cur->id, new_x, new_y);
+
+        make_move(&curboard, cur->id, old_x, old_y, new_x, new_y);
 
         steps++;
 

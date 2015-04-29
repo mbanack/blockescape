@@ -17,8 +17,12 @@ typedef struct boardstate {
     // 2 lists, mapping ids and type
     // (or bitmasks)
     uint8_t id[36];
+    // TODO: I don't ever use type... what is it?
+    //   do they still all move normally?
     uint8_t type[36];
 } boardstate;
+
+int is_topleft(boardstate *, int);
 
 typedef struct hash {
     // 4 bits per square * 36 => 144 bits
