@@ -103,6 +103,14 @@ typedef struct hash {
     uint32_t b[5];
 } hash;
 
+bool operator==(const hash& l, const hash& r) {
+    return l.b == r.b;
+}
+
+bool operator!=(const hash& l, const hash& r) {
+    return l.b != r.b;
+}
+
 // if we did some zero-collapsing, we could probably get a more
 //   compact hash by adding a check for is_topleft(bs, i).
 //   otherwise omitting the extra ids seems silly
@@ -364,12 +372,12 @@ int is_solvable() {
 
 int main() {
     // initialize global boardstate board_init with test board
-    board_init->id[12] = 0;
-    board_init->id[11] = 1;
-    board_init->id[10] = 2;
-    board_init->id[14] = 3;
-    board_init->id[18] = 4;
-    board_init->id[22] = 5;
+    board_init.id[12] = 0;
+    board_init.id[11] = 1;
+    board_init.id[10] = 2;
+    board_init.id[14] = 3;
+    board_init.id[18] = 4;
+    board_init.id[22] = 5;
     // preload bottom of board_history
     hash init_hash;
     hash_board(board_init, &init_hash);
