@@ -99,21 +99,24 @@ typedef struct hash {
     // 4 bits per square * 36 => 144 bits
     // a square is only set if it is the top-left position of
     //   a piece, and is set to the id of that piece
+    // so with 6 columns, each u32 is an entire row
     uint32_t b[5];
 } hash;
 
+// if we did some zero-collapsing, we could probably get a more
+//   compact hash by adding a check for is_topleft(bs, i).
+//   otherwise omitting the extra ids seems silly
+//   because all we're doing is throwing out data
 void hash_board(boardstate *bs, hash *h) {
     for (int i = 0; i < 5; i++) {
         h->b[i] = 0;
     }
-    // do two at a time
-    for (int i = 0; i < 36; i+=2) {
-        uint32_t bits = 0;
-        if (is_topleft(bs, i)) {
-            bits |= (bs->id[i] << 4);
-        }
-        if (is_topleft(bs, i+1)) {
-            bits |= bs->id[i];
+
+    // do it row at a time
+    for (int row = 0; row < 6; row++) {
+        for (int i = 0; i < 6; i++) {
+            int id = bs->id[XY_TO_BIDX(i, row)];
+            h->b[row] |= id << (4 * (7 - i));
         }
     }
 }
@@ -210,6 +213,10 @@ set<int> seen;
 set<int> unproductive;
 // TODO: replace board_history with move struct {move desc, board hash (before?after?)}
 //stack<int> board_history;
+
+boardstate board_init;
+// the bottom of board_history is the initial board state.
+stack<hash> board_history;
 stack<move> move_history;
 
 // pop all hashes until we see the given hash
@@ -218,6 +225,14 @@ stack<move> move_history;
 //       needs to "forward-wind from the beginning"
 //       to go back to the previous board state
 //  OR: apply "anti-moves"
+//
+//
+// from a board hash and parsing the board_init,
+//   we can glean the size of the pieces, and overlay
+//   them on the hash
+// wait...
+// if we're not collapsing zeroes, it doesnt matter that
+//   we only store the topleft.
 void rewind(int hash) {
     int top = board_history.top();
     while (top != hash) {
@@ -227,6 +242,8 @@ void rewind(int hash) {
     }
 }
 
+// TODO: should iterate on a pre-loaded board_history
+//       only using global board_init for rewinds
 int is_solvable(boardstate *bs) {
     int steps = 0;
     node *cur;
@@ -293,7 +310,8 @@ int is_solvable(boardstate *bs) {
 
         // add new hash to "seen board states"
         // else rewind
-        int hash = calc_hash(bs);
+        // TODO: rework for new hash struct
+        int hash = hash_board(bs);
         if (seen.count(hash) != 0) {
             if (unproductive.count(hash) != 0) {
                 rewind(hash);
@@ -335,8 +353,9 @@ int is_solvable(boardstate *bs) {
 }
 
 int main() {
-    boardstate state;
-    if(is_solvable(&state)) {
+    // TODO: initialize global boardstate board_init
+    //       with test board
+    if (is_solvable(&board_init)) {
         printf("solve\n");
     } else {
         printf("no solve\n");
