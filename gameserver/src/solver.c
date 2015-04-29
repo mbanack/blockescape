@@ -113,6 +113,14 @@ bool operator!=(const hash& l, const hash& r) {
     return l.b != r.b;
 }
 
+bool operator<(const hash& l, const hash& r) {
+    return l.b < r.b;
+}
+
+bool operator>(const hash& l, const hash& r) {
+    return l.b >= r.b;
+}
+
 // if we did some zero-collapsing, we could probably get a more
 //   compact hash by adding a check for is_topleft(bs, i).
 //   otherwise omitting the extra ids seems silly
