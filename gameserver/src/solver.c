@@ -33,8 +33,8 @@ using namespace std;
 #define LEFT  0
 
 // convert board idx in 0 .. 35 to x, y in 0 .. 5
-#define BIDX_TO_X(bidx) ((bidx) / 6)
-#define BIDX_TO_Y(bidx) ((bidx) % 6)
+#define BIDX_TO_X(bidx) ((bidx) % 6)
+#define BIDX_TO_Y(bidx) ((bidx) / 6)
 // convert x,y to board idx
 #define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
 
@@ -93,6 +93,7 @@ int is_horiz(boardstate *bs, int idx) {
 
 // attempts to find a piece with given id, and returns its loc in x,y
 void find_piece(boardstate *bs, int id, int *x, int *y) {
+    printf("find_piece(%d)\n", id);
     *x = -1;
     *y = -1;
 
@@ -100,6 +101,7 @@ void find_piece(boardstate *bs, int id, int *x, int *y) {
         if (bs->id[i] == id && is_topleft(bs, i)) {
             *x = BIDX_TO_X(i);
             *y = BIDX_TO_Y(i);
+            printf("found piece at %d, %d\n", *x, *y);
             return;
         }
     }
@@ -197,15 +199,16 @@ void hash_board(boardstate *bs, hash *h) {
 }
 
 void add_blocker(node *c, int id, int right) {
+    printf("add_blocker( %d, %d)\n", id, right);
     if (right) {
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 5; i++) {
             if (c->r[i] == FREE) {
                 c->r[i] = id;
                 return;
             }
         }
     } else {
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 5; i++) {
             if (c->l[i] == FREE) {
                 c->l[i] = id;
                 return;
@@ -215,7 +218,7 @@ void add_blocker(node *c, int id, int right) {
 }
 
 void nomove(node *c, int right) {
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 5; i++) {
         if (right) {
             c->r[i] = NOMOVE;
         } else {
@@ -235,6 +238,10 @@ void fill_node(node *c, int id) {
 
 // calculates the blockers and fills in ss.map
 int calc_blockers(boardstate *bs, solvestate *ss, int id) {
+    if (id == ID_BLANK) {
+        return -1;
+    }
+    printf("calc_blockers(%d)\n", id);
     if (!ss->map[id].init) {
         printf("no cb for !init\n");
         return -1;
@@ -257,6 +264,8 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
     }
     for (int i = 0; i < 6; i++) {
         int other_id = bs->id[XY_TO_BIDX(i, y)];
+        printf("cb i=%d y=%d\n", i, y);
+        printf("  %d %d\n", is_piece(bs, i, y), id != other_id);
         if (is_piece(bs, i, y) && id != other_id) {
             if (i < x) {
                 add_blocker(c, other_id, LEFT);
@@ -282,7 +291,7 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
 //   them on the hash
 // wait...
 // if we're not collapsing zeroes, it doesnt matter that
-//   we only store the topleft.
+//   we don't only store the topleft.
 void rewind(hash h) {
     hash top = board_history.top();
     while (top != h) {
@@ -297,6 +306,7 @@ int is_solvable() {
     int steps = 0;
     node *cur;
     while (steps < 0xFFFF) {
+        print_board();
         solvestate ss;
         // create solvestate with default node values
         //  (ie all pre-allocated)
@@ -308,6 +318,7 @@ int is_solvable() {
         if (steps == 0) {
             cur = &ss.map[ID_P];
             // starting from P (id 1)
+            ss.map[ID_P].init = 1;
             calc_blockers(&curboard, &ss, ID_P);
         }
 
@@ -322,6 +333,7 @@ int is_solvable() {
         for (int i = 0; i < 6; i++) {
             node *a = &ss.map[cur->l[i]];
             if (a->init == 0) {
+                a->init = 1;
                 calc_blockers(&curboard, &ss, a->id);
             }
         }
@@ -331,10 +343,13 @@ int is_solvable() {
         int moved = 0;
         // prefer moving right
         for (int i = 0; i < 5; i++) {
+            // walk the list of blockers
             if (cur->r[i] == NOMOVE || cur->r[i] == FREE) {
                 break;
             } else {
+                printf("moveright map %d\n", i);
                 cur = &ss.map[cur->r[i]];
+                printf("cur becomes %d\n", cur->id);
                 moved = 1;
             }
         }
@@ -343,6 +358,7 @@ int is_solvable() {
                 if (cur->l[i] == NOMOVE || cur->l[i] == FREE) {
                     break;
                 } else {
+                    printf("moveleft map %d\n", i);
                     cur = &ss.map[cur->l[i]];
                     moved = -1;
                 }
