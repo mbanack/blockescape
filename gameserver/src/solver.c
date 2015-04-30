@@ -45,6 +45,24 @@ set<hash> unproductive;
 // the bottom of board_history is the initial board state.
 stack<hash> board_history;
 
+uint8_t id_to_hex(int id) {
+    if (id < 10) {
+        return 48 + id; // decimal conv.
+    } else {
+        return 55 + id; // hex conv.
+    }
+}
+
+void print_board() {
+    for (int i = 0; i < 36; i++) {
+        printf("%c", id_to_hex(curboard.id[i]));
+        if ((i + 1) % 6 == 0) {
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
 void insert_piece(boardstate *bs, int id, int width, int height, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(new_x, new_y);
     if (width != 1) {
@@ -222,8 +240,8 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
         return -1;
     }
 
-    node c = ss->map[id];
-    c.init = 1;
+    node *c = &ss->map[id];
+    c->init = 1;
     // look in either direction of move axis and add all seen to list
     // TODO: this is just for horizontal moving pieces atm
     int x, y;
@@ -232,18 +250,18 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
         return -1;
     }
     if (x == 0) {
-        nomove(&c, LEFT);
+        nomove(c, LEFT);
     }
     if (x == 5) {
-        nomove(&c, RIGHT);
+        nomove(c, RIGHT);
     }
     for (int i = 0; i < 6; i++) {
         int other_id = bs->id[XY_TO_BIDX(i, y)];
         if (is_piece(bs, i, y) && id != other_id) {
             if (i < x) {
-                add_blocker(&c, other_id, LEFT);
+                add_blocker(c, other_id, LEFT);
             } else {
-                add_blocker(&c, other_id, RIGHT);
+                add_blocker(c, other_id, RIGHT);
             }
         }
     }
@@ -404,6 +422,8 @@ int main() {
     hash init_hash;
     hash_board(&board_init, &init_hash);
     board_history.push(init_hash);
+
+    print_board();
 
     if (is_solvable()) {
         printf("solve\n");
