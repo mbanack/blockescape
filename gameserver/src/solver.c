@@ -31,6 +31,8 @@ using namespace std;
 
 #define RIGHT 1
 #define LEFT  0
+#define UP    2
+#define DOWN  3
 
 // convert board idx in 0 .. 35 to x, y in 0 .. 5
 #define BIDX_TO_X(bidx) ((bidx) % 6)
@@ -54,6 +56,7 @@ uint8_t id_to_hex(int id) {
 }
 
 void print_board() {
+    printf("===\n");
     for (int i = 0; i < 36; i++) {
         printf("%c", id_to_hex(curboard.id[i]));
         if ((i + 1) % 6 == 0) {
@@ -122,14 +125,32 @@ int calc_width(boardstate *bs, int id) {
     return -1;
 }
 
+int calc_height(boardstate *bs, int id) {
+    int x, y;
+    find_piece(bs, id, &x, &y);
+    if (x != -1) {
+        int h = 1;
+        for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
+            if (bs->id[bidx] != id) {
+                return h;
+            }
+            h++;
+        }
+    }
+    return -1;
+}
+
 void make_move(boardstate *bs, int id, int old_x, int old_y, int new_x, int new_y) {
+    printf("make_move(%d => %d, %d)\n", id, new_x, new_y);
     int bidx = XY_TO_BIDX(old_x, old_y);
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
         insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
         insert_piece(bs, id, width, 1, new_x, new_y);
     } else {
-        printf("!! NO VERT\n");
+        int height = calc_height(bs, id);
+        insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
+        insert_piece(bs, id, 1, height, new_x, new_y);
     }
 }
 
@@ -217,8 +238,25 @@ void add_blocker(node *c, int id, int right) {
     }
 }
 
-void nomove(node *c, int right) {
+void nomove(node *c, int direction) {
     for (int i = 0; i < 5; i++) {
+        switch (direction) {
+        case RIGHT:
+            break;
+        case UP:
+            break;
+        case DOWN:
+            break;
+        case LEFT:
+            break;
+        }
+
+        // TODO: why do we have 2 separate lists for right and left?
+        //       and now we need 2 more for up and down?
+        //
+        //       a) who cares what direction its blocking
+        //       b) store block list as {dir, id} blocker struct
+
         if (right) {
             c->r[i] = NOMOVE;
         } else {
@@ -250,27 +288,45 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
     node *c = &ss->map[id];
     c->init = 1;
     // look in either direction of move axis and add all seen to list
-    // TODO: this is just for horizontal moving pieces atm
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x == -1) {
         return -1;
     }
-    if (x == 0) {
-        nomove(c, LEFT);
-    }
-    if (x == 5) {
-        nomove(c, RIGHT);
-    }
-    for (int i = 0; i < 6; i++) {
-        int other_id = bs->id[XY_TO_BIDX(i, y)];
-        printf("cb i=%d y=%d\n", i, y);
-        printf("  %d %d\n", is_piece(bs, i, y), id != other_id);
-        if (is_piece(bs, i, y) && id != other_id) {
-            if (i < x) {
-                add_blocker(c, other_id, LEFT);
-            } else {
-                add_blocker(c, other_id, RIGHT);
+    if (is_horiz(&curboard, id)) {
+        if (x == 0) {
+            nomove(c, LEFT);
+        }
+        if (x == 5) {
+            nomove(c, RIGHT);
+        }
+        for (int i = 0; i < 6; i++) {
+            int other_id = bs->id[XY_TO_BIDX(i, y)];
+            printf("cb i=%d y=%d\n", i, y);
+            printf("  %d %d\n", is_piece(bs, i, y), id != other_id);
+            if (is_piece(bs, i, y) && id != other_id) {
+                if (i < x) {
+                    add_blocker(c, other_id, LEFT);
+                } else {
+                    add_blocker(c, other_id, RIGHT);
+                }
+            }
+        }
+    } else {
+        if (y == 0) {
+            nomove(c, UP);
+        }
+        if (y == 5) {
+            nomove(c, DOWN);
+        }
+        for (int i = 0; i < 6; i++) {
+            int other_id = bs->id[XY_TO_BIDX(x, i)];
+            if (is_piece(bs, x, i) && id != other_id) {
+                if (i < y) {
+                    add_blocker(c, other_id, UP);
+                } else {
+                    add_blocker(c, other_id, DOWN);
+                }
             }
         }
     }
