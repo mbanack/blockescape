@@ -412,12 +412,19 @@ int is_solvable() {
 
 int main() {
     // initialize global boardstate board_init with test board
-    board_init.id[12] = 0;
-    board_init.id[11] = 1;
+    board_init.id[12] = 1;
+    board_init.id[13] = 1;
     board_init.id[10] = 2;
+    board_init.id[11] = 2;
     board_init.id[14] = 3;
+    board_init.id[20] = 3;
     board_init.id[18] = 4;
+    board_init.id[19] = 4;
     board_init.id[22] = 5;
+    board_init.id[23] = 5;
+
+    curboard = board_init;
+
     // preload bottom of board_history
     hash init_hash;
     hash_board(&board_init, &init_hash);
