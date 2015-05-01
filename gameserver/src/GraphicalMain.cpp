@@ -3,12 +3,17 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include "../inc/Board.hpp"
 #include "sio_client.h"
 using namespace std;
 SDL_Rect coordinates;
 bool down=false;
 bool newInput = false;
+int tempId = -1;
+//int assignId = 0;
+
+
 void networkMouseInput(sio::event &e){
     newInput=true;
     stringstream s;
@@ -16,9 +21,12 @@ void networkMouseInput(sio::event &e){
     string downStr;
     string xStr;
     string yStr;
+    string fromId;//dont need this since this is parse & assign coord
+    s >> fromId; //change 2
     s >> downStr;
     s >> xStr;
     s >> yStr;
+    tempId = atoi(fromId.c_str()); //keep track of who sent this and pass to sendPieceLocations
     if(atoi(downStr.c_str())==0)
         down = false;
     else
@@ -61,7 +69,8 @@ bool getMouseInput(bool &down, SDL_Rect &coordinates){
     }
     return true;
 }
-int main(int argc, char **argv){
+int main(int argc, char *argv[])
+{
     SDL_Init(SDL_INIT_EVERYTHING);
     IMG_Init(IMG_INIT_PNG);
     ifstream f(argv[1]);
@@ -80,7 +89,8 @@ int main(int argc, char **argv){
     Board b(6, 6, pieceGraphics, f);
     sio::client h;
     h.connect("http://127.0.0.1:9002");
-    h.socket()->on("mouse input", &networkMouseInput);
+    
+    h.socket()->on("mouse input", &networkMouseInput); //function pointer
     while(true){
         if(newInput){
             newInput = false;
@@ -89,7 +99,7 @@ int main(int argc, char **argv){
             else
                 b.mouseRelease();
         }
-        b.sendPieceLocations(h);
+        b.sendPieceLocations(h, tempId );
         sdlExit();
     }
     SDL_FreeSurface(backgroundGraphic);

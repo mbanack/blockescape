@@ -1,9 +1,9 @@
 SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp
 OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
-LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb
+LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -I/opt/local/include -I/opt/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE -L/opt/local/lib -lSDLmain -Wl,-framework,AppKit -lSDL -Wl,-framework,Cocoa
 
 graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
-	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
+	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -L/opt/local/lib -lSDL -lSDL_image -L/opt/local/lib -lboost_system-mt -L/opt/local/lib -lboost_date_time-mt -L/opt/local/lib -lboost_random-mt -pthread
 
 obj/Board.o: src/Board.cpp inc/Board.hpp src/sio_client.h
 	g++ $(LDFLAGS) -c src/Board.cpp -o $@

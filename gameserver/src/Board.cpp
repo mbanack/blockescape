@@ -3,10 +3,13 @@
 #include <cstdlib>
 #include <sstream>
 using namespace std;
+
+
 void Board::makeLotsOBoards(){
     vvi b = board;
     for(int i=1;i<=5;++i){
-        if(!isCollision(board,0,0,i));
+        if(!isCollision(board,0,0,i))
+            ;
             makeLotsOBoards(board,-1,0,i);
     }
     for(svvi::const_iterator it = lotsOBoards.begin(); 
@@ -36,7 +39,7 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
         makeLotsOBoards(bp,x,y,i);
     }
 }
-void Board::sendPieceLocations(sio::client &h){
+void Board::sendPieceLocations(sio::client &h, int tid){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
     if(lastNetworkMessage.empty()){
@@ -55,20 +58,20 @@ void Board::sendPieceLocations(sio::client &h){
     for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
         i!=pieces.end();++i) {
         r=i->second;
-        if(r.w != r.h)
-            s << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
+        if(r.w != r.h)//check this tid 
+            s << tid << " " << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
                 << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
     }
     r=floatingPieceRect;
     if(floatingPieceType==EMPTY_SPACE)
-        r.w=r.h=0;
-    s << floatingPieceType << " " << r.x << " " << r.y << " " 
+        r.w=r.h=0; //tid or to_string(tid)
+    s << tid << " " << floatingPieceType << " " << r.x << " " << r.y << " " 
         << r.w << " " << r.h << " ";
         
     string message=s.str();
     if(message!=lastNetworkMessage){
-        h.socket()->emit("draw pieces", message.c_str());
-        lastNetworkMessage=message;
+        //h.socket()->emit("draw pieces", (to_string(tid)+message).c_str() );
+        lastNetworkMessage = to_string(tid) + message;
     }
 }
 void Board::mouseDrag(SDL_Rect rect){
@@ -373,6 +376,7 @@ Board::Board(int width, int height,
 Board::Board(int width, int height, 
     const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){ 
     this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
+    //change 1
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
@@ -443,6 +447,7 @@ bool Board::fullBoard(vvi board, int x, int y, int pieceType){
 }
 bool Board::fullBoard(){
     fullBoard(board);
+    return false; //added this to avoid warning
 }
 bool Board::fullBoard(vvi board){
     bool ret=true;
