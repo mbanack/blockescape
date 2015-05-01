@@ -26,13 +26,11 @@ using namespace std;
 #define ID_BLANK 0x00
 #define ID_P 0x01
 
-#define NOMOVE 0xFF
-#define FREE   0x00
-
 #define RIGHT 1
 #define LEFT  0
 #define UP    2
 #define DOWN  3
+#define NULL_DIR -1
 
 // convert board idx in 0 .. 35 to x, y in 0 .. 5
 #define BIDX_TO_X(bidx) ((bidx) % 6)
@@ -219,48 +217,13 @@ void hash_board(boardstate *bs, hash *h) {
     }
 }
 
-void add_blocker(node *c, int id, int right) {
-    printf("add_blocker( %d, %d)\n", id, right);
-    if (right) {
-        for (int i = 0; i < 5; i++) {
-            if (c->r[i] == FREE) {
-                c->r[i] = id;
-                return;
-            }
-        }
-    } else {
-        for (int i = 0; i < 5; i++) {
-            if (c->l[i] == FREE) {
-                c->l[i] = id;
-                return;
-            }
-        }
-    }
-}
-
-void nomove(node *c, int direction) {
-    for (int i = 0; i < 5; i++) {
-        switch (direction) {
-        case RIGHT:
-            break;
-        case UP:
-            break;
-        case DOWN:
-            break;
-        case LEFT:
-            break;
-        }
-
-        // TODO: why do we have 2 separate lists for right and left?
-        //       and now we need 2 more for up and down?
-        //
-        //       a) who cares what direction its blocking
-        //       b) store block list as {dir, id} blocker struct
-
-        if (right) {
-            c->r[i] = NOMOVE;
-        } else {
-            c->l[i] = NOMOVE;
+void add_blocker(node *c, int id, int dir) {
+    printf("add_blocker( %d, %d)\n", id, dir);
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        if (c->block[i].id == FREE) {
+            c->block[i].id = id;
+            c->block[i].dir = dir;
+            return;
         }
     }
 }
@@ -268,9 +231,9 @@ void nomove(node *c, int direction) {
 void fill_node(node *c, int id) {
     c->id = id;
     c->init = 0;
-    for (int i = 0; i < 5; i++) {
-        c->l[i] = FREE;
-        c->r[i] = FREE;
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        c->block[i].id = FREE;
+        c->block[i].dir = NULL_DIR;
     }
 }
 
@@ -357,6 +320,30 @@ void rewind(hash h) {
     }
 }
 
+// returns 1 if we have a productive free move, and update cur, etc
+//   accordingly
+int consider_free_moves() {
+    printf("stub consider_free_moves()");
+
+    return 1;
+}
+
+int consider_blockers(node *cur) {
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        if (cur->blockers[i].id != ID_BLANK) {
+            hash predict;
+            predict_hash(cur->blockers[i].id, cur->blockers[i].dir,
+                         &predict);
+            if (seen.count(predict) == 0) {
+                // we haven't seen it, so try it
+                fill_node(cur, cur->blockers[i].id);
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 // iterate on a pre-loaded board_history
 int is_solvable() {
     int steps = 0;
@@ -394,37 +381,12 @@ int is_solvable() {
             }
         }
 
-        // pick one of the blockers as "our move" to try to solve
-
-        int moved = 0;
-        // prefer moving right
-        for (int i = 0; i < 5; i++) {
-            // walk the list of blockers
-            if (cur->r[i] == NOMOVE || cur->r[i] == FREE) {
-                break;
-            } else {
-                printf("moveright map %d\n", i);
-                cur = &ss.map[cur->r[i]];
-                printf("cur becomes %d\n", cur->id);
-                moved = 1;
-            }
-        }
-        if (moved == 0) {
-            for (int i = 0; i < 5; i++) {
-                if (cur->l[i] == NOMOVE || cur->l[i] == FREE) {
-                    break;
-                } else {
-                    printf("moveleft map %d\n", i);
-                    cur = &ss.map[cur->l[i]];
-                    moved = -1;
-                }
+        if (!consider_free_moves(cur)) {
+            if (!consider_blockers(cur)) {
+                rewind(...);
             }
         }
 
-        if (moved == 0) {
-            printf("no moves to make... rewind\n");
-            return 0;
-        }
 
 
         // add new hash to "seen board states"
