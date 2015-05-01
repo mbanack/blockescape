@@ -116,7 +116,10 @@ int main(int argc, char *argv[]){
                 if(down.find(*i)->second==true)
                     boards.find(*i)->second.mouseDrag(coordinates.find(*i)->second);
                 else
+                {
                     boards.find(*i)->second.mouseRelease();
+                    boards.find(*i)->second.printIds(cout);
+                }
             }
             boards.find(*i)->second.sendPieceLocations(h, *i);
         }
