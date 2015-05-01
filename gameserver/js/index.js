@@ -1,6 +1,7 @@
 var app = require('express')();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
+var newid = 0;
 
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
@@ -15,6 +16,11 @@ io.on('connection', function(socket){
   });
   socket.on('draw pieces', function(msg){
     io.emit('draw pieces', msg);
+  });
+  socket.on('assign me id', function(msg){
+    var message = newid + ' ';
+    io.emit('assign id html', message);
+    newid++;
   });
 });
 

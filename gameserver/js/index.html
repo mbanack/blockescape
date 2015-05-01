@@ -20,10 +20,18 @@
             var types = [];
             var numObjects = 0;
             var newInput = 0;
+            var clientId = -1;
+            var message = '';
 
             onload = init;
 
             function init() {
+                socket.emit('assign me id');
+                socket.on('assign id html', function(newid){
+                    if(clientId == -1) {
+                        clientId = +newid;
+                    }
+                });
                 canvas = oCanvas.create({
                     canvas: "#myCanvas"
                 });
@@ -70,49 +78,57 @@
                 canvas.addChild(rectangle);
             }
 
+            var temp_x;
             function inputLoop() {
-                if(canvas.mouse.buttonState=="up"&&md==1){
-                    md=0;
-                    newInput=1;
-                }
-                if(canvas.mouse.buttonState=="down"&&md==0){
-                    md=1;
-                    newInput=1;
-                }
-                if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
-                    mx=canvas.mouse.x;
-                    my=canvas.mouse.y;
-                    newInput=1;
-                }
-                if(newInput == 1){
-                    newInput = 0;
-                    message = md + ' ' + mx + ' ' + my;
-                    socket.emit('mouse input', message);
+                if(clientId!=-1){
+                    if(canvas.mouse.buttonState=="up"&&md==1){
+                        md=0;
+                        newInput=1;
+                    }
+                    if(canvas.mouse.buttonState=="down"&&md==0){
+                        md=1;
+                        newInput=1;
+                    }
+                    if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
+                        mx=canvas.mouse.x;
+                        my=canvas.mouse.y;
+                        newInput=1;
+                    }
+                    if(newInput == 1){
+                        newInput = 0;
+                        message = clientId + ' ' + md + ' ' + mx + ' ' + my;
+                        socket.emit('mouse input', message);
+                    }
                 }
             }
 
             socket.on('num pieces', function(msg){
-                initObjects(+msg);
+                message=msg.split(/[ ,]+/);
+                if(+message[0]==clientId)
+                    initObjects(+message[1]);
             });
 
             socket.on('draw pieces', function(msg){
                 rect=msg.split(/[ ,]+/);
-                for(var i=0;i<numObjects;i++) {
-                    if(+rect[i*5]==0){//0 is player piece type
-                        objects[i].fill="#707";
-                    }
-                    else{
-                        objects[i].fill="#077";
-                    }
-                    objects[i].x = +rect[i*5+1];
-                    objects[i].y = +rect[i*5+2];
-                    objects[i].width = +rect[i*5+3];
-                    objects[i].height = +rect[i*5+4];
-                    if(objects[i].width == 0){
-                        objects[i].stroke="0px";
-                    }
-                    else{
-                        objects[i].stroke="inside 1px rgba(220, 220, 220, 1)";
+                //check id before u do any draws
+                if(+rect[0]==clientId){
+                    for(var i=0;i<numObjects;i++) {
+                        if(+rect[i*6+1]==0){//0 is player piece type
+                            objects[i].fill="#707";
+                        }
+                        else{
+                            objects[i].fill="#077";
+                        }
+                        objects[i].x = +rect[i*6+2];
+                        objects[i].y = +rect[i*6+3];
+                        objects[i].width = +rect[i*6+4];
+                        objects[i].height = +rect[i*6+5];
+                        if(objects[i].width == 0){
+                            objects[i].stroke="0px";
+                        }
+                        else{
+                            objects[i].stroke="inside 1px rgba(220, 220, 220, 1)";
+                        }
                     }
                 }
             });

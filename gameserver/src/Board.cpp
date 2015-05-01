@@ -141,7 +141,7 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
         makeLotsOBoards(bp,x,y,i);
     }
 }
-void Board::sendPieceLocations(sio::client &h){
+void Board::sendPieceLocations(sio::client &h, int tid){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
     if(lastNetworkMessage.empty()){
@@ -152,7 +152,7 @@ void Board::sendPieceLocations(sio::client &h){
                 numPieces++;
             
         }
-        s << numPieces + 1; //+ 1 is floating piece
+        s << tid << " " << numPieces + 1; //+ 1 is floating piece
         h.socket()->emit("num pieces", s.str().c_str());
         s.str("");
     }
@@ -161,13 +161,13 @@ void Board::sendPieceLocations(sio::client &h){
         i!=pieces.end();++i) {
         r=i->second;
         if(r.w != r.h)
-            s << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
+            s << tid << " " << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
                 << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
     }
     r=floatingPieceRect;
     if(floatingPieceType==EMPTY_SPACE)
         r.w=r.h=0;
-    s << floatingPieceType << " " << r.x << " " << r.y << " " 
+    s << tid << " " << floatingPieceType << " " << r.x << " " << r.y << " " 
         << r.w << " " << r.h << " ";
         
     string message=s.str();
@@ -547,7 +547,7 @@ bool Board::fullBoard(vvi board, int x, int y, int pieceType){
     return fullBoard(board);
 }
 bool Board::fullBoard(){
-    fullBoard(board);
+    return fullBoard(board);
 }
 bool Board::fullBoard(vvi board){
     bool ret=true;
