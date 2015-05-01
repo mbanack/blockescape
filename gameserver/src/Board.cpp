@@ -3,6 +3,61 @@
 #include <cstdlib>
 #include <sstream>
 using namespace std;
+void Board::hash(char hash[18]){
+    vvi board = this->board;
+    vector<int> tmp(BOARD_COLS, 0);
+    vvi bid(BOARD_ROWS, tmp);
+    uint8_t highestId=2; //0 is empty space 1 is player
+    //Fill out board id array
+    for(int i=0;i<BOARD_ROWS*BOARD_COLS;++i){
+        int piece=board[i/BOARD_COLS][i%BOARD_COLS];
+        if(piece==PIECE_HORIZONTAL2){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
+            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+        } 
+        else if(piece==PIECE_HORIZONTAL3){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
+            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=highestId;
+            bid[i/BOARD_COLS][(i+2)%BOARD_COLS]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+2)%BOARD_COLS]=EMPTY_SPACE;
+        } 
+        else if(piece==PIECE_VERTICAL2){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
+            bid[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        }  
+        else if(piece==PIECE_VERTICAL3){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
+            bid[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=highestId;
+            bid[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        } 
+        else if(piece==EMPTY_SPACE){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=0;
+        }
+        else if(piece==PIECE_PLAYER){
+            bid[i/BOARD_COLS][i%BOARD_COLS]=1;
+            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=1;
+            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+        }
+    }
+    //Convert board id array to char[18]
+    for(int i = 0; i < BOARD_ROWS * BOARD_COLS; ++i){
+        //High nibble
+        if(i%2==0)
+            hash[i/2]=(bid[i/BOARD_COLS][i/BOARD_ROWS] & 0xF) << 4;
+        else
+            hash[i/2]=bid[i/BOARD_COLS][i/BOARD_ROWS] & 0xF; //Low nibble
+    }
+}
 void Board::makeLotsOBoards(){
     vvi b = board;
     for(int i=1;i<=5;++i){
