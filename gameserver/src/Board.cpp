@@ -3,6 +3,56 @@
 #include <cstdlib>
 #include <sstream>
 using namespace std;
+/************************************************************
+void Board::removeRandomPiece(vvi &board){
+    int x = rand()%BOARD_COLS;
+    int y = rand()%BOARD_ROWS;
+    int index=getFirstBlockIndex(BOARD_COLS*y + x);
+    SDL_Rect dontUse;
+    int pieceTypeDontUse;
+    removePiece(index, board, dontUse, pieceTypeDontUse);
+}
+void Board::placeRandomPiece(vvi &board){
+    do
+    {
+        //TODO Make sure x y combo different than before
+        int x = rand()%BOARD_COLS;
+        int y = rand()%BOARD_ROWS;
+        int pieceType;
+        vector<int> unusedPieceTypes;
+        unusedPieceTypes.push(PIECE_HORIZONTAL2);
+        unusedPieceTypes.push(PIECE_HORIZONTAL3);
+        unusedPieceTypes.push(PIECE_VERTICAL2);
+        unusedPieceTypes.push(PIECE_VERTICAL3);
+        do{
+            
+            int pieceTypeIndex = rand()%(unusedPieceTypes.size());
+            pieceType=unusedPieceTypes[pieceTypeIndex]; 
+            unusedPieceTypes.erase(unusedPieceTypes.begin()+pieceTypeIndex);
+        } while(!unusedPieceTypes.empty() &&
+            isCollision(x, y, pieceType));
+    } while(isCollision(x, y, pieceType)));
+    placePiece(board,x,pieceType);
+}
+Board Board::makeBoard(int targetMoves){
+    vvi originalBoard = board;
+    for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i)
+        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+    while(solver.numMoves != targetMoves){
+        while(solver.numMoves() > targetMoves )
+            removeRandomPiece(board);
+        //TODO: Don't call placeRandomPiece if no two adjacent squares
+        placeRandomPiece(board);
+        if(solver.unsolvable())
+            board = lastBoard;
+        lastBoard=board;
+    }
+    Board b = *this;
+    board = originalBoard;
+    return b;
+    
+}
+*************************************************************/
 void Board::hash(char hash[18]){
     vvi board = this->board;
     vector<int> tmp(BOARD_COLS, 0);
