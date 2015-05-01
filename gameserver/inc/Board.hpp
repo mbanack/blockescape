@@ -40,8 +40,8 @@ public:
     void mouseRelease();
     void sendPieceLocations(sio::client &h, int tid);
     void makeLotsOBoards();//unused
-    void hash(char hash[18]);
     //Board makeBoard(int numMoves);
+    void convertToIds(uint8_t id[36]);
 private:
     void makeLotsOBoards(vvi b, int x, int y, int type);
     std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
