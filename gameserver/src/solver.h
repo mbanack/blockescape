@@ -4,13 +4,17 @@
 #ifndef SOLVER_H
 #define SOLVER_H
 
+typedef struct blocker {
+    uint8_t id;
+    uint8_t dir;
+} blocker;
+
+#define NUM_BLOCKERS 20
 
 typedef struct node {
     uint8_t id;
     uint8_t init;
-    // node ids blocking left and right respectively
-    uint8_t l[5];
-    uint8_t r[5];
+    blocker block[NUM_BLOCKERS];
 } node;
 
 typedef struct boardstate {
