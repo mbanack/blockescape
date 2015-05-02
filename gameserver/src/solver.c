@@ -56,7 +56,7 @@ uint8_t id_to_hex(int id) {
 void print_board(bsref bs) {
     printf("===\n");
     for (int i = 0; i < 36; i++) {
-        printf("%c", id_to_hex(bs.s[i]));
+        printf("%c ", id_to_hex(bs.s[i]));
         if ((i + 1) % 6 == 0) {
             printf("\n");
         }
@@ -148,11 +148,6 @@ void make_move(bsref bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
-}
-
-// clones the contents of board bsa into board bsb
-void clone_bsref(bsref bsb, bsref bsa) {
-    strncpy((char *)(bsb.s), (char *)(bsa.s), 36);
 }
 
 int is_piece(bsref bs, int x, int y) {
@@ -317,6 +312,13 @@ void rewind(hash h) {
 }
 */
 
+// clones the contents of board bsa into board bsb
+void clone_bsref(bsref bsb, bsref bsa) {
+    char *b = (char *)bsb.s;
+    char *a = (char *)bsa.s;
+    strncpy(b, a, 36);
+}
+
 void clear_bsref(bsref h) {
     memset(h.s, 0x00, 36);
 }
@@ -395,7 +397,8 @@ int is_solvable(bsref init) {
     // the id of the current piece to move
     int curid;
     bsref curboard;
-    clone_bsref(init, curboard);
+    memset(&curboard, 0x00, sizeof(curboard));
+    clone_bsref(curboard, init);
     while (steps < 0xFFFF) {
         print_board(curboard);
         solvestate ss;
@@ -451,6 +454,8 @@ int is_solvable(bsref init) {
 }
 
 int main() {
+    memset(&null_bstate, 0x00, sizeof(null_bstate));
+    memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(null_bstate);
     // initialize global bstate board_init with test board
     board_init.s[12] = 1;
