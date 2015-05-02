@@ -60,7 +60,7 @@ void print_board(bsref *bs) {
     printf("\n");
 }
 
-void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
+inline void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(new_x, new_y);
     if (width != 1) {
         for (int i = 0; i < width; i++) {
@@ -216,7 +216,7 @@ void hash_board(bstate *bs, hash *h) {
 */
 
 void add_blocker(node *c, int id, int dir) {
-    printf("add_blocker( %d, %d)\n", id, dir);
+    printf("add_blocker(%d, %d)\n", id, dir);
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (c->blockers[i].id == ID_BLANK) {
             c->blockers[i].id = id;
@@ -354,10 +354,9 @@ int is_new_hash(bsref *bs) {
 
 // consider "free moves" of cur
 //   and moves of cur's blockers
-// if we have a viable move
-//   push the new hash onto board_history
-//   update curboard
-int apply_heuristics(bsref *bs, solvestate *ss, node *curnode) {
+// returns 1 if we have a viable move,
+//   and sets c_out with the updated board state
+int apply_heuristics(bsref *bs, solvestate *ss, node *curnode, bsref *c_out, int *cid_out) {
     int id = curnode->id;
     int x, y;
     find_piece(bs, id, &x, &y);
@@ -366,30 +365,72 @@ int apply_heuristics(bsref *bs, solvestate *ss, node *curnode) {
     }
     int bidx = XY_TO_BIDX(x, y);
 
+    clone_bsref(c_out, bs);
+    printf("apply_heuristics(%d)\n", id);
     // consider free moves
     if (is_horiz(bs, bidx)) {
-
+        if (x != 0) {
+            if (bs->s[bidx - 1] == ID_BLANK) {
+                make_move(c_out, id, x, y, x - 1, y);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    // this is our new move
+                    return 1;
+                }
+            }
+        }
+        if (x != 5) {
+            if (bs->s[bidx + 1] == ID_BLANK) {
+                make_move(c_out, id, x, y, x + 1, y);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
+            }
+        }
     } else {
-
+        if (y != 0) {
+            if (bs->s[bidx - 6] == ID_BLANK) {
+                make_move(c_out, id, x, y, x, y - 1);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
+            }
+        }
+        if (y != 5) {
+            if (bs->s[bidx + 6] == ID_BLANK) {
+                make_move(c_out, id, x, y, x, y + 1);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
+            }
+        }
     }
-
+    printf("  no free moves\n");
     // if no free moves, consider blockers
-    if (!consider_blockers(bs, ss, &id)) {
-        // ...
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        if (curnode->blockers[i].id != ID_BLANK) {
+            bsref predict;
+            predict_next(curnode->blockers[i].id, curnode->blockers[i].dir,
+                         &predict);
+            if (seen.count(predict) == 0) {
+                // the next piece to move is this one
+                // TODO: this isnt really a move, but it might be a
+                //   "solve difficulty unit"
+                printf("found blocker\n");
+                *cid_out = curnode->blockers[i].id;
+                seen.insert(predict);
+                return 1;
+            }
+        }
     }
-
-    // TODO: if we have a nice way to shortcut multiple moves, need to update steps in scope-above
-    //make_move(curboard, curid, old_x, old_y, new_x, new_y);
-    //
-    //board_history.push(h)
-    //seen.insert(h);
-
-    return false;
+    return 0;
 }
 
 
 int is_solvable(bsref *init) {
-    print_board(init);
     // the bottom of board_history is the initial board state.
     // the top of board_history is the current board state
     stack<bsref> board_history;
@@ -400,10 +441,7 @@ int is_solvable(bsref *init) {
     int curid = ID_P;
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
-    print_board(init);
     clone_bsref(&curboard, init);
-    print_board(init);
-    print_board(&curboard);
     while (steps < 0xFFFF) {
         printf("[step %d] curid=%d\n", steps, curid);
         print_board(&curboard);
@@ -447,16 +485,18 @@ int is_solvable(bsref *init) {
 
         // XXX: can we update the depgraph faster than wipe+regen?
 
-        if (!apply_heuristics(&curboard, &ss, curnode)) {
+        bsref c;
+        if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
             // this is a dead end, so pop it off the stack
             if (board_history.empty()) {
-                printf("error in is_solvable\n");
+                printf("error in is_solvable (board_history empty)\n");
                 return 0;
             }
             bsref top = board_history.top();
             unproductive.insert(top);
             board_history.pop();
         } else {
+            board_history.push(c);
             steps++;
         }
     }
