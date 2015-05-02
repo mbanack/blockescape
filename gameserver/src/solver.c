@@ -220,9 +220,9 @@ void hash_board(boardstate *bs, hash *h) {
 void add_blocker(node *c, int id, int dir) {
     printf("add_blocker( %d, %d)\n", id, dir);
     for (int i = 0; i < NUM_BLOCKERS; i++) {
-        if (c->block[i].id == FREE) {
-            c->block[i].id = id;
-            c->block[i].dir = dir;
+        if (c->blocked[i].id == ID_BLANK) {
+            c->blocked[i].id = id;
+            c->blocked[i].dir = dir;
             return;
         }
     }
@@ -232,8 +232,8 @@ void fill_node(node *c, int id) {
     c->id = id;
     c->init = 0;
     for (int i = 0; i < NUM_BLOCKERS; i++) {
-        c->block[i].id = FREE;
-        c->block[i].dir = NULL_DIR;
+        c->blocked[i].id = ID_BLANK;
+        c->blocked[i].dir = NULL_DIR;
     }
 }
 
@@ -257,12 +257,6 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
         return -1;
     }
     if (is_horiz(&curboard, id)) {
-        if (x == 0) {
-            nomove(c, LEFT);
-        }
-        if (x == 5) {
-            nomove(c, RIGHT);
-        }
         for (int i = 0; i < 6; i++) {
             int other_id = bs->id[XY_TO_BIDX(i, y)];
             printf("cb i=%d y=%d\n", i, y);
@@ -276,12 +270,6 @@ int calc_blockers(boardstate *bs, solvestate *ss, int id) {
             }
         }
     } else {
-        if (y == 0) {
-            nomove(c, UP);
-        }
-        if (y == 5) {
-            nomove(c, DOWN);
-        }
         for (int i = 0; i < 6; i++) {
             int other_id = bs->id[XY_TO_BIDX(x, i)];
             if (is_piece(bs, x, i) && id != other_id) {
@@ -332,7 +320,7 @@ int consider_blockers(node *cur) {
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (cur->blockers[i].id != ID_BLANK) {
             hash predict;
-            predict_hash(cur->blockers[i].id, cur->blockers[i].dir,
+            predict_hash(cur->blocked[i].id, cur->blocked[i].dir,
                          &predict);
             if (seen.count(predict) == 0) {
                 // we haven't seen it, so try it
@@ -446,6 +434,7 @@ int is_solvable() {
 
 int main() {
     // initialize global boardstate board_init with test board
+    // TODO: given a Board, call Board::fillBoardstate(board_init)
     board_init.id[12] = 1;
     board_init.id[13] = 1;
     board_init.id[10] = 2;

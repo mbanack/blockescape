@@ -14,16 +14,13 @@ typedef struct blocker {
 typedef struct node {
     uint8_t id;
     uint8_t init;
-    blocker block[NUM_BLOCKERS];
+    blocker blocked[NUM_BLOCKERS];
 } node;
 
 typedef struct boardstate {
     // 2 lists, mapping ids and type
     // (or bitmasks)
     uint8_t id[36];
-    // TODO: I don't ever use type... what is it?
-    //   do they still all move normally?
-    uint8_t type[36];
 } boardstate;
 
 int is_topleft(boardstate *, int);
