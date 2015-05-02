@@ -61,7 +61,9 @@ void print_board(bsref *bs) {
 }
 
 inline void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
+    printf("insert_piece(%d [%dx%d] @ (%d, %d))\n", id, width, height, new_x, new_y);
     int bidx = XY_TO_BIDX(new_x, new_y);
+    printf("  bidx %d\n", bidx);
     if (width != 1) {
         for (int i = 0; i < width; i++) {
             bs->s[bidx + i] = id;
@@ -106,7 +108,7 @@ int calc_width(bsref *bs, int id) {
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x != -1) {
-        int w = 1;
+        int w = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx++) {
             if (bs->s[bidx] != id) {
                 return w;
@@ -121,7 +123,7 @@ int calc_height(bsref *bs, int id) {
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x != -1) {
-        int h = 1;
+        int h = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
             if (bs->s[bidx] != id) {
                 return h;
@@ -132,7 +134,7 @@ int calc_height(bsref *bs, int id) {
     return -1;
 }
 
-void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
+inline void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     printf("make_move(%d => %d, %d)\n", id, new_x, new_y);
     int bidx = XY_TO_BIDX(old_x, old_y);
     if (is_horiz(bs, bidx)) {
@@ -144,6 +146,7 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
+    print_board(bs);
 }
 
 int is_piece(bsref *bs, int x, int y) {
@@ -323,24 +326,52 @@ int is_null_hash(bsref *h) {
     return memcmp(h->s, null_bstate.s, 36);
 }
 
-void predict_next(uint8_t id, uint8_t dir, bsref *next) {
-    clear_bsref(next);
-
-    // enum all possible moves of that piece (given cur)
-    //   and if they aren't already in seen, explore them
-}
-
-int consider_blockers(bsref *bs, solvestate *ss, int *curid) {
-    node *cur = &ss->map[*curid];
-    for (int i = 0; i < NUM_BLOCKERS; i++) {
-        if (cur->blockers[i].id != ID_BLANK) {
-            bsref predict;
-            predict_next(cur->blockers[i].id, cur->blockers[i].dir,
-                         &predict);
-            if (seen.count(predict) == 0) {
-                // we haven't seen it, so try it
-                *curid = cur->blockers[i].id;
-                return 1;
+// enum all possible moves of the piece at bidx (ie x, y)
+//   and if they aren't already in seen, explore them (by ret 1)
+inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
+    int id = bs->s[bidx];
+    printf("predict_next(%d @ %d, %d)\n", id, x, y);
+    if (is_horiz(bs, bidx)) {
+        if (x != 0) {
+            if (bs->s[bidx - 1] == ID_BLANK) {
+                printf("horiz left\n");
+                make_move(c_out, id, x, y, x - 1, y);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    // this is our new move
+                    return 1;
+                }
+            }
+        }
+        if (x != 5) {
+            if (bs->s[bidx + 1] == ID_BLANK) {
+                printf("horiz right\n");
+                make_move(c_out, id, x, y, x + 1, y);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
+            }
+        }
+    } else {
+        if (y != 0) {
+            if (bs->s[bidx - 6] == ID_BLANK) {
+                printf("vert up\n");
+                make_move(c_out, id, x, y, x, y - 1);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
+            }
+        }
+        if (y != 5) {
+            if (bs->s[bidx + 6] == ID_BLANK) {
+                printf("vert down\n");
+                make_move(c_out, id, x, y, x, y + 1);
+                // XXX: array copy
+                if (seen.count(*c_out) == 0) {
+                    return 1;
+                }
             }
         }
     }
@@ -368,52 +399,35 @@ int apply_heuristics(bsref *bs, solvestate *ss, node *curnode, bsref *c_out, int
     clone_bsref(c_out, bs);
     printf("apply_heuristics(%d)\n", id);
     // consider free moves
-    if (is_horiz(bs, bidx)) {
-        if (x != 0) {
-            if (bs->s[bidx - 1] == ID_BLANK) {
-                make_move(c_out, id, x, y, x - 1, y);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
-                    // this is our new move
-                    return 1;
-                }
-            }
-        }
-        if (x != 5) {
-            if (bs->s[bidx + 1] == ID_BLANK) {
-                make_move(c_out, id, x, y, x + 1, y);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
-                    return 1;
-                }
-            }
-        }
-    } else {
-        if (y != 0) {
-            if (bs->s[bidx - 6] == ID_BLANK) {
-                make_move(c_out, id, x, y, x, y - 1);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
-                    return 1;
-                }
-            }
-        }
-        if (y != 5) {
-            if (bs->s[bidx + 6] == ID_BLANK) {
-                make_move(c_out, id, x, y, x, y + 1);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
-                    return 1;
-                }
+    if (predict_next(bs, c_out, bidx, x, y)) {
+        *cid_out = id;
+        return 1;
+    }
+    // consider blocker moves
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        int b_id = curnode->blockers[i].id;
+        if (b_id != ID_BLANK) {
+            int b_x, b_y;
+            find_piece(bs, b_id, &b_x, &b_y);
+            if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
+                *cid_out = b_id;
+                return 1;
             }
         }
     }
+
+    /*
+    // SCRUB
     printf("  no free moves\n");
+
     // if no free moves, consider blockers
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (curnode->blockers[i].id != ID_BLANK) {
             bsref predict;
-            predict_next(curnode->blockers[i].id, curnode->blockers[i].dir,
+            predict_next(bs,
+                         id,
+                         curnode->blockers[i].id,
+                         curnode->blockers[i].dir,
                          &predict);
             if (seen.count(predict) == 0) {
                 // the next piece to move is this one
@@ -426,6 +440,7 @@ int apply_heuristics(bsref *bs, solvestate *ss, node *curnode, bsref *c_out, int
             }
         }
     }
+    */
     return 0;
 }
 
@@ -442,7 +457,7 @@ int is_solvable(bsref *init) {
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     clone_bsref(&curboard, init);
-    while (steps < 0xFFFF) {
+    while (steps < 0x20) {
         printf("[step %d] curid=%d\n", steps, curid);
         print_board(&curboard);
         solvestate ss;
