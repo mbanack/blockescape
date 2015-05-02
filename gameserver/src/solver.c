@@ -94,7 +94,6 @@ int is_horiz(boardstate *bs, int idx) {
 
 // attempts to find a piece with given id, and returns its loc in x,y
 void find_piece(boardstate *bs, int id, int *x, int *y) {
-    printf("find_piece(%d)\n", id);
     *x = -1;
     *y = -1;
 
@@ -102,7 +101,6 @@ void find_piece(boardstate *bs, int id, int *x, int *y) {
         if (bs->id[i] == id && is_topleft(bs, i)) {
             *x = BIDX_TO_X(i);
             *y = BIDX_TO_Y(i);
-            printf("found piece at %d, %d\n", *x, *y);
             return;
         }
     }
@@ -150,6 +148,11 @@ void make_move(boardstate *bs, int id, int old_x, int old_y, int new_x, int new_
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
+}
+
+// clones the contents of board bsa into board bsb
+void clone_boardstate(boardstate *bsa, boardstate *bsb) {
+
 }
 
 int is_piece(boardstate *bs, int x, int y) {
@@ -308,14 +311,6 @@ void rewind(hash h) {
     }
 }
 
-// returns 1 if we have a productive free move, and update cur, etc
-//   accordingly
-int consider_free_moves(node **cur) {
-    printf("stub consider_free_moves()");
-
-    return 1;
-}
-
 void clear_hash(hash *h) {
     for (int i = 0; i < 5; i++) {
         h->b[i] = 0;
@@ -338,8 +333,8 @@ void predict_hash(uint8_t id, uint8_t dir, hash *next) {
     //   and if they aren't already in seen, explore them
 }
 
-int consider_blockers(node **ccur) {
-    node *cur = *ccur;
+int consider_blockers(solvestate *ss, int *curid) {
+    node *cur = &ss.map[*curid]
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (cur->blockers[i].id != ID_BLANK) {
             hash predict;
@@ -347,13 +342,55 @@ int consider_blockers(node **ccur) {
                          &predict);
             if (seen.count(predict) == 0) {
                 // we haven't seen it, so try it
-                fill_node(cur, cur->blockers[i].id);
+                *curid = cur->blockers[i].id;
                 return 1;
             }
         }
     }
     return 0;
 }
+
+// consider "free moves" of cur
+//   and moves of cur's blockers
+// if we have a viable move
+//   push the new hash onto board_history
+//   update curboard
+void apply_heuristics(boardstate *bs, node *curnode) {
+    int id = curnode->id;
+    int x, y;
+    int bidx = XY_TO_BIDX(x, y);
+    find_piece(bs, it, &x, &y);
+    if (x == -1) {
+        printf("error in apply_heuristics\n");
+    }
+
+    // check free moves
+    if (is_horiz(bs, bidx)) {
+
+    } else {
+
+    }
+}
+
+// returns 1 if we have a productive free move, and update cur, etc
+//   accordingly
+int consider_free_moves(solvestate *ss, int *curid) {
+    printf("stub consider_free_moves()");
+
+    return 1;
+}
+
+
+
+    if (!consider_free_moves(&cur)) {
+        if (!consider_blockers(&cur)) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 
 // iterate on a pre-loaded board_history
 int is_solvable() {
@@ -399,10 +436,12 @@ int is_solvable() {
         // once a move has been exhausted, it is no longer considered,
         //   and we fall through to subsequent weighted heuristics
 
-        if (!consider_free_moves(&cur)) {
-            if (!consider_blockers(&cur)) {
-                //rewind(...);
-            }
+        // XXX: can we update the depgraph faster than wipe+regen?
+
+        if (!apply_heuristics(&curboard, &cur)) {
+            // this is a dead end, so pop it off the stack
+            unproductive.push(board_history.top());
+            board_history.pop();
         }
 
         // XXX: SCRUBA

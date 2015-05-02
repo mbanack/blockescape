@@ -11,6 +11,7 @@ typedef struct blocker {
 
 #define NUM_BLOCKERS 20
 
+// a node is a "solvestate" node
 typedef struct node {
     uint8_t id;
     uint8_t init;
