@@ -82,7 +82,17 @@ void print_depgraph(depgraph *ss) {
     }
 }
 
-inline void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
+void print_seen() {
+    printf("[== seen ==]\n");
+    for (std::set<bsref>::iterator it = seen.begin();
+         it != seen.end(); ++it)
+    {
+        const bsref val = *it;
+        print_boardhash((bsref *)&val);
+    }
+}
+
+void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(new_x, new_y);
     if (width != 1) {
         for (int i = 0; i < width; i++) {
@@ -154,7 +164,7 @@ int calc_height(bsref *bs, int id) {
     return -1;
 }
 
-inline void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
+void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(old_x, old_y);
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
@@ -280,7 +290,7 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
     if (x == -1) {
         return -1;
     }
-    if (is_horiz(bs, id)) {
+    if (is_horiz(bs, XY_TO_BIDX(x, y))) {
         for (int i = 0; i < 6; i++) {
             int other_id = bs->s[XY_TO_BIDX(i, y)];
             if (is_piece(bs, i, y) && id != other_id) {
@@ -347,9 +357,14 @@ int is_null_hash(bsref *h) {
     return memcmp(h->s, null_bstate.s, 36);
 }
 
+int is_new_hash(bsref *bs) {
+    // XXX: array copy
+    return seen.count(*bs) == 0;
+}
+
 // enum all possible moves of the piece at bidx (ie x, y)
 //   and if they aren't already in seen, explore them (by ret 1)
-inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
+bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
     printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
@@ -361,8 +376,9 @@ inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 if (bs->s[bidx + ix] == ID_BLANK) {
                     printf("horiz right\n");
                     make_move(c_out, id, x, y, x + 1, y);
-                    // XXX: array copy
-                    if (seen.count(*c_out) == 0) {
+                    if (is_new_hash(c_out)) {
+                        // this is our new move
+                        seen.insert(*c_out);
                         return 1;
                     }
                     make_move(c_out, id, x + 1, y, x , y);
@@ -375,9 +391,8 @@ inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 1] == ID_BLANK) {
                 printf("horiz left\n");
                 make_move(c_out, id, x, y, x - 1, y);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
-                    // this is our new move
+                if (is_new_hash(c_out)) {
+                    seen.insert(*c_out);
                     return 1;
                 }
                 make_move(c_out, id, x - 1, y, x, y);
@@ -388,8 +403,8 @@ inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 6] == ID_BLANK) {
                 printf("vert up\n");
                 make_move(c_out, id, x, y, x, y - 1);
-                // XXX: array copy
-                if (seen.count(*c_out) == 0) {
+                if (is_new_hash(c_out)) {
+                    seen.insert(*c_out);
                     return 1;
                 }
                 make_move(c_out, id, x, y - 1, x, y);
@@ -403,8 +418,10 @@ inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 if (bs->s[bidx + 6 * iy] == ID_BLANK) {
                     printf("vert down\n");
                     make_move(c_out, id, x, y, x, y + 1);
-                    // XXX: array copy
-                    if (seen.count(*c_out) == 0) {
+                    if (is_new_hash(c_out)) {
+                        printf("is new hash\n");
+                        print_boardhash(c_out);
+                        seen.insert(*c_out);
                         return 1;
                     }
                     make_move(c_out, id, x, y + 1, x, y);
@@ -417,9 +434,26 @@ inline bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     return 0;
 }
 
-int is_new_hash(bsref *bs) {
-    // XXX: array copy
-    return seen.count(*bs) == 0;
+// fill partial depgraph starting from curnode->id
+void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
+    int curid = curnode->id;
+    ss->map[curid].init = 1;
+    calc_blockers(bs, ss, curid);
+
+    // walk the current set of blockers and continue graph generation
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        blocker *bl = &curnode->blockers[i];
+        if (bl->id != ID_BLANK) {
+            node *a = &ss->map[curnode->blockers[i].id];
+            if (a->init == 0) {
+                a->init = 1;
+                a->id = curnode->blockers[i].id;
+                calc_blockers(bs, ss, a->id);
+            }
+        }
+    }
+
+    print_depgraph(ss);
 }
 
 // consider "free moves" of cur
@@ -445,9 +479,9 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     }
     // consider blocker moves
     for (int i = 0; i < NUM_BLOCKERS; i++) {
-        printf("found blocker move\n");
         int b_id = curnode->blockers[i].id;
         if (b_id != ID_BLANK) {
+            printf("found blocker move\n");
             int b_x, b_y;
             find_piece(bs, b_id, &b_x, &b_y);
             if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
@@ -459,20 +493,25 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
     // try again for all of the possible other pieces to move
     //   that are *NOT* on our depgraph?
+    printf(">>>>is>i>-c>>tio>>.. >>\n");
     printf("heuristic-ception... >>\n");
+    print_depgraph(ss);
+    fill_depgraph(bs, ss, curnode);
     print_depgraph(ss);
     for (int i = ID_P; i < 36; i++) {
         node *newnode = &ss->map[i];
+        fill_depgraph(bs, ss, newnode);
         if (newnode->id != id) {
+            printf("found extra move\n");
             if (apply_heuristics(bs, ss, newnode, c_out, cid_out)) {
                 return 1;
             }
         }
     }
+    print_depgraph(ss);
 
     return 0;
 }
-
 
 int is_solvable(bsref *init) {
     // the bottom of board_history is the initial board state.
@@ -489,9 +528,17 @@ int is_solvable(bsref *init) {
     while (steps < 0x20) {
         printf("\n[step %d] curid=%d\n", steps, curid);
         print_boardhash(&curboard);
+        print_seen();
         print_board(&curboard);
         depgraph ss;
         node *curnode = &ss.map[curid];
+
+        // is it solved right now?
+        int px, py;
+        find_piece(&curboard, ID_P, &px, &py);
+        if (px == 4) {
+            return 1;
+        }
 
         // create depgraph with default node values
         //  (ie all pre-allocated)
@@ -501,28 +548,7 @@ int is_solvable(bsref *init) {
             fill_node(&ss.map[i], i);
         }
 
-        // starting from P (id 1)
-        ss.map[ID_P].init = 1;
-        calc_blockers(&curboard, &ss, ID_P);
-
-        // is it solved right now?
-        int px, py;
-        find_piece(&curboard, ID_P, &px, &py);
-        if (px == 4) {
-            return 1;
-        }
-
-        // walk the current set of blockers and continue graph generation
-        for (int i = 0; i < NUM_BLOCKERS; i++) {
-            node *a = &ss.map[curnode->blockers[i].id];
-            if (a->init == 0) {
-                a->init = 1;
-                a->id = curnode->blockers[i].id;
-                calc_blockers(&curboard, &ss, a->id);
-            }
-        }
-
-        print_depgraph(&ss);
+        fill_depgraph(&curboard, &ss, curnode);
 
         // now that we have generated the "blocking dependency graph" in ss
         // we try to pick a reasonable move based on heuristics
