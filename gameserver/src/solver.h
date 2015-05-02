@@ -17,10 +17,11 @@ typedef struct node {
     blocker blockers[NUM_BLOCKERS];
 } node;
 
-typedef struct solvestate {
+// dependency graph of blockers
+typedef struct depgraph {
     // map[PIECE_IDX] = tree node
     node map[36];
-} solvestate;
+} depgraph;
 
 // boardstate/hash
 //   8 bits per square * 36 => 288 bits (9x32)

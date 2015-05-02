@@ -60,7 +60,7 @@ void print_board(bsref *bs) {
     printf("\n");
 }
 
-void print_depgraph(solvestate *ss) {
+void print_depgraph(depgraph *ss) {
     printf("==DG\n");
     for (int i = 0; i < 36; i++) {
         node *n = &ss->map[i];
@@ -255,7 +255,7 @@ void fill_node(node *c, int id) {
 }
 
 // calculates the blockers and fills in ss.map
-int calc_blockers(bsref *bs, solvestate *ss, int id) {
+int calc_blockers(bsref *bs, depgraph *ss, int id) {
     if (id == ID_BLANK) {
         return -1;
     }
@@ -419,7 +419,7 @@ int is_new_hash(bsref *bs) {
 //   and moves of cur's blockers
 // returns 1 if we have a viable move,
 //   and sets c_out with the updated board state
-int apply_heuristics(bsref *bs, solvestate *ss, node *curnode, bsref *c_out, int *cid_out) {
+int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *cid_out) {
     int id = curnode->id;
     int x, y;
     find_piece(bs, id, &x, &y);
@@ -482,12 +482,12 @@ int is_solvable(bsref *init) {
     while (steps < 0x20) {
         printf("[step %d] curid=%d\n", steps, curid);
         print_board(&curboard);
-        solvestate ss;
+        depgraph ss;
         node *curnode = &ss.map[curid];
 
-        // create solvestate with default node values
+        // create depgraph with default node values
         //  (ie all pre-allocated)
-        // we need to re-wipe the node solvestate if steps != 1
+        // we need to re-wipe the depgraph if steps != 1
         //       because we just moved a piece.
         for (int i = 0; i < 36; i++) {
             fill_node(&ss.map[i], i);
