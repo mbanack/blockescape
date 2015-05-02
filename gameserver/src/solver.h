@@ -29,6 +29,6 @@ typedef struct bsref {
     uint8_t s[36];
 } bsref;
 
-int is_topleft(bsref, int);
+int is_topleft(bsref *, int);
 
 #endif // SOLVER_H
