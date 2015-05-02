@@ -220,9 +220,9 @@ void hash_board(boardstate *bs, hash *h) {
 void add_blocker(node *c, int id, int dir) {
     printf("add_blocker( %d, %d)\n", id, dir);
     for (int i = 0; i < NUM_BLOCKERS; i++) {
-        if (c->blocked[i].id == ID_BLANK) {
-            c->blocked[i].id = id;
-            c->blocked[i].dir = dir;
+        if (c->blockers[i].id == ID_BLANK) {
+            c->blockers[i].id = id;
+            c->blockers[i].dir = dir;
             return;
         }
     }
@@ -232,8 +232,8 @@ void fill_node(node *c, int id) {
     c->id = id;
     c->init = 0;
     for (int i = 0; i < NUM_BLOCKERS; i++) {
-        c->blocked[i].id = ID_BLANK;
-        c->blocked[i].dir = NULL_DIR;
+        c->blockers[i].id = ID_BLANK;
+        c->blockers[i].dir = NULL_DIR;
     }
 }
 
@@ -310,17 +310,40 @@ void rewind(hash h) {
 
 // returns 1 if we have a productive free move, and update cur, etc
 //   accordingly
-int consider_free_moves() {
+int consider_free_moves(node **cur) {
     printf("stub consider_free_moves()");
 
     return 1;
 }
 
-int consider_blockers(node *cur) {
+void clear_hash(hash *h) {
+    for (int i = 0; i < 5; i++) {
+        h->b[i] = 0;
+    }
+}
+
+int is_null_hash(hash *h) {
+    return h->b[0] == 0 &&
+           h->b[1] == 0 &&
+           h->b[2] == 0 &&
+           h->b[3] == 0 &&
+           h->b[4] == 0;
+}
+
+
+void predict_hash(uint8_t id, uint8_t dir, hash *next) {
+    clear_hash(next);
+
+    // enum all possible moves of that piece (given cur)
+    //   and if they aren't already in seen, explore them
+}
+
+int consider_blockers(node **ccur) {
+    node *cur = *ccur;
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (cur->blockers[i].id != ID_BLANK) {
             hash predict;
-            predict_hash(cur->blocked[i].id, cur->blocked[i].dir,
+            predict_hash(cur->blockers[i].id, cur->blockers[i].dir,
                          &predict);
             if (seen.count(predict) == 0) {
                 // we haven't seen it, so try it
@@ -361,19 +384,28 @@ int is_solvable() {
         }
 
         // walk the current set of blockers and continue graph generation
-        for (int i = 0; i < 6; i++) {
-            node *a = &ss.map[cur->l[i]];
+        for (int i = 0; i < NUM_BLOCKERS; i++) {
+            node *a = &ss.map[cur->blockers[i].id];
             if (a->init == 0) {
                 a->init = 1;
                 calc_blockers(&curboard, &ss, a->id);
             }
         }
 
-        if (!consider_free_moves(cur)) {
-            if (!consider_blockers(cur)) {
-                rewind(...);
+        // XXX: SCRUBA
+
+        // now that we have generated the "blocking dependency graph" in ss
+        // we try to pick a reasonable move based on heuristics
+        // once a move has been exhausted, it is no longer considered,
+        //   and we fall through to subsequent weighted heuristics
+
+        if (!consider_free_moves(&cur)) {
+            if (!consider_blockers(&cur)) {
+                //rewind(...);
             }
         }
+
+        // XXX: SCRUBA
 
 
 
@@ -389,6 +421,7 @@ int is_solvable() {
         int old_x, old_y;
         find_piece(&curboard, cur->id, &old_x, &old_y);
         int new_x, new_y;
+        /*
         if (moved == -1) {
             if (horiz) {
                 new_x = old_x - 1;
@@ -402,6 +435,7 @@ int is_solvable() {
                 new_y = old_y + 1;
             }
         }
+        */
 
         make_move(&curboard, cur->id, old_x, old_y, new_x, new_y);
 

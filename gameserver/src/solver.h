@@ -14,7 +14,7 @@ typedef struct blocker {
 typedef struct node {
     uint8_t id;
     uint8_t init;
-    blocker blocked[NUM_BLOCKERS];
+    blocker blockers[NUM_BLOCKERS];
 } node;
 
 typedef struct boardstate {
