@@ -349,6 +349,10 @@ int consider_blockers(bstate bs, solvestate *ss, int *curid) {
     return 0;
 }
 
+int is_new_hash(bstate bs) {
+    return seen.count(bs) == 0;
+}
+
 // consider "free moves" of cur
 //   and moves of cur's blockers
 // if we have a viable move
@@ -375,6 +379,12 @@ int apply_heuristics(bstate bs, solvestate *ss, node *curnode) {
         // ...
     }
 
+    // TODO: if we have a nice way to shortcut multiple moves, need to update steps in scope-above
+    //make_move(curboard, curid, old_x, old_y, new_x, new_y);
+    //
+    //board_history.push(h)
+    //seen.insert(h);
+
     return false;
 }
 
@@ -387,9 +397,10 @@ int is_solvable(bstate init) {
     bstate curboard;
     clone_bstate(init, curboard);
     while (steps < 0xFFFF) {
-        node *curnode = ss.map[curid];
         print_board(curboard);
         solvestate ss;
+        node *curnode = &ss.map[curid];
+
         // create solvestate with default node values
         //  (ie all pre-allocated)
         // we need to re-wipe the node solvestate if steps != 1
@@ -420,8 +431,6 @@ int is_solvable(bstate init) {
             }
         }
 
-        // XXX: SCRUBA
-
         // now that we have generated the "blocking dependency graph" in ss
         // we try to pick a reasonable move based on heuristics
         // once a move has been exhausted, it is no longer considered,
@@ -429,67 +438,12 @@ int is_solvable(bstate init) {
 
         // XXX: can we update the depgraph faster than wipe+regen?
 
-        if (!apply_heuristics(curboard, &ss, &curnode)) {
+        if (!apply_heuristics(curboard, &ss, curnode)) {
             // this is a dead end, so pop it off the stack
-            unproductive.push(board_history.top());
+            unproductive.insert(board_history.top());
             board_history.pop();
-        }
-
-        // XXX: SCRUBA
-
-
-
-        // add new hash to "seen board states"
-        //   else rewind
-        hash pre_hash;
-        hash_board(curboard, &pre_hash);
-
-        // TODO: alter the bstate to reflect the move
-        // ...
-        // TODO: calc new_x, new_y
-        int horiz = is_horiz(curboard, curid);
-        int old_x, old_y;
-        find_piece(curboard, curid, &old_x, &old_y);
-        int new_x, new_y;
-        /*
-        if (moved == -1) {
-            if (horiz) {
-                new_x = old_x - 1;
-            } else {
-                new_y = old_y - 1;
-            }
         } else {
-            if (horiz) {
-                new_x = old_x + 1;
-            } else {
-                new_y = old_y + 1;
-            }
-        }
-        */
-
-        make_move(curboard, curid, old_x, old_y, new_x, new_y);
-
-        steps++;
-
-        hash post_hash;
-
-        // TODO: revisit... also reorg this whole func
-        //   into helper modules :)
-        if (seen.count(post_hash) != 0) {
-            if (unproductive.count(post_hash) != 0) {
-                // TODO: need to revisit rewind algo
-                //   just because we looped doesnt mean the entire
-                //   loop is unproductive
-                // so do we just rewind one?
-                rewind(post_hash);
-            } else {
-                hash last_hash = board_history.top();
-                unproductive.insert(last_hash);
-                board_history.pop();
-            }
-        } else {
-            seen.insert(post_hash);
-            board_history.push(post_hash);
+            steps++;
         }
     }
     printf("0xFFFF\n");
