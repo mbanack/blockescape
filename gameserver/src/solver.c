@@ -395,11 +395,12 @@ int apply_heuristics(bsref bs, solvestate *ss, node *curnode) {
 int is_solvable(bsref init) {
     int steps = 0;
     // the id of the current piece to move
-    int curid;
+    int curid = ID_P;
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     clone_bsref(curboard, init);
     while (steps < 0xFFFF) {
+        printf("[step %d] curid=%d\n", steps, curid);
         print_board(curboard);
         solvestate ss;
         node *curnode = &ss.map[curid];

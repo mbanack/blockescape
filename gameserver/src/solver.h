@@ -25,10 +25,8 @@ typedef struct solvestate {
 // boardstate/hash
 //   8 bits per square * 36 => 288 bits (9x32)
 //   each square is set to the id of its piece (or ID_BLANK)
-typedef uint8_t bstate[36];
-
 typedef struct bsref {
-    bstate s;
+    uint8_t s[36];
 } bsref;
 
 int is_topleft(bsref, int);
