@@ -416,31 +416,6 @@ int apply_heuristics(bsref *bs, solvestate *ss, node *curnode, bsref *c_out, int
         }
     }
 
-    /*
-    // SCRUB
-    printf("  no free moves\n");
-
-    // if no free moves, consider blockers
-    for (int i = 0; i < NUM_BLOCKERS; i++) {
-        if (curnode->blockers[i].id != ID_BLANK) {
-            bsref predict;
-            predict_next(bs,
-                         id,
-                         curnode->blockers[i].id,
-                         curnode->blockers[i].dir,
-                         &predict);
-            if (seen.count(predict) == 0) {
-                // the next piece to move is this one
-                // TODO: this isnt really a move, but it might be a
-                //   "solve difficulty unit"
-                printf("found blocker\n");
-                *cid_out = curnode->blockers[i].id;
-                seen.insert(predict);
-                return 1;
-            }
-        }
-    }
-    */
     return 0;
 }
 
@@ -510,8 +485,10 @@ int is_solvable(bsref *init) {
             bsref top = board_history.top();
             unproductive.insert(top);
             board_history.pop();
+            steps++;
         } else {
             board_history.push(c);
+            clone_bsref(&curboard, &c);
             steps++;
         }
     }
