@@ -57,6 +57,12 @@ void print_board(bsref *bs) {
             printf("\n");
         }
     }
+}
+
+void print_boardhash(bsref *bs) {
+    for (int i = 0; i < 36; i++) {
+        printf("%c", bs->s[i] + '0');
+    }
     printf("\n");
 }
 
@@ -77,9 +83,7 @@ void print_depgraph(depgraph *ss) {
 }
 
 inline void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
-    printf("insert_piece(%d [%dx%d] @ (%d, %d))\n", id, width, height, new_x, new_y);
     int bidx = XY_TO_BIDX(new_x, new_y);
-    printf("  bidx %d\n", bidx);
     if (width != 1) {
         for (int i = 0; i < width; i++) {
             bs->s[bidx + i] = id;
@@ -151,7 +155,6 @@ int calc_height(bsref *bs, int id) {
 }
 
 inline void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
-    printf("make_move(%d => %d, %d)\n", id, new_x, new_y);
     int bidx = XY_TO_BIDX(old_x, old_y);
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
@@ -234,7 +237,11 @@ void hash_board(bstate *bs, hash *h) {
 }
 */
 
+// TODO: this currently allows multiple adds of same blocker
 void add_blocker(node *c, int id, int dir) {
+    if (id == c->id) {
+        return;
+    }
     //printf("add_blocker(%d, %d)\n", id, dir);
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (c->blockers[i].id == ID_BLANK) {
@@ -480,7 +487,8 @@ int is_solvable(bsref *init) {
     memset(&curboard, 0x00, sizeof(curboard));
     clone_bsref(&curboard, init);
     while (steps < 0x20) {
-        printf("[step %d] curid=%d\n", steps, curid);
+        printf("\n[step %d] curid=%d\n", steps, curid);
+        print_boardhash(&curboard);
         print_board(&curboard);
         depgraph ss;
         node *curnode = &ss.map[curid];
@@ -493,7 +501,6 @@ int is_solvable(bsref *init) {
             fill_node(&ss.map[i], i);
         }
 
-        curid = ss.map[ID_P].id;
         // starting from P (id 1)
         ss.map[ID_P].init = 1;
         calc_blockers(&curboard, &ss, ID_P);
