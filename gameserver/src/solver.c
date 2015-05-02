@@ -37,13 +37,13 @@ using namespace std;
 // convert x,y to board idx
 #define XY_TO_BIDX(x, y) ((6 * (y) + (x)))
 
-bstate null_bstate;
-bstate board_init;
-set<bstate> seen;
-set<bstate> unproductive;
+bsref null_bstate;
+bsref board_init;
+set<bsref> seen;
+set<bsref> unproductive;
 // the bottom of board_history is the initial board state.
 // the top of board_history is the current board state
-stack<bstate> board_history;
+stack<bsref> board_history;
 
 uint8_t id_to_hex(int id) {
     if (id < 10) {
@@ -53,10 +53,10 @@ uint8_t id_to_hex(int id) {
     }
 }
 
-void print_board(bstate bs) {
+void print_board(bsref bs) {
     printf("===\n");
     for (int i = 0; i < 36; i++) {
-        printf("%c", id_to_hex(bs[i]));
+        printf("%c", id_to_hex(bs.s[i]));
         if ((i + 1) % 6 == 0) {
             printf("\n");
         }
@@ -64,28 +64,28 @@ void print_board(bstate bs) {
     printf("\n");
 }
 
-void insert_piece(bstate bs, int id, int width, int height, int new_x, int new_y) {
+void insert_piece(bsref bs, int id, int width, int height, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(new_x, new_y);
     if (width != 1) {
         for (int i = 0; i < width; i++) {
-            bs[bidx + i] = id;
+            bs.s[bidx + i] = id;
         }
     } else {
         for (int i = 0; i < height; i++) {
-            bs[bidx + (6 * i)] = id;
+            bs.s[bidx + (6 * i)] = id;
         }
     }
 }
 
-int is_horiz(bstate bs, int idx) {
+int is_horiz(bsref bs, int idx) {
     int col = idx % 6;
     if (col != 0) {
-        if (bs[idx - 1] == bs[idx]) {
+        if (bs.s[idx - 1] == bs.s[idx]) {
             return 1;
         }
     }
     if (col != 5) {
-        if (bs[idx + 1] == bs[idx]) {
+        if (bs.s[idx + 1] == bs.s[idx]) {
             return 1;
         }
     }
@@ -93,12 +93,12 @@ int is_horiz(bstate bs, int idx) {
 }
 
 // attempts to find a piece with given id, and returns its loc in x,y
-void find_piece(bstate bs, int id, int *x, int *y) {
+void find_piece(bsref bs, int id, int *x, int *y) {
     *x = -1;
     *y = -1;
 
     for (int i = 0; i < 36; i++) {
-        if (bs[i] == id && is_topleft(bs, i)) {
+        if (bs.s[i] == id && is_topleft(bs, i)) {
             *x = BIDX_TO_X(i);
             *y = BIDX_TO_Y(i);
             return;
@@ -106,13 +106,13 @@ void find_piece(bstate bs, int id, int *x, int *y) {
     }
 }
 
-int calc_width(bstate bs, int id) {
+int calc_width(bsref bs, int id) {
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x != -1) {
         int w = 1;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx++) {
-            if (bs[bidx] != id) {
+            if (bs.s[bidx] != id) {
                 return w;
             }
             w++;
@@ -121,13 +121,13 @@ int calc_width(bstate bs, int id) {
     return -1;
 }
 
-int calc_height(bstate bs, int id) {
+int calc_height(bsref bs, int id) {
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x != -1) {
         int h = 1;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
-            if (bs[bidx] != id) {
+            if (bs.s[bidx] != id) {
                 return h;
             }
             h++;
@@ -136,7 +136,7 @@ int calc_height(bstate bs, int id) {
     return -1;
 }
 
-void make_move(bstate bs, int id, int old_x, int old_y, int new_x, int new_y) {
+void make_move(bsref bs, int id, int old_x, int old_y, int new_x, int new_y) {
     printf("make_move(%d => %d, %d)\n", id, new_x, new_y);
     int bidx = XY_TO_BIDX(old_x, old_y);
     if (is_horiz(bs, bidx)) {
@@ -151,55 +151,55 @@ void make_move(bstate bs, int id, int old_x, int old_y, int new_x, int new_y) {
 }
 
 // clones the contents of board bsa into board bsb
-void clone_bstate(bstate bsb, bstate bsa) {
-    strncpy((char *)bsb, (char *)bsa, 36);
+void clone_bsref(bsref bsb, bsref bsa) {
+    strncpy((char *)(bsb.s), (char *)(bsa.s), 36);
 }
 
-int is_piece(bstate bs, int x, int y) {
-    if (bs[XY_TO_BIDX(x, y)] != ID_BLANK) {
+int is_piece(bsref bs, int x, int y) {
+    if (bs.s[XY_TO_BIDX(x, y)] != ID_BLANK) {
         return 1;
     }
     return 0;
 }
 
-int is_topleft(bstate bs, int idx) {
-    if (bs[idx] == ID_BLANK) {
+int is_topleft(bsref bs, int idx) {
+    if (bs.s[idx] == ID_BLANK) {
         return 0;
     }
     int row = idx / 6;
     int col = idx % 6;
     if (row > 0) {
-        if (bs[idx - 6] == bs[idx]) {
+        if (bs.s[idx - 6] == bs.s[idx]) {
             return 0;
         }
     }
     if (col > 0) {
-        if (bs[idx - 1] == bs[idx]) {
+        if (bs.s[idx - 1] == bs.s[idx]) {
             return 0;
         }
     }
     return 1;
 }
 
-int get_id(bstate bs, int x, int y) {
-    return bs[XY_TO_BIDX(x, y)];
+int get_id(bsref bs, int x, int y) {
+    return bs.s[XY_TO_BIDX(x, y)];
 }
 
 
 bool operator==(const bsref& l, const bsref& r) {
-    return memcmp(l.bs, r.bs, 36) == 0;
+    return memcmp(l.s, r.s, 36) == 0;
 }
 
 bool operator!=(const bsref& l, const bsref& r) {
-    return memcmp(l.bs, r.bs, 36) != 0;
+    return memcmp(l.s, r.s, 36) != 0;
 }
 
 bool operator<(const bsref& l, const bsref& r) {
-    return memcmp(l.bs, r.bs, 36);
+    return memcmp(l.s, r.s, 36);
 }
 
 bool operator>(const bsref& l, const bsref& r) {
-    return memcmp(l.bs, r.bs, 36);
+    return memcmp(l.s, r.s, 36);
 }
 
 // if we did some zero-collapsing, we could probably get a more
@@ -217,7 +217,7 @@ void hash_board(bstate *bs, hash *h) {
     // do it row at a time
     for (int row = 0; row < 6; row++) {
         for (int i = 0; i < 6; i++) {
-            int id = bs[XY_TO_BIDX(i, row)];
+            int id = bs.s[XY_TO_BIDX(i, row)];
             h->b[row] |= id << (4 * (7 - i));
         }
     }
@@ -245,7 +245,7 @@ void fill_node(node *c, int id) {
 }
 
 // calculates the blockers and fills in ss.map
-int calc_blockers(bstate bs, solvestate *ss, int id) {
+int calc_blockers(bsref bs, solvestate *ss, int id) {
     if (id == ID_BLANK) {
         return -1;
     }
@@ -265,7 +265,7 @@ int calc_blockers(bstate bs, solvestate *ss, int id) {
     }
     if (is_horiz(bs, id)) {
         for (int i = 0; i < 6; i++) {
-            int other_id = bs[XY_TO_BIDX(i, y)];
+            int other_id = bs.s[XY_TO_BIDX(i, y)];
             printf("cb i=%d y=%d\n", i, y);
             printf("  %d %d\n", is_piece(bs, i, y), id != other_id);
             if (is_piece(bs, i, y) && id != other_id) {
@@ -278,7 +278,7 @@ int calc_blockers(bstate bs, solvestate *ss, int id) {
         }
     } else {
         for (int i = 0; i < 6; i++) {
-            int other_id = bs[XY_TO_BIDX(x, i)];
+            int other_id = bs.s[XY_TO_BIDX(x, i)];
             if (is_piece(bs, x, i) && id != other_id) {
                 if (i < y) {
                     add_blocker(c, other_id, UP);
@@ -317,26 +317,26 @@ void rewind(hash h) {
 }
 */
 
-void clear_bstate(bstate h) {
-    memset(h, 0x00, 36);
+void clear_bsref(bsref h) {
+    memset(h.s, 0x00, 36);
 }
 
-int is_null_hash(bstate h) {
-    return memcmp(h, null_bstate, 36);
+int is_null_hash(bsref h) {
+    return memcmp(h.s, null_bstate.s, 36);
 }
 
-void predict_next(uint8_t id, uint8_t dir, bstate next) {
-    clear_bstate(next);
+void predict_next(uint8_t id, uint8_t dir, bsref next) {
+    clear_bsref(next);
 
     // enum all possible moves of that piece (given cur)
     //   and if they aren't already in seen, explore them
 }
 
-int consider_blockers(bstate bs, solvestate *ss, int *curid) {
+int consider_blockers(bsref bs, solvestate *ss, int *curid) {
     node *cur = &ss->map[*curid];
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         if (cur->blockers[i].id != ID_BLANK) {
-            bstate predict;
+            bsref predict;
             predict_next(cur->blockers[i].id, cur->blockers[i].dir,
                          predict);
             if (seen.count(predict) == 0) {
@@ -349,7 +349,7 @@ int consider_blockers(bstate bs, solvestate *ss, int *curid) {
     return 0;
 }
 
-int is_new_hash(bstate bs) {
+int is_new_hash(bsref bs) {
     return seen.count(bs) == 0;
 }
 
@@ -358,7 +358,7 @@ int is_new_hash(bstate bs) {
 // if we have a viable move
 //   push the new hash onto board_history
 //   update curboard
-int apply_heuristics(bstate bs, solvestate *ss, node *curnode) {
+int apply_heuristics(bsref bs, solvestate *ss, node *curnode) {
     int id = curnode->id;
     int x, y;
     int bidx = XY_TO_BIDX(x, y);
@@ -390,12 +390,12 @@ int apply_heuristics(bstate bs, solvestate *ss, node *curnode) {
 
 
 // iterate on a pre-loaded board_history
-int is_solvable(bstate init) {
+int is_solvable(bsref init) {
     int steps = 0;
     // the id of the current piece to move
     int curid;
-    bstate curboard;
-    clone_bstate(init, curboard);
+    bsref curboard;
+    clone_bsref(init, curboard);
     while (steps < 0xFFFF) {
         print_board(curboard);
         solvestate ss;
@@ -451,27 +451,23 @@ int is_solvable(bstate init) {
 }
 
 int main() {
-    clear_bstate(&null_bstate);
+    clear_bsref(null_bstate);
     // initialize global bstate board_init with test board
-    board_init[12] = 1;
-    board_init[13] = 1;
-    board_init[10] = 2;
-    board_init[11] = 2;
-    board_init[14] = 3;
-    board_init[20] = 3;
-    board_init[18] = 4;
-    board_init[19] = 4;
-    board_init[22] = 5;
-    board_init[23] = 5;
+    board_init.s[12] = 1;
+    board_init.s[13] = 1;
+    board_init.s[10] = 2;
+    board_init.s[11] = 2;
+    board_init.s[14] = 3;
+    board_init.s[20] = 3;
+    board_init.s[18] = 4;
+    board_init.s[19] = 4;
+    board_init.s[22] = 5;
+    board_init.s[23] = 5;
 
     // preload bottom of board_history
-    hash init_hash;
-    hash_board(&board_init, &init_hash);
-    board_history.push(init_hash);
+    board_history.push(board_init);
 
-    print_board();
-
-    if (is_solvable(&board_init)) {
+    if (is_solvable(board_init)) {
         printf("solve\n");
     } else {
         printf("no solve\n");

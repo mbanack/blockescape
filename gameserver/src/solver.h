@@ -28,9 +28,9 @@ typedef struct solvestate {
 typedef uint8_t bstate[36];
 
 typedef struct bsref {
-    bstate *bs;
+    bstate s;
 } bsref;
 
-int is_topleft(bstate, int);
+int is_topleft(bsref, int);
 
 #endif // SOLVER_H
