@@ -1,9 +1,12 @@
 SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp
-OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
-LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb
+OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
+LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -lsodium -lmysqlcppconn
 
-graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
+
+obj/Auth.o: src/Auth.cpp inc/Auth.hpp
+	g++ $(LDFLAGS) -c src/Auth.cpp -o $@
 
 obj/Board.o: src/Board.cpp inc/Board.hpp src/sio_client.h
 	g++ $(LDFLAGS) -c src/Board.cpp -o $@
@@ -31,10 +34,10 @@ obj/sio_client_impl.o: src/internal/sio_client_impl.cpp
 
 all: solver graphical generator
 	
-generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/GenerateMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
-solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/SolverMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
 clean:

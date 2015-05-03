@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include "../inc/Board.hpp"
+#include "../inc/Auth.hpp"
 #include "sio_client.h"
 using namespace std;
 map<int, SDL_Rect> coordinates;
