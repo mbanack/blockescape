@@ -87,6 +87,13 @@
         text-align: center;
         display: none;
     }
+    #completed {
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+    }
     #win2Txt {
         float:left;
         width:100%;
@@ -146,6 +153,9 @@
     <div id="win2Txt">
         Player 2 Wins!
     </div>
+    <div id="completed">
+        (Completed)
+    </div>
     <div id="boardNumber">
                 <p></p>
                 <p></p>
@@ -190,7 +200,6 @@
             for(var i = 0; i <= initedCanvases;++i){
                 objects[i]=[];
                 }
-                canvas = []
                 objects = [[]];
                 objectLengths = [];
                 mx = 0;
@@ -229,16 +238,29 @@
                 document.getElementById("usernameTxt").value);
         }
         function onPrevBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " prev " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
         function onNextBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
+            document.getElementById("btnTable").style.display = "none";
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
         function onJumpBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
@@ -251,6 +273,7 @@
             document.getElementById("wrap2").style.display = "none";
             document.getElementById("wrap3").style.display = "none";
             document.getElementById("btnTable").style.display = "none";
+            document.getElementById("completed").style.display = "none";
             websocket.send("newboard " + usernameStr + " onepast");
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
@@ -264,13 +287,23 @@
             document.getElementById("wrap2").style.display = "block";
             document.getElementById("wrap3").style.display = "block";
             document.getElementById("btnTable").style.display = "none";
+            document.getElementById("completed").style.display = "none";
             websocket.send("multiplayer"+clientId);
         }
         function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("newboard", evt.data)){
                     win=false;
+                    payload = getPayload('newboard', evt.data);
+                    payloadSplit=payload.split(/[ ,]+/);
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+                    document.getElementById("jumpBoardTxt").value=+payloadSplit[0];
+                    console.log(payload);
+                    document.getElementById("win1Txt").style.display="none";
+                    document.getElementById("win2Txt").style.display="none";
+                    if(payloadSplit[1]=="completed"){
+                        document.getElementById("completed").style.display = "block";
+                    }
                     websocket.send('mouse input' + message);
                 }
                 if(isMessage("multiplayer", evt.data)){
@@ -281,11 +314,12 @@
                 if(isMessage("win", evt.data)){
                     clientIdWin = +getPayload('win', evt.data);
                     win=true;
-                    document.getElementById("btnTable").style.display = "block";
                     if(clientIdWin == clientId){
+                        document.getElementById("completed").style.display="none";
                         document.getElementById("win1Txt").style.display="block";
                     }
                     else {
+                        document.getElementById("completed").style.display="none";
                         document.getElementById("win2Txt").style.display="block";
                     }
                 }
@@ -396,23 +430,29 @@
             if(index==0){
                 document.getElementById("singleCanvas").width="450";
                 document.getElementById("singleCanvas").height="450";
-                canvas[index] = oCanvas.create({
-                    canvas: "#singleCanvas"
-                });
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#singleCanvas"
+                    });
+                }
             }
             else if(index==1){
                 document.getElementById("multiCanvas1").width="450";
                 document.getElementById("multiCanvas1").height="450";
-                canvas[index] = oCanvas.create({
-                    canvas: "#multiCanvas1"
-                });
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#multiCanvas1"
+                    });
+                }
             }
             else if(index==2){
                 document.getElementById("multiCanvas2").width="450";
                 document.getElementById("multiCanvas2").height="450";
-                canvas[index] = oCanvas.create({
-                    canvas: "#multiCanvas2"
-                });
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#multiCanvas2"
+                    });
+                }
             }
             canvas[index].addChild(canvas[index].display.rectangle({
                 x: 0,
@@ -450,8 +490,10 @@
             for(var i=objectsLength[index];i<numberOfObjects;i++) {
                 addObject(index);
             }
-            for(var i=numberOfObjects;i<objectsLength[index];i++) {
+            objectsLength[index] = objects[index].length;
+            for(var i=objectsLength[index];i>numberOfObjects;i--) {
                 removeObject(index);
+                objectsLength[index] = objects[index].length;
             }
             objectsLength[index] = objects[index].length;
         }

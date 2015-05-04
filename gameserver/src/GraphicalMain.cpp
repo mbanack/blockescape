@@ -25,6 +25,7 @@ map<int, SDL_Rect> coordinates;
 map<int, bool> down;
 map<int, bool> newInput;
 map<int, Board> boards;
+map<int, int> userBoardIndex;
 map<string, int> userId;
 set<int> ids;
 map<int,SDL_Surface*> pieceGraphics;
@@ -71,7 +72,8 @@ int levelIndexOkay(int index, const vector<int> &completed){
     int previousLevel=10;
     int ret = 0;
     int level = 0;
-    for(int i = 0; i < completed.size() && i <= index;++i){
+    for(int i = 0; i < TOTAL_BOARDS && i < completed.size() 
+        && i <= index;++i){
         if((i+1)%10==0)
         {
             previousLevel=thisLevel;
@@ -91,6 +93,8 @@ int levelOnePast(int index, const vector<int> &completed){
         if(completed[i]==1)
             ret=i+1;
     }
+    if(ret>TOTAL_BOARDS - 1)
+        ret = TOTAL_BOARDS - 1;
     return ret;
 }
 void newBoard(server *s, websocketpp::connection_hdl hdl, 
@@ -101,12 +105,14 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
     Auth auth;
     if(onePast) {
         vector<int> completed = auth.getCompletedBoards(username);
+        cout << "COMPLETED SIZE" << completed.size() << endl;
         index=levelOnePast(index,completed);
     }
     else if(random)
         index=rand()%TOTAL_BOARDS;
     else {
         vector<int> completed = auth.getCompletedBoards(username);
+        cout << "COMPLETED SIZE" << completed.size() << endl;
         index=levelIndexOkay(index,completed);
     }
     stringstream ss;
@@ -124,13 +130,22 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
         newInput.erase(newInput.find(id));
     if(boards.count(id)>0)
         boards.erase(boards.find(id));
+    if(userBoardIndex.count(id)>0)
+        userBoardIndex.erase(userBoardIndex.find(id));
     coordinates.insert(make_pair(id,r));
     down.insert(make_pair(id,false));
     newInput.insert(make_pair(id,true));
     boards.insert(make_pair(id,b));
+    userBoardIndex.insert(make_pair(id,index));
     try {
         string message("newboard");
         message+= ss.str();
+        message+= " ";
+        vector<int> completed = auth.getCompletedBoards(username);
+        if(completed[index]==1)
+            message+="completed";
+        else
+            message+="notcompleted";
         s->send(hdl, message, websocketpp::frame::opcode::text);
     }
     catch( const websocketpp::lib::error_code &e){}
@@ -184,7 +199,12 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             string constOnePast("onepast");
             if(action==constNext||action==constPrevious||action==constJump){
                 ss >> index;
-                newBoard(s, hdl, msg, username, atoi(index.c_str()), 
+                int indexInt = atoi(index.c_str());
+                if(action==constNext)
+                    ++indexInt;
+                else if(action==constPrevious)
+                    --indexInt;
+                newBoard(s, hdl, msg, username, indexInt,
                     false, false);
             }
             else if(action==constOnePast)
@@ -303,7 +323,6 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             boards.find(tempId)->second.mouseRelease();
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
         if(opponentConnection.count(fromId)>0){
-            cout << "SEND PIECES to opponent" << endl;
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
@@ -312,6 +331,18 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             if(opponentConnection.count(fromId)>0){
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
                 opponentConnection.erase(opponentConnection.find(fromId));
+            }
+            else{
+                Auth auth;
+                string username;
+                for(map<string, int>::iterator it = userId.begin(); it !=
+                    userId.end(); ++it) {
+                    if(it->second==tempId){
+                        username = it->first;
+                    }
+                }
+                auth.updateCompletedBoards(userBoardIndex.find(tempId)->second,
+                    username);
             }
         }
     }

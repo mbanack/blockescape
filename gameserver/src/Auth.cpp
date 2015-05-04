@@ -7,6 +7,33 @@
 #include <sodium.h>
 #include "mysql_driver.h"
 using namespace std;
+void Auth::updateCompletedBoards(int index, const string &username){
+    sql::Driver *driver = get_driver_instance();
+    sql::Connection *con = 
+        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    string select("SELECT levels FROM users WHERE username = \"" + username
+        + "\";");
+    sql::ResultSet *r = s->executeQuery(select.c_str());
+    string levels;
+    if(r->next())
+    {
+        levels=r->getString("levels");
+        int i = 0;
+        for(string::iterator it=levels.begin();it!=levels.end();++it){
+            *it='1';
+            i++;
+        }
+    }
+    delete s;
+    s = con->createStatement();
+    string update("UPDATE users SET levels = \"" + levels + "\" WHERE username = \"" + username + "\";");
+    s->execute(update.c_str());
+    delete s;
+    delete r;
+    delete con;
+}
 std::vector<int> Auth::getCompletedBoards(const std::string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
