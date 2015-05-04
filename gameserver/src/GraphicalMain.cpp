@@ -27,10 +27,30 @@ set<int> ids;
 map<int,SDL_Surface*> pieceGraphics;
 map<string, string> userSalts1;
 map<string, string> userSalts2;
-string boardFile;
+string waitingId;
+bool waitingPlayer;
+pair<string, websocketpp::connection_hdl> opponentConnection;
+websocketpp::connection_hdl waitingConnection;
 void junk();
 void junk2();
 int identification=0;
+void login(server *s, websocketpp::connection_hdl hdl, 
+    message_ptr msg, string username) {
+    try {
+        identification++;
+        stringstream ss;
+        ss << identification;
+        int id = identification;
+        ids.insert(id);
+        if(userId.count(username)>0)
+            userId.erase(userId.find(username));
+        userId.insert(make_pair(username,id));
+        string message("login");
+        message+=ss.str();
+        s->send(hdl, message, websocketpp::frame::opcode::text);
+    }
+    catch( const websocketpp::lib::error_code &e){}
+}
 void loginFail(server *s, websocketpp::connection_hdl hdl, 
     message_ptr msg) {
     try {
@@ -40,22 +60,66 @@ void loginFail(server *s, websocketpp::connection_hdl hdl,
     }
     catch( const websocketpp::lib::error_code &e){}
 }
-void login(server *s, websocketpp::connection_hdl hdl, 
-    message_ptr msg) {
-    ifstream f(boardFile);
-    identification++;
-    stringstream ss;
-    ss << identification;
-    int id = identification;
+int levelIndexOkay(int index, const vector<int> &completed){
+    if(index < 0)
+        return 0;
+    int thisLevel=0;
+    int previousLevel=10;
+    int ret = 0;
+    int level = 0;
+    for(int i = 0; i < completed.size() && i <= index;++i){
+        if((i+1)%10==0)
+        {
+            previousLevel=thisLevel;
+            thisLevel=0;
+        }
+        if(completed[i] == 1)
+            thisLevel+=1;
+        if(previousLevel>=7){
+            ret = i;
+        }
+    }
+    return ret;
+}
+int levelOnePast(int index, const vector<int> &completed){
+    int ret = 0;
+    for(int i = 0; i < completed.size();++i){
+        if(completed[i]==1)
+            ret=i+1;
+    }
+    return ret;
+}
+void newBoard(server *s, websocketpp::connection_hdl hdl, 
+    message_ptr msg, string username, int index, bool onePast) {
     SDL_Rect r;
+    int id = userId.find(username)->second;
+    Auth auth;
+    vector<int> completed = auth.getCompletedBoards(username);
+    if(onePast)
+        index=levelOnePast(index,completed);
+    else
+        index=levelIndexOkay(index,completed);
+    stringstream ss;
+    ss << index;
+    boardPath="../data/board";
+    boardPath+=ss.str();
+    ifstream f(boardPath);
     Board b(6, 6, pieceGraphics, f);
+    f.close();
+    if(coordinates.count(id)>0)
+        coordinates.erase(coordinates.find(id));
+    if(down.count(id)>0)
+        down.erase(down.find(id));
+    if(newInput.count(id)>0)
+        newInput.erase(newInput.find(id));
+    if(boards.count(id)>0)
+        boards.erase(boards.find(id));
     coordinates.insert(make_pair(id,r));
     down.insert(make_pair(id,false));
     newInput.insert(make_pair(id,true));
     boards.insert(make_pair(id,b));
-    ids.insert(id);
     try {
-        string message("login");
+        string message("newboard");
         message+= ss.str();
         s->send(hdl, message, websocketpp::frame::opcode::text);
     }
@@ -68,7 +132,52 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     string assignIdHtml("assign id html");
     string mouseInput("mouse input");
     string loginStr("login");
+    string multiplayer("multiplayer");
     string createUser("create user");
+    string newBoardStr("newboard");
+    if(msg->get_payload().substr(0,multiplayer.size())==
+        multiplayer){
+        try {
+            string str(msg->get_payload().substr(multiplayer.size()));
+            if(waitingPlayer){
+                waitingPlayer=false;
+                string message1("multiplayer");
+                message1+=waitingId;
+                string message2("multiplayer");
+                message2+=str;
+                s->send(hdl, message1, websocketpp::frame::opcode::text);
+                s->send(waitingConnection, message2, websocketpp::frame::opcode::text);
+            }
+            else {
+                waitingPlayer=true;
+                waitingId = str;
+                waitingConnection = hdl;
+            }
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
+    if(msg->get_payload().substr(0,newBoardStr.size())==
+        newBoardStr){
+        try {
+            string str(msg->get_payload().substr(newBoardStr.size()));
+            stringstream ss(str);
+            string username;
+            string action;
+            string index;
+            ss >> username;
+            ss >> action;
+            string constNext("next");
+            string constPrevious("previous");
+            string constJump("jump");
+            if(action==constNext||action==constPrevious||action==constJump){
+                ss >> index;
+                newBoard(s, hdl, msg, username, atoi(index.c_str()), false);
+            }
+            else
+                newBoard(s, hdl, msg, username, 0, true);
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
     if(msg->get_payload().substr(0,askSaltUsername.size())==
         askSaltUsername){
         try {
@@ -177,6 +286,16 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         else
             boards.find(tempId)->second.mouseRelease();
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
+        if(opponentConnection.count(fromId)){
+            boards.find(fromId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, fromId);
+        }
+        if(boards.find(tempId)->second.win()){
+            string message = "win" + fromId;
+            s->send(hdl, message, websocketpp::frame::opcode::text);
+            if(opponentConnection.count(fromId)){
+                s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
+            }
+        }
     }
 }
 void startServer(server &s){
@@ -201,11 +320,7 @@ void sdlExit(){
     }
 }
 int main(int argc, char *argv[]){
-    string tmp(argv[1]);
-    boardFile=tmp;
     junk();
-    //h.socket()->on("mouse input", &networkMouseInput);
-    //h.socket()->on("assign id html", &networkNewBoard);
     startServer(webSocketServer);
     webSocketServer.run();
     atexit(junk2);

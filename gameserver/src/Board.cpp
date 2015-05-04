@@ -54,6 +54,9 @@ Board Board::makeBoard(int targetMoves){
     
 }
 *************************************************************/
+bool Board::win(){
+    return board[2][5]==PLAYER_PIECE;
+}
 void Board::printIds(ostream &s){
     for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
         cout << int(ids[i]);
@@ -527,6 +530,9 @@ Board::Board(int width, int height,
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
     floatingPieceType(EMPTY_SPACE),floatingPieceId(0){
+    string minMovesStr;
+    f >> minMovesStr;
+    minMoves = atoi(minMovesStr.c_str());
     for(int i=0;i<height;++i){
         string line;
         f >> line;

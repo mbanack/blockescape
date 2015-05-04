@@ -15,7 +15,7 @@ typedef std::vector<int> vi;
 typedef std::set<std::vector<std::vector<int> > > svvi;
 const int BOARD_ROWS=6;
 const int BOARD_COLS=6;
-const int BOARD_CELL_SIZE=50;
+const int BOARD_CELL_SIZE=75;
 class Board {
 public:
     enum PIECE_TYPES { PIECE_PLAYER, EMPTY_SPACE, PIECE_HORIZONTAL2, 
@@ -46,6 +46,7 @@ public:
     //Board makeBoard(int numMoves);
     void printIds(std::ostream &s);
     void getIds(uint8_t ids[36]); //IDs only updated if you call move(..)!
+    bool win();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
@@ -72,5 +73,6 @@ private:
     std::string lastNetworkMessage;
     svvi lotsOBoards;
     uint8_t ids[36];
+    int minMoves;
 };
 #endif
