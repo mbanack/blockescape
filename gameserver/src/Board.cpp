@@ -53,61 +53,65 @@ Board Board::makeBoard(int targetMoves){
     
 }
 *************************************************************/
-void Board::hash(char hash[18]){
+void Board::printIds(ostream &s){
+    for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
+        cout << int(ids[i]);
+        if((i+1)%BOARD_COLS==0)
+            cout << endl;
+    }
+    cout << endl;
+}
+void Board::getIds(uint8_t ids[36]){
+    for(int i = 0; i < 36; ++i){
+        ids[i]=this->ids[i];
+    }
+}
+void Board::initializeIds(){
     vvi board = this->board;
-    vector<int> tmp(BOARD_COLS, 0);
-    vvi bid(BOARD_ROWS, tmp);
-    uint8_t highestId=2; //0 is empty space 1 is player
+    uint8_t highestId=1; //0 is empty space 1 is player
     //Fill out board id array
     for(int i=0;i<BOARD_ROWS*BOARD_COLS;++i){
         int piece=board[i/BOARD_COLS][i%BOARD_COLS];
         if(piece==PIECE_HORIZONTAL2){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
-            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=highestId;
-            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+            ids[i]=++highestId;
+            ids[i+1]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=-1;
         } 
         else if(piece==PIECE_HORIZONTAL3){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
-            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=highestId;
-            bid[i/BOARD_COLS][(i+2)%BOARD_COLS]=highestId;
-            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
-            board[i/BOARD_COLS][(i+2)%BOARD_COLS]=EMPTY_SPACE;
+            ids[i]=++highestId;
+            ids[i+1]=highestId;
+            ids[i+2]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=-1;
+            board[i/BOARD_COLS][(i+2)%BOARD_COLS]=-1;
         } 
         else if(piece==PIECE_VERTICAL2){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
-            bid[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=highestId;
-            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            ids[i]=++highestId;
+            ids[i+BOARD_COLS]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         }  
         else if(piece==PIECE_VERTICAL3){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=++highestId;
-            bid[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=highestId;
-            bid[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            ids[i]=++highestId;
+            ids[i+BOARD_COLS]=highestId;
+            ids[i+BOARD_COLS*2]=highestId;
+            board[i/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         } 
         else if(piece==EMPTY_SPACE){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=0;
+            ids[i]=0;
         }
         else if(piece==PIECE_PLAYER){
-            bid[i/BOARD_COLS][i%BOARD_COLS]=1;
-            bid[i/BOARD_COLS][(i+1)%BOARD_COLS]=1;
-            board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
+            ids[i]=1;
+            ids[i+1]=1;
+            board[i/BOARD_COLS][i%BOARD_COLS]=-1;
+            board[i/BOARD_COLS][(i+1)%BOARD_COLS]=-1;
         }
     }
-    //Convert board id array to char[18]
-    for(int i = 0; i < BOARD_ROWS * BOARD_COLS; ++i){
-        //High nibble
-        if(i%2==0)
-            hash[i/2]=(bid[i/BOARD_COLS][i/BOARD_ROWS] & 0xF) << 4;
-        else
-            hash[i/2]=bid[i/BOARD_COLS][i/BOARD_ROWS] & 0xF; //Low nibble
-    }
 }
+/*****
 void Board::makeLotsOBoards(){
     vvi b = board;
     for(int i=1;i<=5;++i){
@@ -141,6 +145,7 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
         makeLotsOBoards(bp,x,y,i);
     }
 }
+****/
 void Board::sendPieceLocations(sio::client &h, int tid){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
@@ -241,7 +246,8 @@ void Board::mouseDrag(SDL_Rect rect){
 void Board::grabFloatingPiece(SDL_Rect rect){
     int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
     int newIndex=getFirstBlockIndex(index);
-    removePiece(newIndex,board,floatingPieceRect,floatingPieceType);
+    removePiece(newIndex,board,ids,floatingPieceRect,floatingPieceType,
+        floatingPieceId);
     if(newIndex-index==1)
         floatingPieceRect.x+=BOARD_CELL_SIZE;
     if(newIndex-index==2)
@@ -302,8 +308,9 @@ void Board::mouseRelease(){
         mouseDown=false;
         int x = floatingPieceRect.x/BOARD_CELL_SIZE;
         int y = floatingPieceRect.y/BOARD_CELL_SIZE;
-        placePiece(x,y,floatingPieceType);
+        placePiece(x,y,floatingPieceType,floatingPieceId);
         floatingPieceType = EMPTY_SPACE;
+        floatingPieceId = 0;
         stopLeft = false;
         stopRight = false;
         stopUp = false;
@@ -312,30 +319,41 @@ void Board::mouseRelease(){
 }
 //Doesn't work if i not first section of piece
 void Board::removePiece(int i, vvi &board,
-    SDL_Rect &rect, int &p){
+    uint8_t ids[36], SDL_Rect &rect, int &p, uint8_t &pid){
     int piece=board[i/BOARD_COLS][i%BOARD_COLS];
     p=piece;
+    pid=ids[i];
     rect.x = i%BOARD_COLS*BOARD_CELL_SIZE;
     rect.y = i/BOARD_COLS*BOARD_CELL_SIZE;
     rect.w = BOARD_CELL_SIZE;
     rect.h = BOARD_CELL_SIZE;
     if(piece==PIECE_HORIZONTAL2||piece==PIECE_PLAYER){
+        ids[i]=0;
+        ids[i+1]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
         rect.w*=2;
     } 
     else if(piece==PIECE_HORIZONTAL3){
+        ids[i]=0;
+        ids[i+1]=0;
+        ids[i+2]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         board[i/BOARD_COLS][(i+1)%BOARD_COLS]=EMPTY_SPACE;
         board[i/BOARD_COLS][(i+2)%BOARD_COLS]=EMPTY_SPACE;
         rect.w*=3;
     } 
     else if(piece==PIECE_VERTICAL2){
+        ids[i]=0;
+        ids[i+BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=2;
     }  
     else if(piece==PIECE_VERTICAL3){
+        ids[i]=0;
+        ids[i+BOARD_COLS]=0;
+        ids[i+2*BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
@@ -345,9 +363,11 @@ void Board::removePiece(int i, vvi &board,
 int Board::getFirstBlockIndex(int index){
     vvi board=this->board; //Local copy since we don't want to overwrite
     int piece = board[index/BOARD_CELL_SIZE][index%BOARD_CELL_SIZE];
+    uint8_t ids[36];
+    uint8_t pid=0;
     for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
         SDL_Rect rect;
-        removePiece(i, board, rect, piece);
+        removePiece(i, board, ids, rect, piece, pid);
         if(board[index/BOARD_COLS][index%BOARD_COLS]==EMPTY_SPACE)
             return i;
     }
@@ -356,10 +376,12 @@ int Board::getFirstBlockIndex(int index){
 multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
     multimap<SDL_Surface *, SDL_Rect> ret;
     vvi board=this->board; //Local copy since we don't want to overwrite
+    uint8_t ids[36];
+    uint8_t pid=0;
     for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
         SDL_Rect rect;
         int piece;
-        removePiece(i, board, rect, piece);
+        removePiece(i, board, ids, rect, piece, pid);
         ret.insert(make_pair(pieceGraphics.find(piece)->second, rect));
     }
     return ret;
@@ -386,6 +408,7 @@ void Board::move(int x, int y, int xp, int yp){
         return;
     }
     int pieceType=board[y][x];
+    int id = ids[y*BOARD_COLS+x];
     int width=1;
     int height=1;
     if(pieceType==PIECE_HORIZONTAL2)
@@ -396,14 +419,22 @@ void Board::move(int x, int y, int xp, int yp){
         height=2;
     if(pieceType==PIECE_VERTICAL3)
         height=3;
-    for(int i=x;i<x+width;++i)
+    for(int i=x;i<x+width;++i){
         board[y][i]=EMPTY_SPACE;
-    for(int i=y;i<y+height;++i)
+        ids[y*BOARD_COLS+i]=0;
+    }
+    for(int i=y;i<y+height;++i){
         board[i][x]=EMPTY_SPACE;
-    for(int i=xp;i<xp+width;++i)
+        ids[i*BOARD_COLS+x]=0;
+    }
+    for(int i=xp;i<xp+width;++i){
         board[yp][i]=pieceType;
-    for(int i=yp;i<yp+height;++i)
+        ids[yp*BOARD_COLS+i]=id;
+    }
+    for(int i=yp;i<yp+height;++i){
         board[i][xp]=pieceType;
+        ids[i*BOARD_COLS+xp]=id;
+    }
 }
 bool Board::validMove(int x, int y, int xp, int yp){
     int pieceType=board[y][x];
@@ -457,31 +488,34 @@ bool Board::validMove(int x, int y, int xp, int yp){
 }
 Board::Board(int width, int height):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE){
+    floatingPieceType(EMPTY_SPACE), floatingPieceId(0){
     vector<int> row(width, EMPTY_SPACE);
     vvi ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
+    initializeIds();
 }
 Board::Board(int width, int height, 
     const map<int, SDL_Surface *> &pieceGraphics):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE){
+    floatingPieceType(EMPTY_SPACE), floatingPieceId(0){
     this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
     vector<int> row(width, EMPTY_SPACE);
     vvi ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
+    initializeIds();
 }
 Board::Board(int width, int height, 
     const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){ 
     this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
+    initializeIds();
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE){
+    floatingPieceType(EMPTY_SPACE),floatingPieceId(0){
     for(int i=0;i<height;++i){
         string line;
         f >> line;
@@ -495,6 +529,7 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
         }
         board.push_back(row);
     }
+    initializeIds();
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);
@@ -521,7 +556,9 @@ bool Board::isCollision(const vvi &board, int x, int y, int pieceType){
     return false;
 }
 bool Board::oneMoveSolution(vvi board, int x, int y, int pieceType){
-    placePiece(board,x,y,pieceType);
+    uint8_t pid=0;
+    uint8_t ids[36];
+    placePiece(board,ids,x,y,pieceType,pid);
     return oneMoveSolution();
 }
 bool Board::oneMoveSolution(){
@@ -543,7 +580,9 @@ int Board::numFree(){
     return ret;
 }
 bool Board::fullBoard(vvi board, int x, int y, int pieceType){
-    placePiece(board,x,y,pieceType);
+    uint8_t pid=0;
+    uint8_t ids[36];
+    placePiece(board,ids,x,y,pieceType,pid);
     return fullBoard(board);
 }
 bool Board::fullBoard(){
@@ -559,10 +598,10 @@ bool Board::fullBoard(vvi board){
     }
     return ret;
 }
-void Board::placePiece(int x, int y, int pieceType){
-    placePiece(board,x,y,pieceType);
+void Board::placePiece(int x, int y, int pieceType, uint8_t pid){
+    placePiece(board,ids,x,y,pieceType,pid);
 }
-void Board::placePiece(vvi &board, int x, int y, int pieceType){
+void Board::placePiece(vvi &board, uint8_t ids[36], int x, int y, int pieceType, uint8_t pid){
     int width=1;
     int height=1;
     if(pieceType==PIECE_HORIZONTAL2||pieceType==PIECE_PLAYER)
@@ -575,6 +614,7 @@ void Board::placePiece(vvi &board, int x, int y, int pieceType){
         height=3;
     for(int i=y;i<y+height;++i){
         for(int j=x;j<x+width;++j){
+            ids[i*BOARD_COLS+j]=pid;
             board[i][j]=pieceType;
         }
     }

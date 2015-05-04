@@ -32,7 +32,7 @@ public:
     bool oneMoveSolution(vvi board, int x, int y, int pieceType); //unused
     bool isCollision(int x, int y, int pieceType);
     bool isCollision(const vvi &board, int x, int y, int pieceType);
-    void placePiece(int x, int y, int pieceType);
+    void placePiece(int x, int y, int pieceType, uint8_t pid);
     void print(std::ostream &s);
     void move(int x, int y, int xp, int yp);
     void render(SDL_Surface *screen, SDL_Surface *background);
@@ -40,18 +40,21 @@ public:
     void mouseRelease();
     void sendPieceLocations(sio::client &h, int tid);
     void makeLotsOBoards();//unused
-    void hash(char hash[18]);
     //Board makeBoard(int numMoves);
+    void printIds(std::ostream &s);
+    void getIds(uint8_t ids[36]); //IDs only updated if you call move(..)!
 private:
+    void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
     std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
     bool fullBoard(vvi board);
-    void placePiece(vvi &board, int x, int y, int pieceType);
+    void placePiece(vvi &board, uint8_t ids[36], int x, int y, int pieceType, uint8_t pid);
     bool fullBoard(vvi board, int x, int y, int pieceType);
     bool validMove(int x, int y, int xp, int yp);
     void grabFloatingPiece(SDL_Rect rect);
     bool checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd);
-    void removePiece(int index, vvi &board, SDL_Rect &r, int &c);
+    void removePiece(int index, vvi &board, uint8_t ids[36], 
+        SDL_Rect &r, int &c, uint8_t &pid);
     int getFirstBlockIndex(int index);
     std::map<int, SDL_Surface *> pieceGraphics;
     vvi board;
@@ -61,8 +64,10 @@ private:
     SDL_Rect floatingPieceInitial;
     SDL_Rect floatingPieceStuckRect;
     int floatingPieceType;
+    uint8_t floatingPieceId;
     bool stopLeft, stopRight, stopUp, stopDown;
     std::string lastNetworkMessage;
     svvi lotsOBoards;
+    uint8_t ids[36];
 };
 #endif

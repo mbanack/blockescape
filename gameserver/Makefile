@@ -1,4 +1,4 @@
-SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp
+SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp
 OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
 LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -I/opt/local/include -I/opt/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE -L/opt/local/lib -lSDLmain -Wl,-framework,AppKit -lSDL -Wl,-framework,Cocoa
 
@@ -8,6 +8,9 @@ graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj
 obj/Board.o: src/Board.cpp inc/Board.hpp src/sio_client.h
 	g++ $(LDFLAGS) -c src/Board.cpp -o $@
 	
+obj/SolverMain.o: src/SolverMain.cpp 
+	g++ $(LDFLAGS) -c src/SolverMain.cpp -o $@
+
 obj/GenerateMain.o: src/GenerateMain.cpp 
 	g++ $(LDFLAGS) -c src/GenerateMain.cpp -o $@
 
@@ -31,8 +34,8 @@ all: solver graphical generator
 generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
 	g++ -o obj/$@ $(OBJ) obj/GenerateMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
-solver:
-	g++ -ggdb -o obj/solver src/SolverMain.cpp src/Board.cpp -lSDL -lSDL_image -std=c++11
+solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+	g++ -o obj/$@ $(OBJ) obj/SolverMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
 clean:
 	rm -f $(OBJ)

@@ -7,11 +7,24 @@
             body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
             #myCanvas {position:absolute;left:0;top:0;width:600;height:600;background:#ffffff;}
         </style>
+        <style>
+            * {margin:0;padding:0;}
+            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
+            #myCanvas2 {position:absolute;left:610px;top:0;width:600;height:600;background:#ffffff;}
+        </style>
+        <style>
+            * {margin:0;padding:0;}
+            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
+            #myCanvas3 {position:absolute;left:0;top:610px;width:200;height:80;background:#ffffff;}
+        </style>
         <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
         <script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
         <script>
             var socket = io('http://localhost:9002');
             var canvas;
+            var canvas2;
+            var canvas3;
+            var flag_multi = 0;
             var rectangle;
             var mx = 0;
             var my = 0;
@@ -21,15 +34,69 @@
             var numObjects = 0;
             var newInput = 0;
             var clientId = -1;
+            var clientId2 = -1;
             var message = '';
+
+            var objects2 = [];
+            var numObjects2 = 0;
+            var rectangle2;
 
             onload = init;
 
-            function init() {
+            function init(){
+                canvas3 = oCanvas.create({
+                    canvas: "#myCanvas3",
+                    background: "#7c3"
+                });
+                var button_multi = canvas3.display.rectangle({
+                    x: 100,
+                    y:5,
+                    width: 60,
+                    height: 30,
+                    fill: "#000000"
+                });
+                canvas3.addChild(button_multi);
+                button_multi.bind("click tap", function() {
+                    flag_multi = 1;
+                    init2();
+                });
+                var button_single = canvas3.display.rectangle({
+                    x: 5,
+                    y:5,
+                    width: 60,
+                    height: 30,
+                    fill: "#123456"
+                });
+                canvas3.addChild(button_single);
+                button_single.bind("click tap", function() {
+                    init1();
+                });
+                var text_multi = canvas3.display.text({
+                    x: 100,
+                    y: 40,
+                    origin: { x: "left", y: "top"},
+                    font: "bold 12px sans-serif",
+                    text: "Multiplayer",
+                    fill: "#000000"
+                });
+                canvas3.addChild(text_multi);
+                var text_single = canvas3.display.text({
+                    x: 5,
+                    y: 40,
+                    origin: { x: "left", y: "top"},
+                    font: "bold 12px sans-serif",
+                    text: "Single Player",
+                    fill: "#123456"
+                });
+                canvas3.addChild(text_single);
+            }
+            
+            function init1() {
                 socket.emit('assign me id');
                 socket.on('assign id html', function(newid){
                     if(clientId == -1) {
                         clientId = +newid;
+                        clientId2 = (+newid) + 1;
                     }
                 });
                 canvas = oCanvas.create({
@@ -57,15 +124,96 @@
                         stroke: "1px rgba(128, 128, 128, 1)"
                     }));
                 }
+                //=====================================================================
+                //=====================================================================
                 inputLoop();
                 canvas.setLoop(inputLoop).start();
             }
+
+            function init2() {
+                socket.emit('assign me id');
+                socket.on('assign id html', function(newid){
+                    if(clientId == -1) {
+                        clientId = +newid;
+                        clientId2 = (+newid) + 1;
+                    }
+                });
+                canvas = oCanvas.create({
+                    canvas: "#myCanvas"
+                });
+                canvas.addChild(canvas.display.rectangle({
+                    x: 0,
+                    y: 0,
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=0;i<=600;i+=100){
+                    canvas.addChild(canvas.display.line({
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas.addChild(canvas.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:600},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                //=====================================================================
+                canvas2 = oCanvas.create({
+                    canvas: "#myCanvas2",
+                    background: "#7c3"
+                });
+                canvas2.addChild(canvas2.display.rectangle({
+                    x: 610,
+                    y: 0,
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=610;i<=1210;i+=100){
+                    canvas2.addChild(canvas2.display.line({
+                        start: {x:610, y:i},
+                        end: {x:1210, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas2.addChild(canvas2.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:1210},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                //=====================================================================
+                inputLoop();
+                canvas.setLoop(inputLoop).start();
+            }
+
             function initObjects(numberOfObjects) {
                 for(var i=0;i<numberOfObjects;i++) {
                     addObject();
                 }
             }
             function addObject() {
+                if(flag_multi == 1)
+                {
+                    rectangle2 = canvas2.display.rectangle({
+                    x: 610,
+                    y: 0,
+                    width: 200,
+                    height: 100,
+                    fill: "#077"
+                    });
+                    objects2.push(rectangle2);
+                    numObjects2 = objects.length;
+                    canvas2.addChild(rectangle2);
+                }
                 rectangle = canvas.display.rectangle({
                 x: 0,
                 y: 0,
@@ -136,5 +284,11 @@
     </head>
     <body>
         <canvas id="myCanvas" width="600" height="600"></canvas>
+    </body>
+    <body>
+        <canvas id="myCanvas2" width="600" height="600"></canvas>
+    </body>
+    <body>
+        <canvas id="myCanvas3" width="200" height="80"></canvas>
     </body>
 </html>
