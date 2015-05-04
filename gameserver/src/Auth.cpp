@@ -22,7 +22,8 @@ void Auth::updateCompletedBoards(int index, const string &username){
         levels=r->getString("levels");
         int i = 0;
         for(string::iterator it=levels.begin();it!=levels.end();++it){
-            *it='1';
+            if(i==index)
+                *it='1';
             i++;
         }
     }

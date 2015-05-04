@@ -243,8 +243,6 @@
             document.getElementById("completed").style.display = "none";
             document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " prev " + document.getElementById("jumpBoardTxt").value);
-            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
-            websocket.send('mouse input' + message);
         }
         function onNextBoardClick(){
             destroyAll();
@@ -253,8 +251,6 @@
             document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
             document.getElementById("btnTable").style.display = "none";
-            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
-            websocket.send('mouse input' + message);
         }
         function onJumpBoardClick(){
             destroyAll();
@@ -262,8 +258,6 @@
             document.getElementById("completed").style.display = "none";
             document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
-            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
-            websocket.send('mouse input' + message);
         }
         function onSingleplayerClick() {
             destroyAll();
@@ -303,6 +297,9 @@
                     document.getElementById("win2Txt").style.display="none";
                     if(payloadSplit[1]=="completed"){
                         document.getElementById("completed").style.display = "block";
+                    }
+                    else {
+                        document.getElementById("completed").style.display = "none";
                     }
                     websocket.send('mouse input' + message);
                 }
