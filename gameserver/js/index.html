@@ -36,13 +36,10 @@
             var clientId = -1;
             var clientId2 = -1;
             var message = '';
-
             var objects2 = [];
             var numObjects2 = 0;
             var rectangle2;
-
             onload = init;
-
             function init(){
                 canvas3 = oCanvas.create({
                     canvas: "#myCanvas3",
@@ -129,7 +126,6 @@
                 inputLoop();
                 canvas.setLoop(inputLoop).start();
             }
-
             function init2() {
                 socket.emit('assign me id');
                 socket.on('assign id html', function(newid){
@@ -194,7 +190,6 @@
                 inputLoop();
                 canvas.setLoop(inputLoop).start();
             }
-
             function initObjects(numberOfObjects) {
                 for(var i=0;i<numberOfObjects;i++) {
                     addObject();
@@ -225,7 +220,6 @@
                 numObjects = objects.length;
                 canvas.addChild(rectangle);
             }
-
             var temp_x;
             function inputLoop() {
                 if(clientId!=-1){
@@ -249,13 +243,11 @@
                     }
                 }
             }
-
             socket.on('num pieces', function(msg){
                 message=msg.split(/[ ,]+/);
                 if(+message[0]==clientId)
                     initObjects(+message[1]);
             });
-
             socket.on('draw pieces', function(msg){
                 rect=msg.split(/[ ,]+/);
                 //check id before u do any draws
