@@ -400,8 +400,8 @@ void junk()
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
     sio::client h;
     h.connect("http://127.0.0.1:9002");
-    h.socket()->on("mouse input", &networkMouseInput);
-    h.socket()->on("assign id html", &networkNewBoard);
+    //h.socket()->on("mouse input", &networkMouseInput);
+    //h.socket()->on("assign id html", &networkNewBoard);
     while(true){
         set<int> idsCopy = ids; //So that we don't modify while iterating
         for(set<int>::iterator i=idsCopy.begin();i!=idsCopy.end();++i){
@@ -415,11 +415,11 @@ void junk()
                     boards.find(*i)->second.printIds(cout);
                 }
             }
-            boards.find(*i)->second.sendPieceLocations(h, *i);
+            //boards.find(*i)->second.sendPieceLocations(h, *i);
         }
         sdlExit();
     }
-    SDL_FreeSurface(backgroundGraphic);
+    //SDL_FreeSurface(backgroundGraphic);
     SDL_FreeSurface(piecePlayerGraphic);
     SDL_FreeSurface(pieceHoriz2Graphic);
     SDL_FreeSurface(pieceHoriz3Graphic);
