@@ -7,7 +7,7 @@
 #include <sodium.h>
 #include "mysql_driver.h"
 using namespace std;
-std::vector<int> getCompletedBoards(const std::string &username){
+std::vector<int> Auth::getCompletedBoards(const std::string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
         driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
@@ -21,7 +21,7 @@ std::vector<int> getCompletedBoards(const std::string &username){
     {
         string levels=r->getString("levels");
         for(string::iterator it=levels.begin();it!=levels.end();++it){
-            char tmp[2] = { *it, '\0');
+            char tmp[2] = { *it, '\0'};
             ret.push_back(atoi(tmp));
         }
     }

@@ -23,14 +23,15 @@ map<int, SDL_Rect> coordinates;
 map<int, bool> down;
 map<int, bool> newInput;
 map<int, Board> boards;
+map<string, int> userId;
 set<int> ids;
 map<int,SDL_Surface*> pieceGraphics;
 map<string, string> userSalts1;
 map<string, string> userSalts2;
 string waitingId;
 bool waitingPlayer;
-pair<string, websocketpp::connection_hdl> opponentConnection;
 websocketpp::connection_hdl waitingConnection;
+map<string, websocketpp::connection_hdl> opponentConnection;
 void junk();
 void junk2();
 int identification=0;
@@ -101,7 +102,7 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
         index=levelIndexOkay(index,completed);
     stringstream ss;
     ss << index;
-    boardPath="../data/board";
+    string boardPath="../data/board";
     boardPath+=ss.str();
     ifstream f(boardPath);
     Board b(6, 6, pieceGraphics, f);
@@ -223,7 +224,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             }
             string salt1 = userSalts1.find(username)->second;
             if(auth.createUser(username, phash, salt1))
-                login(s, hdl, msg);
+                login(s, hdl, msg, username);
             else
                 loginFail(s, hdl, msg);
         }
@@ -248,7 +249,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             cerr << "Error: could not get salt" << endl;
         //Compare hashes
         if(auth.Authorize(username, salt2, phash))
-            login(s, hdl, msg);
+            login(s, hdl, msg, username);
         else{
             loginFail(s, hdl, msg);
         }
@@ -287,13 +288,14 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             boards.find(tempId)->second.mouseRelease();
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
         if(opponentConnection.count(fromId)){
-            boards.find(fromId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, fromId);
+            boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
             string message = "win" + fromId;
             s->send(hdl, message, websocketpp::frame::opcode::text);
-            if(opponentConnection.count(fromId)){
+            if(opponentConnection.count(fromId)>0){
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
+                opponentConnection.erase(opponentConnection.find(fromId));
             }
         }
     }

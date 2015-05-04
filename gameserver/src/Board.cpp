@@ -55,7 +55,7 @@ Board Board::makeBoard(int targetMoves){
 }
 *************************************************************/
 bool Board::win(){
-    return board[2][5]==PLAYER_PIECE;
+    return board[2][5]==PIECE_PLAYER;
 }
 void Board::printIds(ostream &s){
     for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){

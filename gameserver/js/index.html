@@ -21,6 +21,12 @@
     .button {
         width:130px;
     }
+    .smallButton {
+        width:15px;
+    }
+    .smallTextbox {
+        width:25px;
+    }
     .hiddenbutton {
         width:130px;
         display:none;
@@ -41,7 +47,7 @@
     }
     .wrapper {
         position:absolute;
-        left:225;
+        left:415px;
         top:240px;
         width:450px;
         height:450px;
@@ -50,7 +56,7 @@
     }
     .wrapper2 {
         position:absolute;
-        left:10;
+        left:10px;
         top:240px;
         width:450px;
         height:450px;
@@ -59,7 +65,7 @@
     }
     .wrapper3 {
         position:absolute;
-        left:820;
+        left:820px;
         top:240px;
         width:450px;
         height:450px;
@@ -95,6 +101,11 @@
         text-align: center;
         display:none;
     }
+    #boardNumber{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
     </style>
     <body>
     <div class="titleText">Block Escape</div>
@@ -129,31 +140,29 @@
         </div>
     </div>
     <div id="error">Error Logging In/Creating Account</div>
-    <div id="boardNumber">
-                <p></p>
-                <p></p>
-                <p></p>
-                <input class="button" id="prevBoardBtn" type="button" value="<">
-                <input class="textbox" id="jumpBoardTxt" type="text" value="1">
-                <input class="hiddenbutton" id="jumpBoardBtn" type="button">
-
-                <input class="button" id="nextBoardBtn" type="button" value=">">
-        
-    </div>
-    <div class="wrapper">
-        <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
-    </div>
-    <div class="wrapper2">
-        <canvas id="multiCanvas1" width="0px" height="0px" display="inline"></canvas>
-    </div>
-    <div class="wrapper3">
-        <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
-    </div>
     <div id="win1Txt">
         Player 1 Wins!
     </div>
     <div id="win2Txt">
         Player 2 Wins!
+    </div>
+    <div id="boardNumber">
+                <p></p>
+                <p></p>
+                <p></p>
+                <input class="smallButton" id="prevBoardBtn" type="button" value="<">
+                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="1">
+                <input class="hiddenbutton" id="jumpBoardBtn" type="button">
+                <input class="smallButton" id="nextBoardBtn" type="button" value=">">
+    </div>
+    <div class="wrapper" id="wrap1">
+        <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <div class="wrapper2" id="wrap2">
+        <canvas id="multiCanvas1" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <div class="wrapper3" id="wrap3">
+        <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
     </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
@@ -166,13 +175,12 @@
         var md = 0;
         var objects = [[]];
         var types = [];
-        var numObjects = 0;
         var newInput = 0;
         var clientId = -1;
         var message = '';
         var usernameStr;
         var clientIdWin = -1;
-        var win;
+        var win=false;
         var opponentId=-1;
         var initedCanvases=0;
         onload = init;
@@ -189,37 +197,41 @@
         function onCreateClick() {
             usernameStr = document.getElementById("usernameTxt").value;
             document.getElementById("error").style.display = "none";
-            document.getElementById("win1Text").style.display = "none";
-            document.getElementById("win2Text").style.display = "none";
+            document.getElementById("win1Txt").style.display = "none";
+            document.getElementById("win2Txt").style.display = "none";
             websocket.send("ask salt username" + 
                 document.getElementById("usernameTxt").value);
         }
         function onLoginClick() {
             usernameStr = document.getElementById("usernameTxt").value;
-            document.getElementById("win1Text").style.display = "none";
-            document.getElementById("win2Text").style.display = "none";
             document.getElementById("error").style.display = "none";
+            document.getElementById("win1Txt").style.display = "none";
+            document.getElementById("win2Txt").style.display = "none";
             websocket.send("ask salts username" + 
                 document.getElementById("usernameTxt").value);
         }
         function onPrevBoardClick(){
-            websocket.send("newboard prev");
-            websocket.send("newboard " + usernameStr + " prev" + document.getElementById("jumpBoardTxt").value);
+            websocket.send("newboard " + usernameStr + " prev " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
         function onNextBoardClick(){
-            websocket.send("newboard " + usernameStr + " next" + document.getElementById("jumpBoardTxt").value);
+            websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
         function onJumpBoardClick(){
-            websocket.send("newboard " + usernameStr + " jump" + document.getElementById("jumpBoardTxt").value);
+            websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
         function onSingleplayerClick() {
             init2(0);
+            document.getElementById("boardNumber").style.display = "block";
+            document.getElementById("wrap1").style.display = "block";
+            document.getElementById("wrap2").style.display = "none";
+            document.getElementById("wrap3").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " onepast");
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
@@ -227,13 +239,17 @@
         function onMultiplayerClick() {
             init2(1);
             message = clientId + ' ' + 0 + ' ' + 0 + ' ' + 0;
+            document.getElementById("wrap1").style.display = "none";
+            document.getElementById("wrap2").style.display = "block";
+            document.getElementById("wrap3").style.display = "block";
+            document.getElementById("btnTable").style.display = "none";
             websocket.send('mouse input' + message);
             websocket.send("multiplayer"+usernameStr);
         }
         function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("newboard", evt.data)){
-                    document.getElementById("jumpBoardTxt").value = getPayload('newboard', evt.data);
+                    win=false;
                 }
                 if(isMessage("multiplayer", evt.data)){
                     opponentId = +getPayload('multiplayer', evt.data);
@@ -244,10 +260,10 @@
                     win=true;
                     document.getElementById("btnTable").style.display = "block";
                     if(clientIdWin == clientId){
-                        document.getElementById("win2Txt").style.display = "block";
+                        document.getElementById("win1Txt").style.display="block";
                     }
                     else {
-                        document.getElementById("win1Txt").style.display = "block";
+                        document.getElementById("win2Txt").style.display="block";
                     }
                 }
                 if(isMessage("get salt username", evt.data)){
@@ -288,7 +304,7 @@
                         initObjects(+message[1],1);
                     }
                     else {
-                        initObjects(+message[1],3);
+                        initObjects(+message[1],2);
                     }
                 }
                 if(isMessage('draw pieces', evt.data)){
@@ -297,15 +313,15 @@
                     //check id before u do any draws
                     if(+rect[0]==clientId){
                         startIndex=0;
-                        if(initedCanvases>1){
+                        if(initedCanvases>0){
                             endIndex=1;
                         }
                         else {
                             endIndex=0;
                         }
                     }
-                    else if(+rect[0]==opponentId{
-                        if(initedCanvases>2){
+                    else if(+rect[0]==opponentId){
+                        if(initedCanvases>1){
                             startIndex=2;
                             endIndex=2;
                         }
@@ -314,7 +330,7 @@
                         }
                     }
                     for(var index=0;index<=endIndex;++index){
-                        for(var i=0;i<numObjects;i++) {
+                        for(var i=0;i<objects[index].length;i++) {
                             if(+rect[i*6+1]==0){//0 is player piece type
                                 objects[index][i].fill="#900";
                             }
@@ -337,48 +353,48 @@
             }
         }
         function init() {
+            document.getElementById("singleBtn").onclick = onSingleplayerClick;
+            document.getElementById("multiBtn").onclick = onMultiplayerClick;
             document.getElementById("createBtn").onclick = onCreateClick;
             document.getElementById("loginBtn").onclick = onLoginClick;
             document.getElementById("nextBoardBtn").onclick = onNextBoardClick;
             document.getElementById("prevBoardBtn").onclick = onPrevBoardClick;
-            document.getElementById("jumpBoardText").onkeydown = "if (event.keyCode == 13) document.getElementById("jumpBoardBtn").click";
+            document.getElementById("jumpBoardTxt").onkeydown = "if (event.keyCode == 13) document.getElementById('jumpBoardBtn').click";
             document.getElementById("jumpBoardBtn").onclick = onJumpBoardClick;
+
             setupMessages();
         }
 
         function init2(index) {
             initedCanvases=index;
             if(index==0){
-                document.getElementById("singleCanvas").width="450px";
-                document.getElementById("singleCanvas").height="450px";
-                document.getElementById("singleCanvas").style.display="inline";
-                canvas = oCanvas.create({
-                    canvas[index]: "#singleCanvas"
+                document.getElementById("singleCanvas").width="450";
+                document.getElementById("singleCanvas").height="450";
+                canvas[index] = oCanvas.create({
+                    canvas: "#singleCanvas"
                 });
             }
             else if(index==1){
-                document.getElementById("multiCanvas1").width="450px";
-                document.getElementById("multiCanvas1").height="450px";
-                document.getElementById("multiCanvas1").style.display="inline";
-                canvas = oCanvas.create({
-                    canvas[index]: "#multiCanvas1"
+                document.getElementById("multiCanvas1").width="450";
+                document.getElementById("multiCanvas1").height="450";
+                canvas[index] = oCanvas.create({
+                    canvas: "#multiCanvas1"
                 });
             }
             else if(index==2){
-                document.getElementById("multiCanvas2").width="450px";
-                document.getElementById("multiCanvas2").height="450px";
-                document.getElementById("multiCanvas2").style.display="inline";
-                canvas = oCanvas.create({
-                    canvas[index]: "#multiCanvas3"
+                document.getElementById("multiCanvas2").width="450";
+                document.getElementById("multiCanvas2").height="450";
+                canvas[index] = oCanvas.create({
+                    canvas: "#multiCanvas2"
                 });
             }
-            canvas[index].addChild(canvas.display.rectangle({
+            canvas[index].addChild(canvas[index].display.rectangle({
                 x: 0,
                 y: 0,
                 width: 450,
                 height: 450,
                 zIndex: 0,
-                fill: "#200"
+                fill: "#101"
             }));
             for(var i=0;i<=450;i+=75){
                 canvas[index].addChild(canvas[index].display.line({
@@ -425,27 +441,27 @@
             canvas[index].addChild(rectangle);
         }
 
-        var temp_x;
         function inputLoop() {
-            for(index=0;index<initedCanvases&&index!=3;index++)
-            if(clientId!=-1&&win==false){
-                if(canvas[index].mouse.buttonState=="up"&&md==1){
-                    md=0;
-                    newInput=1;
-                }
-                if(canvas[index].mouse.buttonState=="down"&&md==0){
-                    md=1;
-                    newInput=1;
-                }
-                if(canvas[index].mouse.x!=mx||canvas.mouse.y!=my){ 
-                    mx=canvas[index].mouse.x;
-                    my=canvas[index].mouse.y;
-                    newInput=1;
-                }
-                if(newInput == 1){
-                    newInput = 0;
-                    message = clientId + ' ' + md + ' ' + mx + ' ' + my;
-                    websocket.send('mouse input' + message);
+            for(var index=0;index<=initedCanvases&&index!=3;index++){
+                if(clientId!=-1&&win==false){
+                    if(canvas[index].mouse.buttonState=="up"&&md==1){
+                        md=0;
+                        newInput=1;
+                    }
+                    if(canvas[index].mouse.buttonState=="down"&&md==0){
+                        md=1;
+                        newInput=1;
+                    }
+                    if(canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
+                        mx=canvas[index].mouse.x;
+                        my=canvas[index].mouse.y;
+                        newInput=1;
+                    }
+                    if(newInput == 1){
+                        newInput = 0;
+                        message = clientId + ' ' + md + ' ' + mx + ' ' + my;
+                        websocket.send('mouse input' + message);
+                    }
                 }
             }
         }
