@@ -7,7 +7,7 @@ using namespace std;
 int main(){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", "blockescape", "%%horthownav%%lokum3%%");
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT * FROM users;");
