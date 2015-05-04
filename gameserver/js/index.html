@@ -1,284 +1,562 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>BlockEscape</title>
-        <style>
-            * {margin:0;padding:0;}
-            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
-            #myCanvas {position:absolute;left:0;top:0;width:600;height:600;background:#ffffff;}
-        </style>
-        <style>
-            * {margin:0;padding:0;}
-            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
-            #myCanvas2 {position:absolute;left:610px;top:0;width:600;height:600;background:#ffffff;}
-        </style>
-        <style>
-            * {margin:0;padding:0;}
-            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
-            #myCanvas3 {position:absolute;left:0;top:610px;width:200;height:80;background:#ffffff;}
-        </style>
-        <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
-        <script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
-        <script>
-            var socket = io('http://localhost:9002');
-            var canvas;
-            var canvas2;
-            var canvas3;
-            var flag_multi = 0;
-            var rectangle;
-            var mx = 0;
-            var my = 0;
-            var md = 0;
-            var objects = [];
-            var types = [];
-            var numObjects = 0;
-            var newInput = 0;
-            var clientId = -1;
-            var clientId2 = -1;
-            var message = '';
-            var objects2 = [];
-            var numObjects2 = 0;
-            var rectangle2;
-            onload = init;
-            function init(){
-                canvas3 = oCanvas.create({
-                    canvas: "#myCanvas3",
-                    background: "#7c3"
-                });
-                var button_multi = canvas3.display.rectangle({
-                    x: 100,
-                    y:5,
-                    width: 60,
-                    height: 30,
-                    fill: "#000000"
-                });
-                canvas3.addChild(button_multi);
-                button_multi.bind("click tap", function() {
-                    flag_multi = 1;
-                    init2();
-                });
-                var button_single = canvas3.display.rectangle({
-                    x: 5,
-                    y:5,
-                    width: 60,
-                    height: 30,
-                    fill: "#123456"
-                });
-                canvas3.addChild(button_single);
-                button_single.bind("click tap", function() {
-                    init1();
-                });
-                var text_multi = canvas3.display.text({
-                    x: 100,
-                    y: 40,
-                    origin: { x: "left", y: "top"},
-                    font: "bold 12px sans-serif",
-                    text: "Multiplayer",
-                    fill: "#000000"
-                });
-                canvas3.addChild(text_multi);
-                var text_single = canvas3.display.text({
-                    x: 5,
-                    y: 40,
-                    origin: { x: "left", y: "top"},
-                    font: "bold 12px sans-serif",
-                    text: "Single Player",
-                    fill: "#123456"
-                });
-                canvas3.addChild(text_single);
+        <title>Block Escape</title>
+    </head>
+    <style type="text/css">
+    p {
+        height:25px;
+        align:middle;
+        font-family: monospace;
+        text-align: center;
+    }
+    .titleText {
+        font-family: monospace;
+        font-size: 5em;
+        text-align: center;
+    }
+    .textbox {
+        width:130px;
+    }
+    .button {
+        width:130px;
+    }
+    .smallButton {
+        width:15px;
+    }
+    .smallTextbox {
+        width:25px;
+    }
+    .hiddenbutton {
+        width:130px;
+        display:none;
+    }
+    .table {
+        width:270px;
+        margin:0 auto;
+        visibility:visible;
+    }
+    .buttontable {
+        width:270px;
+        margin:0 auto;
+        display:none;
+    }
+    .column {
+        float:left;
+        width:50%;
+    }
+    .wrapper {
+        position:absolute;
+        left:415px;
+        top:240px;
+        width:450px;
+        height:450px;
+        text-align:center;
+        display:none;
+    }
+    .wrapper2 {
+        position:absolute;
+        left:95px;
+        top:240px;
+        width:450px;
+        height:450px;
+        text-align:center;
+        display:none;
+    }
+    .wrapper3 {
+        position:absolute;
+        left:735px;
+        top:240px;
+        width:450px;
+        height:450px;
+        text-align:center;
+        display:none;
+    }
+    #singleCanvas {
+        width:450x;
+        height:450px;
+        display:inline;
+        background:#ffffff;
+    }
+    canvas {
+        display: inline;
+    }
+    #error {
+        width:100%;
+        clear:both;
+        text-align: center;
+        display: none;
+    }
+    #completed {
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+    }
+    #win2Txt {
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+    }
+    #win1Txt {
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+    }
+    #boardNumber{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
+    </style>
+    <body>
+    <div class="titleText">Block Escape</div>
+    <div class="table" id="maintable">
+        <div class="column">
+                <p>
+                Username <br /> 
+                </p><p>
+                Password <br /> 
+                </p><p>
+                <input class="button" id="createBtn" type="button" value="Create Account">
+                </p>
+        </div>
+        <div class="column">
+                <p>
+                <input class="textbox" id="usernameTxt" type="text"> <br />
+                </p><p>
+                <input class="textbox" id="passwordTxt" type="password"><br />
+                </p><p>
+                <input class="button" id="loginBtn" type="button" value="Login">
+                </p>
+        </div>
+    </div>
+    <div class="buttontable" id="btnTable">
+        <div class="column">
+                <p></p>
+                <input class="button" id="singleBtn" type="button" value="Singleplayer Mode">
+        </div>
+        <div class="column">
+                <p></p>
+                <input class="button" id="multiBtn" type="button" value="Multiplayer Mode">
+        </div>
+    </div>
+    <div id="error">Error Logging In/Creating Account</div>
+    <div id="win1Txt">
+        Player 1 Wins!
+    </div>
+    <div id="win2Txt">
+        Player 2 Wins!
+    </div>
+    <div id="completed">
+        (Completed)
+    </div>
+    <div id="boardNumber">
+                <p></p>
+                <p></p>
+                <p></p>
+                <input class="smallButton" id="prevBoardBtn" type="button" value="<">
+                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="0">
+                <input class="hiddenbutton" id="jumpBoardBtn" type="button">
+                <input class="smallButton" id="nextBoardBtn" type="button" value=">">
+    </div>
+    <div class="wrapper" id="wrap1">
+        <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <div class="wrapper2" id="wrap2">
+        <canvas id="multiCanvas1" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <div class="wrapper3" id="wrap3">
+        <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
+    <script src="./sha256.js"></script>
+    <script>
+        var websocket = new WebSocket("ws://173.60.61.234:9003");
+        var canvas = [];
+        var rectangle;
+        var mx = 0;
+        var my = 0;
+        var md = 0;
+        var objects = [[]];
+        var types = [];
+        var newInput = 0;
+        var clientId = -1;
+        var message = '';
+        var usernameStr;
+        var clientIdWin = -1;
+        var win=false;
+        var opponentId=-1;
+        var initedCanvases=-1;
+        var objectsLength = [];
+        onload = init;
+
+        function destroyAll(){
+            for(var i = 0; i <= initedCanvases;++i){
+                objects[i]=[];
+                }
+                objects = [[]];
+                objectLengths = [];
+                mx = 0;
+                my = 0;
+                md = 0;
+                types = [];
+                newInput = 0;
+                clientIdWin = -1;
+                win=false;
+                opponentId=-1;
+                initedCanvases=0;
+        }
+        function isMessage(startsWith, msg){
+            if(msg.substring(0, startsWith.length) === startsWith){
+                return true;
             }
-            
-            function init1() {
-                socket.emit('assign me id');
-                socket.on('assign id html', function(newid){
-                    if(clientId == -1) {
-                        clientId = +newid;
-                        clientId2 = (+newid) + 1;
+            return false;
+        }
+        function getPayload(startsWith, msg){
+            return msg.substring(startsWith.length, msg.length);
+        }
+        function onCreateClick() {
+            usernameStr = document.getElementById("usernameTxt").value;
+            document.getElementById("error").style.display = "none";
+            document.getElementById("win1Txt").style.display = "none";
+            document.getElementById("win2Txt").style.display = "none";
+            websocket.send("ask salt username" + 
+                document.getElementById("usernameTxt").value);
+        }
+        function onLoginClick() {
+            usernameStr = document.getElementById("usernameTxt").value;
+            document.getElementById("error").style.display = "none";
+            document.getElementById("win1Txt").style.display = "none";
+            document.getElementById("win2Txt").style.display = "none";
+            websocket.send("ask salts username" + 
+                document.getElementById("usernameTxt").value);
+        }
+        function onPrevBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
+            websocket.send("newboard " + usernameStr + " previous " + document.getElementById("jumpBoardTxt").value);
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
+        }
+        function onNextBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
+            websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
+            document.getElementById("btnTable").style.display = "none";
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
+        }
+        function onJumpBoardClick(){
+            destroyAll();
+            init2(0);
+            document.getElementById("completed").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
+            websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
+        }
+        function onSingleplayerClick() {
+            destroyAll();
+            init2(0);
+            document.getElementById("boardNumber").style.display = "block";
+            document.getElementById("wrap1").style.display = "block";
+            document.getElementById("wrap2").style.display = "none";
+            document.getElementById("wrap3").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";
+            document.getElementById("completed").style.display = "none";
+            websocket.send("newboard " + usernameStr + " onepast");
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
+        }
+        function onMultiplayerClick() {
+            destroyAll();
+            init2(0);
+            init2(1);
+            init2(2);
+            document.getElementById("wrap1").style.display = "none";
+            document.getElementById("wrap2").style.display = "block";
+            document.getElementById("wrap3").style.display = "block";
+            document.getElementById("btnTable").style.display = "none";
+            document.getElementById("completed").style.display = "none";
+            websocket.send("multiplayer"+clientId);
+        }
+        function setupMessages() {
+            websocket.onmessage = function(evt){
+                if(isMessage("newboard", evt.data)){
+                    win=false;
+                    payload = getPayload('newboard', evt.data);
+                    payloadSplit=payload.split(/[ ,]+/);
+                    document.getElementById("jumpBoardTxt").value=+payloadSplit[0];
+                    console.log(payload);
+                    document.getElementById("win1Txt").style.display="none";
+                    document.getElementById("win2Txt").style.display="none";
+                    if(payloadSplit[1]=="completed"){
+                        document.getElementById("completed").style.display = "block";
                     }
-                });
-                canvas = oCanvas.create({
-                    canvas: "#myCanvas"
-                });
-                canvas.addChild(canvas.display.rectangle({
-                    x: 0,
-                    y: 0,
-                    width: 600,
-                    height: 600,
-                    zIndex: 0,
-                    fill: "#990"
-                }));
-                for(var i=0;i<=600;i+=100){
-                    canvas.addChild(canvas.display.line({
-                        start: {x:0, y:i},
-                        end: {x:600, y:i},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
-                    canvas.addChild(canvas.display.line({
-                        start: {x:i, y:0},
-                        end: {x:i, y:600},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
-                }
-                inputLoop();
-                canvas.setLoop(inputLoop).start();
-            }
-            function init2() {
-                socket.emit('assign me id');
-                socket.on('assign id html', function(newid){
-                    if(clientId == -1) {
-                        clientId = +newid;
-                        clientId2 = (+newid) + 1;
+                    else {
+                        document.getElementById("completed").style.display = "none";
                     }
-                });
-                canvas = oCanvas.create({
-                    canvas: "#myCanvas"
-                });
-                canvas.addChild(canvas.display.rectangle({
-                    x: 0, //when u make a new canvas (0,0) is now the repective
-                    y: 0, //top left corner of that canvas not the whole screen
-                    width: 600,
-                    height: 600,
-                    zIndex: 0,
-                    fill: "#990"
-                }));
-                for(var i=0;i<=600;i+=100){
-                    canvas.addChild(canvas.display.line({
-                        start: {x:0, y:i},
-                        end: {x:600, y:i},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
-                    canvas.addChild(canvas.display.line({
-                        start: {x:i, y:0},
-                        end: {x:i, y:600},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
+                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+                    websocket.send('mouse input' + message);
                 }
-                //=====================================================================
-                canvas2 = oCanvas.create({
-                    canvas: "#myCanvas2",
-                    background: "#7c3"
-                });
-                canvas2.addChild(canvas2.display.rectangle({
-                    x: 0,
-                    y: 0,
-                    width: 600,
-                    height: 600,
-                    zIndex: 0,
-                    fill: "#990"
-                }));
-                for(var i=0;i<=600;i+=100){
-                    canvas2.addChild(canvas2.display.line({
-                        start: {x:0, y:i},
-                        end: {x:600, y:i},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
-                    canvas2.addChild(canvas2.display.line({
-                        start: {x:i, y:0},
-                        end: {x:i, y:600},
-                        zIndex: 1,
-                        stroke: "1px rgba(128, 128, 128, 1)"
-                    }));
+                if(isMessage("multiplayer", evt.data)){
+                    opponentId = +getPayload('multiplayer', evt.data);
+                    websocket.send("newboard " + usernameStr + " random");
+                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                 }
-                //=====================================================================
-                inputLoop();
-                canvas.setLoop(inputLoop).start();
+                if(isMessage("win", evt.data)){
+                    clientIdWin = +getPayload('win', evt.data);
+                    win=true;
+                    if(clientIdWin == clientId){
+                        document.getElementById("completed").style.display="none";
+                        document.getElementById("win1Txt").style.display="block";
+                    }
+                    else {
+                        document.getElementById("completed").style.display="none";
+                        document.getElementById("win2Txt").style.display="block";
+                    }
+                }
+                if(isMessage("get salt username", evt.data)){
+                    salt = getPayload('get salt username', evt.data);
+                    phash = SHA256.hash(salt + 
+                        document.getElementById('passwordTxt').value);
+                    websocket.send("create user " + 
+                        document.getElementById("usernameTxt").value
+                        + ' ' + phash);
+                }
+                if(isMessage("get salts username", evt.data)){
+                    payload = getPayload('get salts username', evt.data);
+                    salts=payload.split(/[ ,]+/);
+                    phash = SHA256.hash(salts[1] + SHA256.hash(salts[0] + 
+                        document.getElementById('passwordTxt').value));
+                    websocket.send("login " + 
+                        document.getElementById("usernameTxt").value
+                        + ' ' + phash);
+                }
+                if(isMessage('login', evt.data)){
+                    payload = getPayload('login', evt.data);
+                    if(payload=="fail"){
+                        document.getElementById("error").style.display = "block";
+                    }
+                    else {
+                        document.getElementById("maintable").style.display = "none";
+                        document.getElementById("btnTable").style.display = "block";
+                        if(clientId == -1) {
+                            clientId = +payload;
+                        }
+                    }
+                }
+                if(isMessage('num pieces', evt.data)){
+                    payload = getPayload('num pieces', evt.data);
+                    console.log(payload);
+                    message=payload.split(/[ ,]+/);
+                    if(+message[0]==clientId){
+                        initObjects(+message[1],0);
+                        if(initedCanvases>=1){
+                            initObjects(+message[1],1);
+                        }
+                    }
+                    else {
+                        if(initedCanvases>=2){
+                            initObjects(+message[1],2);
+                        }
+                    }
+                }
+                if(isMessage('draw pieces', evt.data)){
+                    payload = getPayload('draw pieces', evt.data);
+                    console.log(payload);
+                    rect=payload.split(/[ ,]+/);
+                    var startIndex=0;
+                    var endIndex=0;
+                    if(clientId==+rect[0]){
+                        startIndex=0;
+                        endIndex=1;
+                    }
+                    else {
+                        startIndex=2;
+                        endIndex=2;
+                    }
+                    for(var index=startIndex;index<=endIndex;++index){
+                        for(var i=0;i<objectsLength[index];i++) {
+                            if(+rect[i*6+1]==0){//0 is player piece type
+                                objects[index][i].fill="#900";
+                            }
+                            else{
+                                objects[index][i].fill="#090";
+                            }
+                            objects[index][i].x = +rect[i*6+2];
+                            objects[index][i].y = +rect[i*6+3];
+                            objects[index][i].width = +rect[i*6+4];
+                            objects[index][i].height = +rect[i*6+5];
+                            if(objects[index][i].width == 0){
+                                objects[index][i].stroke="0px";
+                            }
+                            else{
+                                objects[index][i].stroke="inside 1px rgba(220, 220, 220, 1)";
+                            }
+                        }
+                    }
+                }
             }
-            function initObjects(numberOfObjects) {
-                for(var i=0;i<numberOfObjects;i++) {
-                    addObject();
-                }
+        }
+        function init() {
+            objectsLength[0]=0;
+            objectsLength[1]=0;
+            objectsLength[2]=0;
+            document.getElementById("singleBtn").onclick = onSingleplayerClick;
+            document.getElementById("multiBtn").onclick = onMultiplayerClick;
+            document.getElementById("createBtn").onclick = onCreateClick;
+            document.getElementById("loginBtn").onclick = onLoginClick;
+            document.getElementById("nextBoardBtn").onclick = onNextBoardClick;
+            document.getElementById("prevBoardBtn").onclick = onPrevBoardClick;
+            document.getElementById("jumpBoardTxt").onkeydown = "if (event.keyCode == 13) document.getElementById('jumpBoardBtn').click";
+            document.getElementById("jumpBoardBtn").onclick = onJumpBoardClick;
+
+            setupMessages();
+        }
+
+        function init2(index) {
+            initedCanvases=index;
+            if(canvas.length>index){
+                canvas[index].clear(false);
             }
-            function addObject() {
-                if(flag_multi == 1)
-                {
-                    rectangle2 = canvas2.display.rectangle({
-                    x: 0,
-                    y: 0,
-                    width: 200,
-                    height: 100,
-                    fill: "#077"
+            if(index==0){
+                document.getElementById("singleCanvas").width="450";
+                document.getElementById("singleCanvas").height="450";
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#singleCanvas"
                     });
-                    objects2.push(rectangle2);
-                    numObjects2 = objects.length;
-                    canvas2.addChild(rectangle2);
                 }
-                rectangle = canvas.display.rectangle({
+            }
+            else if(index==1){
+                document.getElementById("multiCanvas1").width="450";
+                document.getElementById("multiCanvas1").height="450";
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#multiCanvas1"
+                    });
+                }
+            }
+            else if(index==2){
+                document.getElementById("multiCanvas2").width="450";
+                document.getElementById("multiCanvas2").height="450";
+                if(canvas.length<=index){
+                    canvas[index] = oCanvas.create({
+                        canvas: "#multiCanvas2"
+                    });
+                }
+            }
+            canvas[index].addChild(canvas[index].display.rectangle({
                 x: 0,
                 y: 0,
-                width: 200,
-                height: 100,
-                fill: "#077"
-                });
-                objects.push(rectangle);
-                numObjects = objects.length;
-                canvas.addChild(rectangle);
+                width: 450,
+                height: 450,
+                zIndex: 0,
+                fill: "#446"
+            }));
+            for(var i=0;i<=450;i+=75){
+                canvas[index].addChild(canvas[index].display.line({
+                    start: {x:0, y:i},
+                    end: {x:450, y:i},
+                    zIndex: 1,
+                    stroke: "1px rgba(128, 128, 128, 1)"
+                }));
+                canvas[index].addChild(canvas[index].display.line({
+                    start: {x:i, y:0},
+                    end: {x:i, y:450},
+                    zIndex: 1,
+                    stroke: "1px rgba(128, 128, 128, 1)"
+                }));
             }
-            var temp_x;
-            function inputLoop() {
-                if(clientId!=-1){
-                    if(canvas.mouse.buttonState=="up"&&md==1){
-                        md=0;
-                        newInput=1;
+
+            inputLoop();
+            canvas[index].setLoop(inputLoop).start();
+        }
+        function initObjects(numberOfObjects, index) {
+            if(index>initedCanvases) {
+                return;
+            }
+            if(objectsLength[index]==0){
+                objects[index] = [];
+            }
+            for(var i=objectsLength[index];i<numberOfObjects;i++) {
+                addObject(index);
+            }
+            objectsLength[index] = objects[index].length;
+            for(var i=objectsLength[index];i>numberOfObjects;i--) {
+                removeObject(index);
+                objectsLength[index] = objects[index].length;
+            }
+            objectsLength[index] = objects[index].length;
+        }
+        function removeObject(index) {
+            canvas[index].removeChild(objects[index][objectsLength[index]- 1]);
+            objects[index].pop();
+        }
+        function addObject(index) {
+            rectangle = canvas[index].display.rectangle({
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            fill: "#090"
+            });
+            objects[index].push(rectangle);
+            canvas[index].addChild(rectangle);
+        }
+
+        function inputLoop() {
+            var index = 0;
+            if(initedCanvases>=1){
+                index=1;
+            }
+            if(clientId!=-1&&win==false){
+                if(canvas[index].mouse.buttonState=="up"&&md==1){
+                    md=0;
+                    newInput=1;
+                }
+                if(canvas[index].mouse.buttonState=="down"&&md==0){
+                    md=1;
+                    newInput=1;
+                }
+                if(canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
+                    mx=canvas[index].mouse.x;
+                    my=canvas[index].mouse.y;
+                    newInput=1;
+                }
+                if(canvas[index].mouse.buttonState=="down"&&canvas[index].mouse.canvasHovered==false){
+                    if(mx>225){
+                        mx=450;
                     }
-                    if(canvas.mouse.buttonState=="down"&&md==0){
-                        md=1;
-                        newInput=1;
+                    else {
+                        mx=0;
                     }
-                    if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
-                        mx=canvas.mouse.x;
-                        my=canvas.mouse.y;
-                        newInput=1;
+                    if(my>225){
+                        my=450;
                     }
-                    if(newInput == 1){
-                        newInput = 0;
-                        message = clientId + ' ' + md + ' ' + mx + ' ' + my;
-                        socket.emit('mouse input', message);
+                    else {
+                        my=0;
                     }
+                    md=0;
+                    newInput=1;
+                }
+                if(newInput == 1){
+                    newInput = 0;
+                    message = clientId + ' ' + md + ' ' + mx + ' ' + my;
+                    websocket.send('mouse input' + message);
                 }
             }
-            socket.on('num pieces', function(msg){
-                message=msg.split(/[ ,]+/);
-                if(+message[0]==clientId)
-                    initObjects(+message[1]);
-            });
-            socket.on('draw pieces', function(msg){
-                rect=msg.split(/[ ,]+/);
-                //check id before u do any draws
-                if(+rect[0]==clientId){
-                    for(var i=0;i<numObjects;i++) {
-                        if(+rect[i*6+1]==0){//0 is player piece type
-                            objects[i].fill="#707";
-                        }
-                        else{
-                            objects[i].fill="#077";
-                        }
-                        objects[i].x = +rect[i*6+2];
-                        objects[i].y = +rect[i*6+3];
-                        objects[i].width = +rect[i*6+4];
-                        objects[i].height = +rect[i*6+5];
-                        if(objects[i].width == 0){
-                            objects[i].stroke="0px";
-                        }
-                        else{
-                            objects[i].stroke="inside 1px rgba(220, 220, 220, 1)";
-                        }
-                    }
-                }
-            });
+        }
         </script>
-    </head>
-    <body>
-        <canvas id="myCanvas" width="600" height="600"></canvas>
-    </body>
-    <body>
-        <canvas id="myCanvas2" width="600" height="600"></canvas>
-    </body>
-    <body>
-        <canvas id="myCanvas3" width="200" height="80"></canvas>
-    </body>
 </html>
