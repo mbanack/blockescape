@@ -7,6 +7,17 @@
 #include "../inc/Board.hpp"
 #include "../inc/Auth.hpp"
 #include "sio_client.h"
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+#include <iostream>
+#include <string>
+using namespace std;
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+using websocketpp::lib::bind;
+typedef websocketpp::server<websocketpp::config::asio> server;
+typedef server::message_ptr message_ptr;
+server webSocketServer;
 using namespace std;
 map<int, SDL_Rect> coordinates;
 map<int, bool> down;
@@ -15,43 +26,88 @@ map<int, Board> boards;
 set<int> ids;
 map<int,SDL_Surface*> pieceGraphics;
 string boardFile;
-void networkNewBoard(sio::event &e){
-    ifstream f(boardFile);
-    string s = e.get_message()->get_string();
-    int id = atoi(s.c_str());
-    SDL_Rect r;
-    Board b(6, 6, pieceGraphics, f);
-    coordinates.insert(make_pair(id,r));
-    down.insert(make_pair(id,false));
-    newInput.insert(make_pair(id,true));
-    boards.insert(make_pair(id,b));
-    ids.insert(id);
+void junk();
+void junk2();
+int identification=0;
+void onMessage(server *s, websocketpp::connection_hdl hdl, 
+    message_ptr msg) {
+    string askSaltUsername("ask salt username");
+    string assignIdHtml("assign id html");
+    string mouseInput("mouse input");
+    if(msg->get_payload().substr(0,askSaltUsername.size())==
+        askSaltUsername){
+        try {
+            string message("get salt username asdf");
+            s->send(hdl, message, websocketpp::frame::opcode::text);
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
+    else if(msg->get_payload().substr(0,assignIdHtml.size())==
+        assignIdHtml){
+        ifstream f(boardFile);
+        identification++;
+        stringstream ss;
+        ss << identification;
+        int id = identification;
+        SDL_Rect r;
+        Board b(6, 6, pieceGraphics, f);
+        coordinates.insert(make_pair(id,r));
+        down.insert(make_pair(id,false));
+        newInput.insert(make_pair(id,true));
+        boards.insert(make_pair(id,b));
+        ids.insert(id);
+        try {
+            string message("assign id html ");
+            message+= ss.str();
+            s->send(hdl, message, websocketpp::frame::opcode::text);
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
+    else if(msg->get_payload().substr(0,mouseInput.size())==
+        mouseInput){
+        stringstream ss;
+        ss.str(msg->get_payload().substr(mouseInput.size()));
+        string downStr;
+        string xStr;
+        string yStr;
+        string fromId;
+        ss >> fromId;
+        ss >> downStr;
+        ss >> xStr;
+        ss >> yStr;
+        int tempId = atoi(fromId.c_str());
+        if(newInput.count(tempId)>0)
+            newInput.find(tempId)->second=true;
+        if(atoi(downStr.c_str())==0){
+            if(down.count(tempId)>0)
+                down.find(tempId)->second = false;
+        }
+        else{
+            if(down.count(tempId)>0)
+                down.find(tempId)->second = true;
+        }
+        if(coordinates.count(tempId)>0){
+            coordinates.find(tempId)->second.x = atoi(xStr.c_str());
+            coordinates.find(tempId)->second.y = atoi(yStr.c_str());
+        }
+        if(down.find(tempId)->second==true)
+            boards.find(tempId)->second.mouseDrag(  
+                coordinates.find(tempId)->second);
+        else
+            boards.find(tempId)->second.mouseRelease();
+        boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
+    }
 }
-void networkMouseInput(sio::event &e){
-    stringstream s;
-    s.str(e.get_message()->get_string());
-    string downStr;
-    string xStr;
-    string yStr;
-    string fromId;
-    s >> fromId;
-    s >> downStr;
-    s >> xStr;
-    s >> yStr;
-    int tempId = atoi(fromId.c_str());
-    if(newInput.count(tempId)>0)
-        newInput.find(tempId)->second=true;
-    if(atoi(downStr.c_str())==0){
-        if(down.count(tempId)>0)
-            down.find(tempId)->second = false;
+void startServer(server &s){
+    try {
+        s.init_asio();
+        s.set_message_handler(bind(&onMessage,&s,::_1,::_2));
+        s.listen(9003);
+        s.start_accept();
+        s.run();
     }
-    else{
-        if(down.count(tempId)>0)
-            down.find(tempId)->second = true;
-    }
-    if(coordinates.count(tempId)>0){
-        coordinates.find(tempId)->second.x = atoi(xStr.c_str());
-        coordinates.find(tempId)->second.y = atoi(yStr.c_str());
+    catch(...){
+        cerr << "Error starting websocket server." << endl;
     }
 }
 void sdlExit(){
@@ -63,38 +119,29 @@ void sdlExit(){
         }
     }
 }
-bool getMouseInput(bool &down, SDL_Rect &coordinates){
-    SDL_Event event;
-    while(SDL_PollEvent(&event)) {
-        switch(event.type){
-        case SDL_MOUSEBUTTONDOWN:
-            if(event.button.button == SDL_BUTTON_LEFT){
-                coordinates.x = event.button.x;
-                coordinates.y = event.button.y;
-                down = true;
-            }
-            break;
-        case SDL_MOUSEBUTTONUP:
-            if(event.button.button == SDL_BUTTON_LEFT)
-                down = false;
-            break;
-        case SDL_MOUSEMOTION:
-            coordinates.x=event.motion.x;
-            coordinates.y=event.motion.y;
-            break;
-        case SDL_QUIT:
-            return false;
-        break;
-        }
-    }
-    return true;
-}
 int main(int argc, char *argv[]){
-    SDL_Init(SDL_INIT_EVERYTHING);
-    IMG_Init(IMG_INIT_PNG);
     string tmp(argv[1]);
     boardFile=tmp;
-    SDL_Surface *backgroundGraphic=IMG_Load("../data/board.png");
+    junk();
+    //h.socket()->on("mouse input", &networkMouseInput);
+    //h.socket()->on("assign id html", &networkNewBoard);
+    startServer(webSocketServer);
+    webSocketServer.run();
+    atexit(junk2);
+}
+
+void junk2(){
+    for(map<int, SDL_Surface *>::iterator it=pieceGraphics.begin();
+        it != pieceGraphics.end(); ++it)
+        SDL_FreeSurface(it->second);
+    IMG_Quit();
+    SDL_Quit();
+}
+//Junk but don't delete
+void junk()
+{
+    SDL_Init(SDL_INIT_EVERYTHING);
+    IMG_Init(IMG_INIT_PNG);
     SDL_Surface *piecePlayerGraphic=IMG_Load("../data/pieceplayer.png");
     SDL_Surface *pieceHoriz2Graphic=IMG_Load("../data/piecehorizontal2.png");
     SDL_Surface *pieceHoriz3Graphic=IMG_Load("../data/piecehorizontal3.png");
@@ -105,33 +152,4 @@ int main(int argc, char *argv[]){
     pieceGraphics.insert(make_pair(Board::PIECE_HORIZONTAL3,pieceHoriz3Graphic));
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL2,pieceVert2Graphic));
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
-    sio::client h;
-    h.connect("http://127.0.0.1:9002");
-    h.socket()->on("mouse input", &networkMouseInput);
-    h.socket()->on("assign id html", &networkNewBoard);
-    while(true){
-        set<int> idsCopy = ids; //So that we don't modify while iterating
-        for(set<int>::iterator i=idsCopy.begin();i!=idsCopy.end();++i){
-            if(newInput.find(*i)->second){
-                newInput.find(*i)->second = false;
-                if(down.find(*i)->second==true)
-                    boards.find(*i)->second.mouseDrag(coordinates.find(*i)->second);
-                else
-                {
-                    boards.find(*i)->second.mouseRelease();
-                    boards.find(*i)->second.printIds(cout);
-                }
-            }
-            boards.find(*i)->second.sendPieceLocations(h, *i);
-        }
-        sdlExit();
-    }
-    SDL_FreeSurface(backgroundGraphic);
-    SDL_FreeSurface(piecePlayerGraphic);
-    SDL_FreeSurface(pieceHoriz2Graphic);
-    SDL_FreeSurface(pieceHoriz3Graphic);
-    SDL_FreeSurface(pieceVert2Graphic);
-    SDL_FreeSurface(pieceVert3Graphic);
-    IMG_Quit();
-    SDL_Quit();
 }

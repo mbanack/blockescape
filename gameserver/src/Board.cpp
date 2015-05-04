@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <sstream>
 using namespace std;
+typedef websocketpp::server<websocketpp::config::asio> server;
 /************************************************************
 void Board::removeRandomPiece(vvi &board){
     int x = rand()%BOARD_COLS;
@@ -146,7 +147,7 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
     }
 }
 ****/
-void Board::sendPieceLocations(sio::client &h, int tid){
+void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, int tid){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
     if(lastNetworkMessage.empty()){
@@ -158,7 +159,12 @@ void Board::sendPieceLocations(sio::client &h, int tid){
             
         }
         s << tid << " " << numPieces + 1; //+ 1 is floating piece
-        h.socket()->emit("num pieces", s.str().c_str());
+        try {
+            string m("num pieces");
+            m+=s.str();
+            ser.send(hdl, m, websocketpp::frame::opcode::text);
+        }
+        catch( const websocketpp::lib::error_code &e){}
         s.str("");
     }
     SDL_Rect r;
@@ -177,7 +183,12 @@ void Board::sendPieceLocations(sio::client &h, int tid){
         
     string message=s.str();
     if(message!=lastNetworkMessage){
-        h.socket()->emit("draw pieces", message.c_str());
+        try {
+            string m("draw pieces");
+            m+=message;
+            ser.send(hdl, m, websocketpp::frame::opcode::text);
+        }
+        catch( const websocketpp::lib::error_code &e){}
         lastNetworkMessage=message;
     }
 }
