@@ -165,23 +165,23 @@
                     background: "#7c3"
                 });
                 canvas2.addChild(canvas2.display.rectangle({
-                    x: 610,
+                    x: 0,
                     y: 0,
                     width: 600,
                     height: 600,
                     zIndex: 0,
                     fill: "#990"
                 }));
-                for(var i=610;i<=1210;i+=100){
+                for(var i=0;i<=600;i+=100){
                     canvas2.addChild(canvas2.display.line({
-                        start: {x:610, y:i},
-                        end: {x:1210, y:i},
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
                         zIndex: 1,
                         stroke: "1px rgba(128, 128, 128, 1)"
                     }));
                     canvas2.addChild(canvas2.display.line({
                         start: {x:i, y:0},
-                        end: {x:i, y:1210},
+                        end: {x:i, y:600},
                         zIndex: 1,
                         stroke: "1px rgba(128, 128, 128, 1)"
                     }));
