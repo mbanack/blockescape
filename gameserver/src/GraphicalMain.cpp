@@ -11,6 +11,8 @@
 #include <websocketpp/server.hpp>
 #include <iostream>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 using namespace std;
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
@@ -29,12 +31,13 @@ map<int,SDL_Surface*> pieceGraphics;
 map<string, string> userSalts1;
 map<string, string> userSalts2;
 string waitingId;
-bool waitingPlayer;
+bool waitingPlayer = false;
 websocketpp::connection_hdl waitingConnection;
 map<string, websocketpp::connection_hdl> opponentConnection;
 void junk();
 void junk2();
 int identification=0;
+const int TOTAL_BOARDS=2;
 void login(server *s, websocketpp::connection_hdl hdl, 
     message_ptr msg, string username) {
     try {
@@ -91,15 +94,21 @@ int levelOnePast(int index, const vector<int> &completed){
     return ret;
 }
 void newBoard(server *s, websocketpp::connection_hdl hdl, 
-    message_ptr msg, string username, int index, bool onePast) {
+    message_ptr msg, string username, int index, bool onePast,
+    bool random) {
     SDL_Rect r;
     int id = userId.find(username)->second;
     Auth auth;
-    vector<int> completed = auth.getCompletedBoards(username);
-    if(onePast)
+    if(onePast) {
+        vector<int> completed = auth.getCompletedBoards(username);
         index=levelOnePast(index,completed);
-    else
+    }
+    else if(random)
+        index=rand()%TOTAL_BOARDS;
+    else {
+        vector<int> completed = auth.getCompletedBoards(username);
         index=levelIndexOkay(index,completed);
+    }
     stringstream ss;
     ss << index;
     string boardPath="../data/board";
@@ -146,6 +155,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                 message1+=waitingId;
                 string message2("multiplayer");
                 message2+=str;
+                opponentConnection.insert(make_pair(waitingId,hdl));
+                opponentConnection.insert(make_pair(str,waitingConnection));
                 s->send(hdl, message1, websocketpp::frame::opcode::text);
                 s->send(waitingConnection, message2, websocketpp::frame::opcode::text);
             }
@@ -170,12 +181,16 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             string constNext("next");
             string constPrevious("previous");
             string constJump("jump");
+            string constOnePast("onepast");
             if(action==constNext||action==constPrevious||action==constJump){
                 ss >> index;
-                newBoard(s, hdl, msg, username, atoi(index.c_str()), false);
+                newBoard(s, hdl, msg, username, atoi(index.c_str()), 
+                    false, false);
             }
+            else if(action==constOnePast)
+                newBoard(s, hdl, msg, username, 0, true, false);
             else
-                newBoard(s, hdl, msg, username, 0, true);
+                newBoard(s, hdl, msg, username, 0, false, true);
         }
         catch( const websocketpp::lib::error_code &e){}
     }
@@ -287,7 +302,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         else
             boards.find(tempId)->second.mouseRelease();
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
-        if(opponentConnection.count(fromId)){
+        if(opponentConnection.count(fromId)>0){
+            cout << "SEND PIECES to opponent" << endl;
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
@@ -323,6 +339,7 @@ void sdlExit(){
 }
 int main(int argc, char *argv[]){
     junk();
+    srand(time(0));
     startServer(webSocketServer);
     webSocketServer.run();
     atexit(junk2);

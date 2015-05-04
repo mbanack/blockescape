@@ -153,23 +153,21 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
 void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, int tid){
     stringstream s;
     multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
-    if(lastNetworkMessage.empty()){
-        int numPieces = 0;
-        for(multimap<SDL_Surface *, SDL_Rect>::const_iterator 
-            i=pieces.begin(); i!=pieces.end();++i) {
-            if(i->second.w!=i->second.h)
-                numPieces++;
-            
-        }
-        s << tid << " " << numPieces + 1; //+ 1 is floating piece
-        try {
-            string m("num pieces");
-            m+=s.str();
-            ser.send(hdl, m, websocketpp::frame::opcode::text);
-        }
-        catch( const websocketpp::lib::error_code &e){}
-        s.str("");
+    int numPieces = 0;
+    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator 
+        i=pieces.begin(); i!=pieces.end();++i) {
+        if(i->second.w!=i->second.h)
+            numPieces++;
+        
     }
+    s << tid << " " << numPieces + 1; //+ 1 is floating piece
+    try {
+        string m("num pieces");
+        m+=s.str();
+        ser.send(hdl, m, websocketpp::frame::opcode::text);
+    }
+    catch( const websocketpp::lib::error_code &e){}
+    s.str("");
     SDL_Rect r;
     for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
         i!=pieces.end();++i) {
@@ -185,15 +183,13 @@ void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, in
         << r.w << " " << r.h << " ";
         
     string message=s.str();
-    if(message!=lastNetworkMessage){
-        try {
-            string m("draw pieces");
-            m+=message;
-            ser.send(hdl, m, websocketpp::frame::opcode::text);
-        }
-        catch( const websocketpp::lib::error_code &e){}
-        lastNetworkMessage=message;
+    try {
+        string m("draw pieces");
+        m+=message;
+        ser.send(hdl, m, websocketpp::frame::opcode::text);
     }
+    catch( const websocketpp::lib::error_code &e){}
+    lastNetworkMessage=message;
 }
 void Board::mouseDrag(SDL_Rect rect){
     SDL_Rect last = floatingPieceRect;
@@ -529,13 +525,14 @@ Board::Board(int width, int height,
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE),floatingPieceId(0){
+    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),board(){
     string minMovesStr;
     f >> minMovesStr;
     minMoves = atoi(minMovesStr.c_str());
     for(int i=0;i<height;++i){
         string line;
         f >> line;
+        cout << "LINE " << line << endl;
         vi row;
         for(string::iterator j=line.begin();j!=line.end();++j)
         {

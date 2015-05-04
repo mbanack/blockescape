@@ -56,7 +56,7 @@
     }
     .wrapper2 {
         position:absolute;
-        left:10px;
+        left:95px;
         top:240px;
         width:450px;
         height:450px;
@@ -65,7 +65,7 @@
     }
     .wrapper3 {
         position:absolute;
-        left:820px;
+        left:735px;
         top:240px;
         width:450px;
         height:450px;
@@ -183,6 +183,7 @@
         var win=false;
         var opponentId=-1;
         var initedCanvases=0;
+        var objectsLength = [];
         onload = init;
 
         function isMessage(startsWith, msg){
@@ -237,23 +238,26 @@
             websocket.send('mouse input' + message);
         }
         function onMultiplayerClick() {
+            init2(0);
             init2(1);
-            message = clientId + ' ' + 0 + ' ' + 0 + ' ' + 0;
+            init2(2);
             document.getElementById("wrap1").style.display = "none";
             document.getElementById("wrap2").style.display = "block";
             document.getElementById("wrap3").style.display = "block";
             document.getElementById("btnTable").style.display = "none";
-            websocket.send('mouse input' + message);
-            websocket.send("multiplayer"+usernameStr);
+            websocket.send("multiplayer"+clientId);
         }
         function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("newboard", evt.data)){
                     win=false;
+                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+                    websocket.send('mouse input' + message);
                 }
                 if(isMessage("multiplayer", evt.data)){
                     opponentId = +getPayload('multiplayer', evt.data);
-                    init2(2);
+                    websocket.send("newboard " + usernameStr + " random");
+                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                 }
                 if(isMessage("win", evt.data)){
                     clientIdWin = +getPayload('win', evt.data);
@@ -298,39 +302,36 @@
                 }
                 if(isMessage('num pieces', evt.data)){
                     payload = getPayload('num pieces', evt.data);
+                    console.log(payload);
                     message=payload.split(/[ ,]+/);
-                    if(+message[0]==clientId) {
+                    if(+message[0]==clientId){
                         initObjects(+message[1],0);
-                        initObjects(+message[1],1);
+                        if(initedCanvases>=1){
+                            initObjects(+message[1],1);
+                        }
                     }
                     else {
-                        initObjects(+message[1],2);
+                        if(initedCanvases>=2){
+                            initObjects(+message[1],2);
+                        }
                     }
                 }
                 if(isMessage('draw pieces', evt.data)){
                     payload = getPayload('draw pieces', evt.data);
+                    console.log(payload);
                     rect=payload.split(/[ ,]+/);
-                    //check id before u do any draws
-                    if(+rect[0]==clientId){
+                    var startIndex=0;
+                    var endIndex=0;
+                    if(clientId==+rect[0]){
                         startIndex=0;
-                        if(initedCanvases>0){
-                            endIndex=1;
-                        }
-                        else {
-                            endIndex=0;
-                        }
+                        endIndex=1;
                     }
-                    else if(+rect[0]==opponentId){
-                        if(initedCanvases>1){
-                            startIndex=2;
-                            endIndex=2;
-                        }
-                        else {
-                            startIndex=10;
-                        }
+                    else {
+                        startIndex=2;
+                        endIndex=2;
                     }
-                    for(var index=0;index<=endIndex;++index){
-                        for(var i=0;i<objects[index].length;i++) {
+                    for(var index=startIndex;index<=endIndex;++index){
+                        for(var i=0;i<objectsLength[index];i++) {
                             if(+rect[i*6+1]==0){//0 is player piece type
                                 objects[index][i].fill="#900";
                             }
@@ -353,6 +354,9 @@
             }
         }
         function init() {
+            objectsLength[0]=0;
+            objectsLength[1]=0;
+            objectsLength[2]=0;
             document.getElementById("singleBtn").onclick = onSingleplayerClick;
             document.getElementById("multiBtn").onclick = onMultiplayerClick;
             document.getElementById("createBtn").onclick = onCreateClick;
@@ -394,7 +398,7 @@
                 width: 450,
                 height: 450,
                 zIndex: 0,
-                fill: "#101"
+                fill: "#446"
             }));
             for(var i=0;i<=450;i+=75){
                 canvas[index].addChild(canvas[index].display.line({
@@ -418,15 +422,19 @@
             if(index>initedCanvases) {
                 return;
             }
-            for(var i=objects[index].length;i<numberOfObjects;i++) {
+            if(objectsLength[index]==0){
+                objects[index] = [];
+            }
+            for(var i=objectsLength[index];i<numberOfObjects;i++) {
                 addObject(index);
             }
-            for(var i=numberOfObjects;i<objects[index].length;i++) {
+            for(var i=numberOfObjects;i<objectsLength[index];i++) {
                 removeObject(index);
             }
+            objectsLength[index] = objects[index].length;
         }
         function removeObject(index) {
-            canvas[index].removeChild(objects[index][objects[index].length - 1]);
+            canvas[index].removeChild(objects[index][objectsLength[index]- 1]);
             objects[index].pop();
         }
         function addObject(index) {
@@ -435,33 +443,35 @@
             y: 0,
             width: 150,
             height: 75,
-            fill: "#077"
+            fill: "#090"
             });
             objects[index].push(rectangle);
             canvas[index].addChild(rectangle);
         }
 
         function inputLoop() {
-            for(var index=0;index<=initedCanvases&&index!=3;index++){
-                if(clientId!=-1&&win==false){
-                    if(canvas[index].mouse.buttonState=="up"&&md==1){
-                        md=0;
-                        newInput=1;
-                    }
-                    if(canvas[index].mouse.buttonState=="down"&&md==0){
-                        md=1;
-                        newInput=1;
-                    }
-                    if(canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
-                        mx=canvas[index].mouse.x;
-                        my=canvas[index].mouse.y;
-                        newInput=1;
-                    }
-                    if(newInput == 1){
-                        newInput = 0;
-                        message = clientId + ' ' + md + ' ' + mx + ' ' + my;
-                        websocket.send('mouse input' + message);
-                    }
+            var index = 0;
+            if(initedCanvases>=1){
+                index=1;
+            }
+            if(clientId!=-1&&win==false){
+                if(canvas[index].mouse.buttonState=="up"&&md==1){
+                    md=0;
+                    newInput=1;
+                }
+                if(canvas[index].mouse.buttonState=="down"&&md==0){
+                    md=1;
+                    newInput=1;
+                }
+                if(canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
+                    mx=canvas[index].mouse.x;
+                    my=canvas[index].mouse.y;
+                    newInput=1;
+                }
+                if(newInput == 1){
+                    newInput = 0;
+                    message = clientId + ' ' + md + ' ' + mx + ' ' + my;
+                    websocket.send('mouse input' + message);
                 }
             }
         }
