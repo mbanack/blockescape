@@ -5,6 +5,9 @@ LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -gg
 graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
+dbtest:
+	g++ dbtest.cpp $(LDFLAGS)
+
 obj/Auth.o: src/Auth.cpp inc/Auth.hpp
 	g++ $(LDFLAGS) -c src/Auth.cpp -o $@
 

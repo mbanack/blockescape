@@ -15,7 +15,7 @@ bool Auth::createUser(const string &username,
         driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
-    string insert("INSERT INTO users VALUES (\"");
+    string insert("INSERT INTO users (username, password, salt, levels) VALUES (\"");
     insert += username;
     insert += "\", \"";
     insert += password;
@@ -46,22 +46,23 @@ bool Auth::Authorize(const string &username, const string &salt2,
     select += username;
     select += "\";";
     sql::ResultSet *r = s->executeQuery(select.c_str());
-    string dbpassword = salt2;
+    string dbpassword; 
     if(r->next()){
-        dbpassword+=r->getString("password");
+        dbpassword=r->getString("password");
     }
+    string hashIn1 = salt2 + dbpassword;
+    //new
     unsigned char out[crypto_hash_sha256_BYTES];
-    unsigned char *in = new unsigned char [dbpassword.size()];
-    crypto_hash_sha256(out, in, dbpassword.size());
-    delete [] in;
-    string comp;
-    int i = 0;
-    while(out[i])
-        comp.push_back(char(out[i++]));
+    crypto_hash_sha256(out, ((const unsigned char *)hashIn1.c_str()), hashIn1.size());
+    char out2[crypto_hash_sha256_BYTES*2+1];
+    sodium_bin2hex(out2, crypto_hash_sha256_BYTES * 2 + 1,
+                     out, crypto_hash_sha256_BYTES);
+    string finalHash(out2);
+    //end new
     delete s;
     delete r;
     delete con;
-    return comp == password;
+    return finalHash == password;
 }
 string Auth::getSalt(const string &username){
     sql::Driver *driver = get_driver_instance();
@@ -83,11 +84,10 @@ string Auth::getSalt(const string &username){
     return salt;
 }
 string Auth::genSalt(){
-    string s;
-    while(s.size() < 32){
-        char c = randombytes_random() & 0xFF;
-        if((c >= 'a' && c <= 'z')||(c>= 'A' && c <= 'Z'))
-            s.push_back(c);
-    }
+    unsigned char out[32];
+    randombytes_buf(out, 32);
+    char out2[32*2+1];
+    sodium_bin2hex(out2, 32 * 2 + 1, out, 32);
+    string s(out2);
     return s;
 }

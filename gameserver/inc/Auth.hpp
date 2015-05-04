@@ -8,7 +8,6 @@ public:
     bool Authorize(const std::string &username, const std::string &salt2,
         const std::string &password);
     std::string getSalt(const std::string &username);
-private:
     std::string genSalt();
 };
 #endif

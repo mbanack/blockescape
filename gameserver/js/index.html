@@ -73,7 +73,7 @@
         <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
     </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
-    <script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
+    <script src="./sha256.js"></script>
     <script>
         var websocket = new WebSocket("ws://173.60.61.234:9003");
         var canvas;
@@ -101,19 +101,45 @@
         function onCreateClick() {
             websocket.send("ask salt username" + 
                 document.getElementById("usernameTxt").value);
+        }
+        function onLoginClick() {
+            websocket.send("ask salts username" + 
+                document.getElementById("usernameTxt").value);
+        }
+        function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("get salt username", evt.data)){
-                    init2();
+                    salt = getPayload('get salt username', evt.data);
+                    phash = SHA256.hash(salt + 
+                        document.getElementById('passwordTxt').value);
+                    websocket.send("create user " + 
+                        document.getElementById("usernameTxt").value
+                        + ' ' + phash);
                 }
-                if(isMessage('assign id html', evt.data)){
-                    payload = getPayload('assign id html', evt.data);
-                    if(clientId == -1) {
-                        clientId = +payload;
+                if(isMessage("get salts username", evt.data)){
+                    payload = getPayload('get salts username', evt.data);
+                    salts=payload.split(/[ ,]+/);
+                    phash = SHA256.hash(salts[1] + SHA256.hash(salts[0] + 
+                        document.getElementById('passwordTxt').value));
+                    websocket.send("login " + 
+                        document.getElementById("usernameTxt").value
+                        + ' ' + phash);
+                }
+                if(isMessage('login', evt.data)){
+                    payload = getPayload('login', evt.data);
+                    message=payload.split(/[ ,]+/);
+                    if(message[0]=="fail"){
+                        console.log("login fail");
+                    }
+                    else {
+                        init2();
+                        if(clientId == -1) {
+                            clientId = +payload;
+                        }
                     }
                 }
                 if(isMessage('num pieces', evt.data)){
                     payload = getPayload('num pieces', evt.data);
-                    console.log(payload);
                     message=payload.split(/[ ,]+/);
                     if(+message[0]==clientId) {
                         initObjects(+message[1]);
@@ -121,10 +147,8 @@
                 }
                 if(isMessage('draw pieces', evt.data)){
                     payload = getPayload('draw pieces', evt.data);
-                    console.log(payload);
                     rect=payload.split(/[ ,]+/);
                     //check id before u do any draws
-                    console.log(numObjects);
                     if(+rect[0]==clientId){
                         for(var i=0;i<numObjects;i++) {
                             if(+rect[i*6+1]==0){//0 is player piece type
@@ -150,6 +174,8 @@
         }
         function init() {
             document.getElementById("createBtn").onclick = onCreateClick;
+            document.getElementById("loginBtn").onclick = onLoginClick;
+            setupMessages();
         }
 
         function init2() {
@@ -180,7 +206,6 @@
                     stroke: "1px rgba(128, 128, 128, 1)"
                 }));
             }
-            websocket.send('assign id html');
 
             inputLoop();
             canvas.setLoop(inputLoop).start();

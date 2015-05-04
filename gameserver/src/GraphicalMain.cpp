@@ -25,43 +25,120 @@ map<int, bool> newInput;
 map<int, Board> boards;
 set<int> ids;
 map<int,SDL_Surface*> pieceGraphics;
+map<string, string> userSalts1;
+map<string, string> userSalts2;
 string boardFile;
 void junk();
 void junk2();
 int identification=0;
+void loginFail(server *s, websocketpp::connection_hdl hdl, 
+    message_ptr msg) {
+    try {
+        string message("login");
+        message+= "fail";
+        s->send(hdl, message, websocketpp::frame::opcode::text);
+    }
+    catch( const websocketpp::lib::error_code &e){}
+}
+void login(server *s, websocketpp::connection_hdl hdl, 
+    message_ptr msg) {
+    ifstream f(boardFile);
+    identification++;
+    stringstream ss;
+    ss << identification;
+    int id = identification;
+    SDL_Rect r;
+    Board b(6, 6, pieceGraphics, f);
+    coordinates.insert(make_pair(id,r));
+    down.insert(make_pair(id,false));
+    newInput.insert(make_pair(id,true));
+    boards.insert(make_pair(id,b));
+    ids.insert(id);
+    try {
+        string message("login");
+        message+= ss.str();
+        s->send(hdl, message, websocketpp::frame::opcode::text);
+    }
+    catch( const websocketpp::lib::error_code &e){}
+}
 void onMessage(server *s, websocketpp::connection_hdl hdl, 
     message_ptr msg) {
     string askSaltUsername("ask salt username");
+    string askSaltsUsername("ask salts username");
     string assignIdHtml("assign id html");
     string mouseInput("mouse input");
+    string loginStr("login");
+    string createUser("create user");
     if(msg->get_payload().substr(0,askSaltUsername.size())==
         askSaltUsername){
         try {
-            string message("get salt username asdf");
+            string message("get salt username");
+            string str(msg->get_payload().substr(askSaltUsername.size()));
+            Auth auth;
+            string salt = auth.getSalt(str);
+            userSalts1.insert(make_pair(str,salt));
+            message+=salt;
             s->send(hdl, message, websocketpp::frame::opcode::text);
         }
         catch( const websocketpp::lib::error_code &e){}
     }
-    else if(msg->get_payload().substr(0,assignIdHtml.size())==
-        assignIdHtml){
-        ifstream f(boardFile);
-        identification++;
-        stringstream ss;
-        ss << identification;
-        int id = identification;
-        SDL_Rect r;
-        Board b(6, 6, pieceGraphics, f);
-        coordinates.insert(make_pair(id,r));
-        down.insert(make_pair(id,false));
-        newInput.insert(make_pair(id,true));
-        boards.insert(make_pair(id,b));
-        ids.insert(id);
+    else if(msg->get_payload().substr(0,askSaltsUsername.size())==
+        askSaltsUsername){
         try {
-            string message("assign id html ");
-            message+= ss.str();
+            string message("get salts username");
+            string str(msg->get_payload().substr(askSaltsUsername.size()));
+            Auth auth;
+            string salt1=auth.getSalt(str);
+            string salt2=auth.genSalt();
+            if(userSalts2.count(str)>0)
+                userSalts2.erase(userSalts2.find(str));
+            userSalts2.insert(make_pair(str, salt2));
+            message+=salt1 + " " + salt2;
             s->send(hdl, message, websocketpp::frame::opcode::text);
         }
         catch( const websocketpp::lib::error_code &e){}
+    }
+    else if(msg->get_payload().substr(0,createUser.size())==
+        createUser){
+        try {
+            string str(msg->get_payload().substr(createUser.size()));
+            stringstream usernamePhashStream(str);
+            string username;
+            string phash;
+            usernamePhashStream >> username;
+            usernamePhashStream >> phash;
+            Auth auth;
+            string salt1 = userSalts1.find(username)->second;
+            if(auth.createUser(username, phash, salt1))
+                login(s, hdl, msg);
+            else
+                loginFail(s, hdl, msg);
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
+    else if(msg->get_payload().substr(0,loginStr.size())==
+        loginStr){
+        string str(msg->get_payload().substr(loginStr.size()));
+        stringstream userPassStream(str);
+        string username;
+        string phash;
+        userPassStream >> username;
+        userPassStream >> phash;
+        string salt1;
+        string salt2;
+        Auth auth;
+        salt1 = auth.getSalt(username);
+        if(userSalts2.count(username)>0){
+            salt2=userSalts2.find(username)->second;
+        }
+        else
+            cerr << "Error: could not get salt" << endl;
+        //Compare hashes
+        if(auth.Authorize(username, salt2, phash))
+            login(s, hdl, msg);
+        else{
+            loginFail(s, hdl, msg);
+        }
     }
     else if(msg->get_payload().substr(0,mouseInput.size())==
         mouseInput){
