@@ -3,6 +3,7 @@
 #include <string>
 class Auth {
 public:
+    bool userExists(const std::string &username);
     bool createUser(const std::string &username,
         const std::string &password, const std::string &salt);
     bool Authorize(const std::string &username, const std::string &salt2,

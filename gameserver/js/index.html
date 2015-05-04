@@ -16,14 +16,20 @@
         text-align: center;
     }
     .textbox {
-        width:120px;
+        width:130px;
     }
     .button {
-        width:120px;
+        width:130px;
     }
     .table {
-        width:250px;
+        width:270px;
         margin:0 auto;
+        visibility:visible;
+    }
+    .buttontable {
+        width:270px;
+        margin:0 auto;
+        display:none;
     }
     .column {
         float:left;
@@ -31,8 +37,8 @@
     }
     .wrapper {
         position:absolute;
-        left:450px;
-        top:220px;
+        left:490px;
+        top:240px;
         width:300px;
         height:300px;
         text-align:center;
@@ -46,10 +52,16 @@
     canvas {
         display: inline;
     }
+    #error {
+        width:100%;
+        clear:both;
+        text-align: center;
+        display: none;
+    }
     </style>
     <body>
     <div class="titleText">Block Escape</div>
-    <div class="table">
+    <div class="table" id="maintable">
         <div class="column">
                 <p>
                 Username <br /> 
@@ -69,6 +81,17 @@
                 </p>
         </div>
     </div>
+    <div class="buttontable" id="btnTable">
+        <div class="column">
+                <p></p>
+                <input class="button" id="singleBtn" type="button" value="Singleplayer Mode">
+        </div>
+        <div class="column">
+                <p></p>
+                <input class="button" id="multiBtn" type="button" value="Multiplayer Mode">
+        </div>
+    </div>
+    <div id="error">Error Logging In/Creating Account</div>
     <div class="wrapper">
         <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
     </div>
@@ -99,10 +122,12 @@
             return msg.substring(startsWith.length, msg.length);
         }
         function onCreateClick() {
+            document.getElementById("error").style.display = "none";
             websocket.send("ask salt username" + 
                 document.getElementById("usernameTxt").value);
         }
         function onLoginClick() {
+            document.getElementById("error").style.display = "none";
             websocket.send("ask salts username" + 
                 document.getElementById("usernameTxt").value);
         }
@@ -129,9 +154,11 @@
                     payload = getPayload('login', evt.data);
                     message=payload.split(/[ ,]+/);
                     if(message[0]=="fail"){
-                        console.log("login fail");
+                        document.getElementById("error").style.display = "block";
                     }
                     else {
+                        document.getElementById("maintable").style.display = "none";
+                        document.getElementById("btnTable").style.display = "block";
                         init2();
                         if(clientId == -1) {
                             clientId = +payload;

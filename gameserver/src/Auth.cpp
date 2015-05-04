@@ -7,6 +7,27 @@
 #include <sodium.h>
 #include "mysql_driver.h"
 using namespace std;
+bool Auth::userExists(const string &username){
+    sql::Driver *driver = get_driver_instance();
+    sql::Connection *con = 
+        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    string select("SELECT * FROM users WHERE username = \"" + username
+        + "\";");
+    sql::ResultSet *r = s->executeQuery(select.c_str());
+    if(r->next())
+    {
+        delete s;
+        delete r;
+        delete con;
+        return true;
+    }
+    delete s;
+    delete r;
+    delete con;
+    return false;
+}
 bool Auth::createUser(const string &username,
     const string &password, const string &salt){
     bool success=true;

@@ -108,6 +108,10 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             usernamePhashStream >> username;
             usernamePhashStream >> phash;
             Auth auth;
+            if(auth.userExists(username)){
+                loginFail(s, hdl, msg);
+                return;
+            }
             string salt1 = userSalts1.find(username)->second;
             if(auth.createUser(username, phash, salt1))
                 login(s, hdl, msg);
