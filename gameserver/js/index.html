@@ -151,7 +151,7 @@
                 <p></p>
                 <p></p>
                 <input class="smallButton" id="prevBoardBtn" type="button" value="<">
-                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="1">
+                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="0">
                 <input class="hiddenbutton" id="jumpBoardBtn" type="button">
                 <input class="smallButton" id="nextBoardBtn" type="button" value=">">
     </div>
@@ -182,10 +182,27 @@
         var clientIdWin = -1;
         var win=false;
         var opponentId=-1;
-        var initedCanvases=0;
+        var initedCanvases=-1;
         var objectsLength = [];
         onload = init;
 
+        function destroyAll(){
+            for(var i = 0; i <= initedCanvases;++i){
+                objects[i]=[];
+                }
+                canvas = []
+                objects = [[]];
+                objectLengths = [];
+                mx = 0;
+                my = 0;
+                md = 0;
+                types = [];
+                newInput = 0;
+                clientIdWin = -1;
+                win=false;
+                opponentId=-1;
+                initedCanvases=0;
+        }
         function isMessage(startsWith, msg){
             if(msg.substring(0, startsWith.length) === startsWith){
                 return true;
@@ -227,6 +244,7 @@
             websocket.send('mouse input' + message);
         }
         function onSingleplayerClick() {
+            destroyAll();
             init2(0);
             document.getElementById("boardNumber").style.display = "block";
             document.getElementById("wrap1").style.display = "block";
@@ -238,6 +256,7 @@
             websocket.send('mouse input' + message);
         }
         function onMultiplayerClick() {
+            destroyAll();
             init2(0);
             init2(1);
             init2(2);
@@ -371,6 +390,9 @@
 
         function init2(index) {
             initedCanvases=index;
+            if(canvas.length>index){
+                canvas[index].clear(false);
+            }
             if(index==0){
                 document.getElementById("singleCanvas").width="450";
                 document.getElementById("singleCanvas").height="450";
@@ -468,6 +490,22 @@
                     my=canvas[index].mouse.y;
                     newInput=1;
                 }
+                if(canvas[index].mouse.buttonState=="down"&&canvas[index].mouse.canvasHovered==false){
+                    if(mx>225){
+                        mx=450;
+                    }
+                    else {
+                        mx=0;
+                    }
+                    if(my>225){
+                        my=450;
+                    }
+                    else {
+                        my=0;
+                    }
+                    md=0;
+                    newInput=1;
+                }
                 if(newInput == 1){
                     newInput = 0;
                     message = clientId + ' ' + md + ' ' + mx + ' ' + my;
@@ -475,6 +513,5 @@
                 }
             }
         }
-
         </script>
 </html>
