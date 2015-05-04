@@ -242,7 +242,9 @@
             init2(0);
             document.getElementById("completed").style.display = "none";
             document.getElementById("btnTable").style.display = "none";
-            websocket.send("newboard " + usernameStr + " prev " + document.getElementById("jumpBoardTxt").value);
+            websocket.send("newboard " + usernameStr + " previous " + document.getElementById("jumpBoardTxt").value);
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
         }
         function onNextBoardClick(){
             destroyAll();
@@ -251,6 +253,8 @@
             document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
             document.getElementById("btnTable").style.display = "none";
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
         }
         function onJumpBoardClick(){
             destroyAll();
@@ -258,6 +262,8 @@
             document.getElementById("completed").style.display = "none";
             document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
         }
         function onSingleplayerClick() {
             destroyAll();
@@ -290,7 +296,6 @@
                     win=false;
                     payload = getPayload('newboard', evt.data);
                     payloadSplit=payload.split(/[ ,]+/);
-                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                     document.getElementById("jumpBoardTxt").value=+payloadSplit[0];
                     console.log(payload);
                     document.getElementById("win1Txt").style.display="none";
@@ -301,6 +306,7 @@
                     else {
                         document.getElementById("completed").style.display = "none";
                     }
+                    message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                     websocket.send('mouse input' + message);
                 }
                 if(isMessage("multiplayer", evt.data)){
@@ -502,8 +508,8 @@
             rectangle = canvas[index].display.rectangle({
             x: 0,
             y: 0,
-            width: 150,
-            height: 75,
+            width: 0,
+            height: 0,
             fill: "#090"
             });
             objects[index].push(rectangle);

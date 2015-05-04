@@ -177,10 +177,10 @@ void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, in
                 << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
     }
     r=floatingPieceRect;
-    if(floatingPieceType==EMPTY_SPACE)
-        r.w=r.h=0;
+    if(floatingPieceType!=EMPTY_SPACE) {
     s << tid << " " << floatingPieceType << " " << r.x << " " << r.y << " " 
         << r.w << " " << r.h << " ";
+    }
         
     string message=s.str();
     try {
