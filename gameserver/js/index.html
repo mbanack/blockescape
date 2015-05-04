@@ -121,8 +121,6 @@
                         stroke: "1px rgba(128, 128, 128, 1)"
                     }));
                 }
-                //=====================================================================
-                //=====================================================================
                 inputLoop();
                 canvas.setLoop(inputLoop).start();
             }
@@ -138,8 +136,8 @@
                     canvas: "#myCanvas"
                 });
                 canvas.addChild(canvas.display.rectangle({
-                    x: 0,
-                    y: 0,
+                    x: 0, //when u make a new canvas (0,0) is now the repective
+                    y: 0, //top left corner of that canvas not the whole screen
                     width: 600,
                     height: 600,
                     zIndex: 0,
