@@ -21,6 +21,7 @@ using namespace std;
 
 #define ID_BLANK 0x00
 #define ID_P 0x01
+#define ID_MAX 0xFF
 
 #define RIGHT 1
 #define LEFT  0
@@ -468,12 +469,28 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
     clone_bsref(c_out, bs);
     printf("apply_heuristics(%d)\n", id);
-    // consider free moves
+    // consider free moves for this piece, then player piece, then all other pieces
     if (predict_next(bs, c_out, bidx, x, y)) {
         printf("found free move\n");
         *cid_out = id;
         return 1;
     }
+    for (int i = ID_P; i < ID_MAX; i++) {
+        if (i == id) {
+            // we already did ourself
+            continue;
+        }
+        int ox, oy;
+        find_piece(bs, i, &ox, &oy);
+        int obidx = XY_TO_BIDX(ox, oy);
+        if (predict_next(bs, c_out, obidx, ox, oy)) {
+            printf("found free move for other piece %d\n", i);
+            *cid_out = id;
+            return 1;
+        }
+    }
+
+
     // consider blocker moves
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         int b_id = curnode->blockers[i].id;
