@@ -9,7 +9,7 @@ void Board::attemptSolve() {
     bsref board_init;
     getIds(&board_init.s[0]);
     solve_result sr;
-    ai_solve(&board_init, &sr);
+    //ai_solve(&board_init, &sr);
 }
 
 
