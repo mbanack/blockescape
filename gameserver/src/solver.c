@@ -20,7 +20,8 @@ using namespace std;
 
 #define ID_BLANK 0x00
 #define ID_P 0x01
-#define ID_MAX 0xFF
+#define ID_MAX 0x15
+#define ID_NUM 0x16
 
 #define RIGHT 1
 #define LEFT  0
@@ -37,6 +38,9 @@ using namespace std;
 bsref null_bstate;
 bsref board_init;
 sstack seen;
+
+// should we consider free moves of other pieces such as the player piece
+const int HEURISTIC_CREEP = 0;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -89,6 +93,59 @@ void sstack_peek(sstack *s, bsref *key_out) {
     }
 
     bsref_clone(key_out, &s->arr[s->idx - 1]);
+}
+
+void dstack_init(dstack *s) {
+    s->idx = 0;
+    for (int i = 0; i < DSTACK_SIZE; i++) {
+        memset(&s->arr[i], 0x00, sizeof(int));
+    }
+}
+
+int dstack_contains(dstack *s, int key) {
+    for (int i = 0; i < s->idx; i++) {
+        if (key == s->arr[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int dstack_empty(dstack *s) {
+    return s->idx == 0;
+}
+
+int dstack_size(dstack *s) {
+    return s->idx;
+}
+
+void dstack_push(dstack *s, int key) {
+    if (s->idx == DSTACK_SIZE) {
+        printf("ERROR: max stack size (%d) exceeded.\n", DSTACK_SIZE);
+        return;
+    }
+
+    s->arr[s->idx] = key;
+    s->idx++;
+}
+
+int dstack_pop(dstack *s) {
+    if (s->idx == 0) {
+        printf("ERROR: tried to pop empty stack\n");
+        return -1;
+    }
+
+    s->idx--;
+    return s->arr[s->idx];
+}
+
+int dstack_peek(dstack *s) {
+    if (s->idx == 0) {
+        printf("ERROR: tried to peek empty stack\n");
+        return -1;
+    }
+
+    return s->arr[s->idx - 1];
 }
 
 
@@ -299,9 +356,21 @@ void hash_board(bstate *bs, hash *h) {
 }
 */
 
+int blocker_exists(node *c, int id) {
+    for (int i = 0; i < NUM_BLOCKERS; i++) {
+        if (c->blockers[i].id == id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // TODO: this currently allows multiple adds of same blocker
 void add_blocker(node *c, int id, int dir) {
     if (id == c->id) {
+        return;
+    }
+    if (blocker_exists(c, id)) {
         return;
     }
     //printf("add_blocker(%d, %d)\n", id, dir);
@@ -478,8 +547,32 @@ void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
             }
         }
     }
+}
 
-    print_depgraph(ss);
+int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
+    dstack ds;
+    dstack_init(&ds);
+
+    dstack dseen;
+    dstack_init(&dseen);
+
+    dstack_push(&ds, curnode->id);
+    dstack_push(&dseen, curnode->id);
+    int searchid = newnode->id;
+    while (!dstack_empty(&ds)) {
+        int id = dstack_pop(&ds);
+        for (int i = 0; i < NUM_BLOCKERS; i++) {
+            blocker *bl = &ss->map[id].blockers[i];
+            if (bl->id == searchid) {
+                return 1;
+            }
+            if (!dstack_contains(&dseen, bl->id)) {
+                dstack_push(&ds, bl->id);
+                dstack_push(&dseen, bl->id);
+            }
+        }
+    }
+    return 0;
 }
 
 // consider "free moves" of cur
@@ -503,18 +596,21 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
         *cid_out = id;
         return 1;
     }
-    for (int i = ID_P; i < ID_MAX; i++) {
-        if (i == id) {
-            // we already did ourself
-            continue;
-        }
-        int ox, oy;
-        find_piece(bs, i, &ox, &oy);
-        int obidx = XY_TO_BIDX(ox, oy);
-        if (predict_next(bs, c_out, obidx, ox, oy)) {
-            printf("found free move for other piece %d\n", i);
-            *cid_out = id;
-            return 1;
+
+    if (HEURISTIC_CREEP) {
+        for (int i = ID_P; i < ID_MAX; i++) {
+            if (i == id) {
+                // we already did ourself
+                continue;
+            }
+            int ox, oy;
+            find_piece(bs, i, &ox, &oy);
+            int obidx = XY_TO_BIDX(ox, oy);
+            if (predict_next(bs, c_out, obidx, ox, oy)) {
+                printf("found free move for other piece %d\n", i);
+                *cid_out = id;
+                return 1;
+            }
         }
     }
 
@@ -535,8 +631,6 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
     // try again for all of the possible other pieces to move
     //   that are *NOT* on our depgraph?
-    printf(">>>>is>i>-c>>tio>>.. >>\n");
-    printf("heuristic-ception... >>\n");
     print_depgraph(ss);
     fill_depgraph(bs, ss, curnode);
     print_depgraph(ss);
@@ -544,13 +638,17 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
         node *newnode = &ss->map[i];
         fill_depgraph(bs, ss, newnode);
         if (newnode->id != id) {
-            printf("found extra move\n");
-            if (apply_heuristics(bs, ss, newnode, c_out, cid_out)) {
-                return 1;
+            if (!on_depgraph(bs, ss, curnode, newnode)) {
+                int o_id = newnode->id;
+                int o_x, o_y;
+                find_piece(bs, o_id, &o_x, &o_y);
+                if (predict_next(bs, c_out, XY_TO_BIDX(o_x, o_y), o_x, o_y)) {
+                    *cid_out = o_id;
+                    return 1;
+                }
             }
         }
     }
-    print_depgraph(ss);
 
     return 0;
 }
@@ -691,7 +789,7 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 1024; i++) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr);
