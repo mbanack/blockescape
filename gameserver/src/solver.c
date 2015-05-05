@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <set>
 
 #include "solver.h"
 #include "sstack.h"
@@ -765,6 +764,10 @@ int generate_board(bsref *out) {
     return 0;
 }
 
+void write_board(bsref *board, solve_result *sr, int file_id) {
+    
+}
+
 int main() {
     srandom(0x4AFE0000);
     memset(&null_bstate, 0x00, sizeof(null_bstate));
@@ -782,12 +785,14 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    for (int i = 0; i < 32; i++) {
+    int out_id = 0;
+    for (int i = 0; i < 1024; i++) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr);
         if (sr.solved == 1) {
             fprintf(stderr, "solve in %d\n", sr.moves);
+            write_board(&board_init, &sr, out_id++);
         } else {
             fprintf(stderr, "no solve\n");
         }
