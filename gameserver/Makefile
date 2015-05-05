@@ -1,9 +1,14 @@
 SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp
-OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
-LDFLAGS=-std=c++11 -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb
+OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o 
+LDFLAGS=-std=c++11 -Ilib/libsodium/src/libsodium/include -Ilib/libsodium/builds/msvc -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -lsodium -lmysqlcppconn -I/usr/local/include/websocketpp/ -I/opt/local/include -I/opt/local/include/SDL -D_GNU_SOURCE=1 -D_THREAD_SAFE -L/opt/local/lib -lSDLmain -lSDL 
+graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
+	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -L/opt/local/lib -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
-graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
-	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
+dbtest:
+	g++ dbtest.cpp $(LDFLAGS)
+
+obj/Auth.o: src/Auth.cpp inc/Auth.hpp
+	g++ $(LDFLAGS) -c src/Auth.cpp -o $@
 
 obj/Board.o: src/Board.cpp inc/Board.hpp src/sio_client.h
 	g++ $(LDFLAGS) -c src/Board.cpp -o $@
@@ -31,10 +36,10 @@ obj/sio_client_impl.o: src/internal/sio_client_impl.cpp
 
 all: solver graphical generator
 	
-generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/GenerateMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
-solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o
+solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
 	g++ -o obj/$@ $(OBJ) obj/SolverMain.o $(LDFLAGS) -lSDL -lSDL_image -lboost_system -lboost_date_time -lboost_random -pthread
 
 clean:

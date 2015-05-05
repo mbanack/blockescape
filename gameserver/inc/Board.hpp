@@ -7,13 +7,15 @@
 #include <SDL/SDL.h>
 #include <string>
 #include <set>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
 #include "../src/sio_client.h"
 typedef std::vector<std::vector<int> > vvi;
 typedef std::vector<int> vi;
 typedef std::set<std::vector<std::vector<int> > > svvi;
 const int BOARD_ROWS=6;
 const int BOARD_COLS=6;
-const int BOARD_CELL_SIZE=100;
+const int BOARD_CELL_SIZE=75;
 class Board {
 public:
     enum PIECE_TYPES { PIECE_PLAYER, EMPTY_SPACE, PIECE_HORIZONTAL2, 
@@ -38,12 +40,14 @@ public:
     void render(SDL_Surface *screen, SDL_Surface *background);
     void mouseDrag(SDL_Rect coordinates);
     void mouseRelease();
-    void sendPieceLocations(sio::client &h, int tid);
+    void sendPieceLocations(websocketpp::server<websocketpp::config::asio> 
+        & s, websocketpp::connection_hdl &h, int tid);
     void makeLotsOBoards();//unused
     //Board makeBoard(int numMoves);
     void printIds(std::ostream &s);
     void getIds(uint8_t ids[36]); //IDs only updated if you call move(..)!
     void fillBoardstate(boardstate *b);
+    bool win();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
@@ -70,5 +74,6 @@ private:
     std::string lastNetworkMessage;
     svvi lotsOBoards;
     uint8_t ids[36];
+    int minMoves;
 };
 #endif

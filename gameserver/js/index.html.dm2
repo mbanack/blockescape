@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>BlockEscape</title>
+        <style>
+            * {margin:0;padding:0;}
+            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
+            #myCanvas {position:absolute;left:0;top:0;width:600;height:600;background:#ffffff;}
+        </style>
+        <style>
+            * {margin:0;padding:0;}
+            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
+            #myCanvas2 {position:absolute;left:610px;top:0;width:600;height:600;background:#ffffff;}
+        </style>
+        <style>
+            * {margin:0;padding:0;}
+            body {background:#ffffff;margin:0;padding:0;overflow:hidden;}
+            #myCanvas3 {position:absolute;left:0;top:610px;width:200;height:80;background:#ffffff;}
+        </style>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
+        <script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
+        <script>
+            var socket = io('http://localhost:9002');
+            var canvas;
+            var canvas2;
+            var canvas3;
+            var flag_multi = 0;
+            var rectangle;
+            var mx = 0;
+            var my = 0;
+            var md = 0;
+            var objects = [];
+            var types = [];
+            var numObjects = 0;
+            var newInput = 0;
+            var clientId = -1;
+            var clientId2 = -1;
+            var message = '';
+            var objects2 = [];
+            var numObjects2 = 0;
+            var rectangle2;
+            onload = init;
+            function init(){
+                canvas3 = oCanvas.create({
+                    canvas: "#myCanvas3",
+                    background: "#7c3"
+                });
+                var button_multi = canvas3.display.rectangle({
+                    x: 100,
+                    y:5,
+                    width: 60,
+                    height: 30,
+                    fill: "#000000"
+                });
+                canvas3.addChild(button_multi);
+                button_multi.bind("click tap", function() {
+                    flag_multi = 1;
+                    init2();
+                });
+                var button_single = canvas3.display.rectangle({
+                    x: 5,
+                    y:5,
+                    width: 60,
+                    height: 30,
+                    fill: "#123456"
+                });
+                canvas3.addChild(button_single);
+                button_single.bind("click tap", function() {
+                    init1();
+                });
+                var text_multi = canvas3.display.text({
+                    x: 100,
+                    y: 40,
+                    origin: { x: "left", y: "top"},
+                    font: "bold 12px sans-serif",
+                    text: "Multiplayer",
+                    fill: "#000000"
+                });
+                canvas3.addChild(text_multi);
+                var text_single = canvas3.display.text({
+                    x: 5,
+                    y: 40,
+                    origin: { x: "left", y: "top"},
+                    font: "bold 12px sans-serif",
+                    text: "Single Player",
+                    fill: "#123456"
+                });
+                canvas3.addChild(text_single);
+            }
+            
+            function init1() {
+                socket.emit('assign me id');
+                socket.on('assign id html', function(newid){
+                    if(clientId == -1) {
+                        clientId = +newid;
+                        clientId2 = (+newid) + 1;
+                    }
+                });
+                canvas = oCanvas.create({
+                    canvas: "#myCanvas"
+                });
+                canvas.addChild(canvas.display.rectangle({
+                    x: 0,
+                    y: 0,
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=0;i<=600;i+=100){
+                    canvas.addChild(canvas.display.line({
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas.addChild(canvas.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:600},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                inputLoop();
+                canvas.setLoop(inputLoop).start();
+            }
+            function init2() {
+                socket.emit('assign me id');
+                socket.on('assign id html', function(newid){
+                    if(clientId == -1) {
+                        clientId = +newid;
+                        clientId2 = (+newid) + 1;
+                    }
+                });
+                canvas = oCanvas.create({
+                    canvas: "#myCanvas"
+                });
+                canvas.addChild(canvas.display.rectangle({
+                    x: 0, //when u make a new canvas (0,0) is now the repective
+                    y: 0, //top left corner of that canvas not the whole screen
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=0;i<=600;i+=100){
+                    canvas.addChild(canvas.display.line({
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas.addChild(canvas.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:600},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                //=====================================================================
+                canvas2 = oCanvas.create({
+                    canvas: "#myCanvas2",
+                    background: "#7c3"
+                });
+                canvas2.addChild(canvas2.display.rectangle({
+                    x: 0,
+                    y: 0,
+                    width: 600,
+                    height: 600,
+                    zIndex: 0,
+                    fill: "#990"
+                }));
+                for(var i=0;i<=600;i+=100){
+                    canvas2.addChild(canvas2.display.line({
+                        start: {x:0, y:i},
+                        end: {x:600, y:i},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                    canvas2.addChild(canvas2.display.line({
+                        start: {x:i, y:0},
+                        end: {x:i, y:600},
+                        zIndex: 1,
+                        stroke: "1px rgba(128, 128, 128, 1)"
+                    }));
+                }
+                //=====================================================================
+                inputLoop();
+                canvas.setLoop(inputLoop).start();
+            }
+            function initObjects(numberOfObjects) {
+                for(var i=0;i<numberOfObjects;i++) {
+                    addObject();
+                }
+            }
+            function addObject() {
+                if(flag_multi == 1)
+                {
+                    rectangle2 = canvas2.display.rectangle({
+                    x: 0,
+                    y: 0,
+                    width: 200,
+                    height: 100,
+                    fill: "#077"
+                    });
+                    objects2.push(rectangle2);
+                    numObjects2 = objects.length;
+                    canvas2.addChild(rectangle2);
+                }
+                rectangle = canvas.display.rectangle({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 100,
+                fill: "#077"
+                });
+                objects.push(rectangle);
+                numObjects = objects.length;
+                canvas.addChild(rectangle);
+            }
+            var temp_x;
+            function inputLoop() {
+                if(clientId!=-1){
+                    if(canvas.mouse.buttonState=="up"&&md==1){
+                        md=0;
+                        newInput=1;
+                    }
+                    if(canvas.mouse.buttonState=="down"&&md==0){
+                        md=1;
+                        newInput=1;
+                    }
+                    if(canvas.mouse.x!=mx||canvas.mouse.y!=my){ 
+                        mx=canvas.mouse.x;
+                        my=canvas.mouse.y;
+                        newInput=1;
+                    }
+                    if(newInput == 1){
+                        newInput = 0;
+                        message = clientId + ' ' + md + ' ' + mx + ' ' + my;
+                        socket.emit('mouse input', message);
+                    }
+                }
+            }
+            socket.on('num pieces', function(msg){
+                message=msg.split(/[ ,]+/);
+                if(+message[0]==clientId)
+                    initObjects(+message[1]);
+            });
+            socket.on('draw pieces', function(msg){
+                rect=msg.split(/[ ,]+/);
+                //check id before u do any draws
+                if(+rect[0]==clientId){
+                    for(var i=0;i<numObjects;i++) {
+                        if(+rect[i*6+1]==0){//0 is player piece type
+                            objects[i].fill="#707";
+                        }
+                        else{
+                            objects[i].fill="#077";
+                        }
+                        objects[i].x = +rect[i*6+2];
+                        objects[i].y = +rect[i*6+3];
+                        objects[i].width = +rect[i*6+4];
+                        objects[i].height = +rect[i*6+5];
+                        if(objects[i].width == 0){
+                            objects[i].stroke="0px";
+                        }
+                        else{
+                            objects[i].stroke="inside 1px rgba(220, 220, 220, 1)";
+                        }
+                    }
+                }
+            });
+        </script>
+    </head>
+    <body>
+        <canvas id="myCanvas" width="600" height="600"></canvas>
+    </body>
+    <body>
+        <canvas id="myCanvas2" width="600" height="600"></canvas>
+    </body>
+    <body>
+        <canvas id="myCanvas3" width="200" height="80"></canvas>
+    </body>
+</html>
