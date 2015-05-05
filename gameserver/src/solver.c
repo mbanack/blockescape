@@ -8,6 +8,8 @@
 #include "solver.h"
 #include "sstack.h"
 
+// run as "g++ -o solver solver.c && ./solver" from src/ dir
+
 using namespace std;
 
 // board is 6x6
@@ -719,11 +721,13 @@ void place_piece(bsref *out, int idx, int id) {
             if (out->s[idx - 1] == ID_BLANK) {
                 out->s[idx - 1] = id;
                 out->s[idx] = id;
+                return;
             }
         } else {
             if (out->s[idx + 1] == ID_BLANK) {
                 out->s[idx + 1] = id;
                 out->s[idx] = id;
+                return;
             }
         }
 
@@ -731,11 +735,13 @@ void place_piece(bsref *out, int idx, int id) {
             if (out->s[idx - 6] == ID_BLANK) {
                 out->s[idx - 6] = id;
                 out->s[idx] = id;
+                return;
             }
         } else {
             if (out->s[idx + 6] == ID_BLANK) {
                 out->s[idx + 6] = id;
                 out->s[idx] = id;
+                return;
             }
         }
     }
@@ -746,7 +752,9 @@ int generate_board(bsref *out) {
     clear_bsref(out);
     int num_pieces = 4 + random() % 10;
 
-    for (int i = 1; i < num_pieces; i++) {
+    int pidx = XY_TO_BIDX(0, random() % 6);
+    place_piece(out, pidx, ID_P);
+    for (int i = ID_P + 1; i < num_pieces; i++) {
         int idx = random() % 36;
         place_piece(out, idx, i);
     }
@@ -804,11 +812,12 @@ int main() {
     board_init.s[23] = 5;
 
     int out_id = 0;
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 128; i++) {
         generate_board(&board_init);
         solve_result sr;
+        write_board(&board_init, &sr, out_id++);
         ai_solve(&board_init, &sr);
-        if (sr.solved == 1) {
+        if (sr.solved == 1 && sr.moves > 4) {
             fprintf(stderr, "solve in %d\n", sr.moves);
             write_board(&board_init, &sr, out_id++);
         } else {
