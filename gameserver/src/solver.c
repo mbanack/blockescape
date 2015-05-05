@@ -643,6 +643,8 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 }
 
 void ai_solve(bsref *init, solve_result *r_out) {
+    sstack_init(&seen);
+
     r_out->solved = 0;
     r_out->moves = -1;
     // the bottom of board_history is the initial board state.
@@ -823,7 +825,7 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 }
 
 int main() {
-    srandom(0x4AFE0000);
+    srandom(0x4AFE0001);
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(&null_bstate);
@@ -840,7 +842,7 @@ int main() {
     board_init.s[23] = 5;
 
     int out_id = 0;
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 1024; i++) {
         generate_board(&board_init);
         solve_result sr;
         write_board(&board_init, &sr, out_id++);
