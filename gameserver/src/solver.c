@@ -555,7 +555,9 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     return 0;
 }
 
-int is_solvable(bsref *init) {
+void ai_solve(bsref *init, solve_result *r_out) {
+    r_out->solved = 0;
+    r_out->moves = -1;
     // the bottom of board_history is the initial board state.
     // the top of board_history is the current board state
     sstack board_history;
@@ -580,7 +582,9 @@ int is_solvable(bsref *init) {
         int px, py;
         find_piece(&curboard, ID_P, &px, &py);
         if (px == 4) {
-            return 1;
+            r_out->solved = 1;
+            r_out->moves = steps;
+            return;
         }
 
         // create depgraph with default node values
@@ -605,7 +609,9 @@ int is_solvable(bsref *init) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
                 printf("error in is_solvable (board_history empty)\n");
-                return 0;
+                r_out->solved = 0;
+                r_out->moves = steps;
+                return;
             }
 
             bsref top;
@@ -619,10 +625,55 @@ int is_solvable(bsref *init) {
         }
     }
     printf("hit max step length -- give up\n");
+    r_out->solved = 0;
+    r_out->moves = steps;
+    return;
+}
+
+void place_piece(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
+    if (out->s[idx] == ID_BLANK) {
+        if (x != 0) {
+            if (out->s[idx - 1] == ID_BLANK) {
+                out->s[idx - 1] = id;
+                out->s[idx] = id;
+            }
+        } else {
+            if (out->s[idx + 1] == ID_BLANK) {
+                out->s[idx + 1] = id;
+                out->s[idx] = id;
+            }
+        }
+
+        if (y != 0) {
+            if (out->s[idx - 6] == ID_BLANK) {
+                out->s[idx - 6] = id;
+                out->s[idx] = id;
+            }
+        } else {
+            if (out->s[idx + 6] == ID_BLANK) {
+                out->s[idx + 6] = id;
+                out->s[idx] = id;
+            }
+        }
+    }
+}
+
+// attempt to generate a random board - returns 1 on success
+int generate_board(bsref *out) {
+    clear_bsref(out);
+
+    for (int i = 1; i < 20; i++) {
+        int idx = random() % 36;
+        place_piece(out, idx, i);
+    }
+    print_board(out);
     return 0;
 }
 
 int main() {
+    srandom(0x4AFE0000);
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(&null_bstate);
@@ -638,10 +689,13 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    if (is_solvable(&board_init)) {
-        printf("solve\n");
+    solve_result sr;
+    ai_solve(&board_init, &sr);
+    if (sr.solved == 1) {
+        printf("solve in %d\n", sr.moves);
     } else {
         printf("no solve\n");
     }
+
     return 0;
 }

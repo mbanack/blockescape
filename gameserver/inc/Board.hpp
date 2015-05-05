@@ -45,10 +45,10 @@ public:
     void makeLotsOBoards();//unused
     //Board makeBoard(int numMoves);
     void printIds(std::ostream &s);
-    void getIds(uint8_t ids[36]); //IDs only updated if you call move(..)!
-    void fillBoardstate(boardstate *b);
+    void getIds(uint8_t *ids); //IDs only updated if you call move(..)!
     bool win();
     int getMinMoves();
+    void attemptSolve();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
