@@ -192,7 +192,7 @@
                 <p></p>
                 <p></p>
                 <input class="smallButton" id="prevBoardBtn" type="button" value="<">
-                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="0">
+                <input class="smallTextbox" id="jumpBoardTxt" type="text" value="0" onkeypress="onJumpBoardEnter(event);">
                 <input class="hiddenbutton" id="jumpBoardBtn" type="button">
                 <input class="smallButton" id="nextBoardBtn" type="button" value=">">
     </div>
@@ -286,6 +286,10 @@
             document.getElementById("btnTable").style.display = "none";
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
+        }
+        function onJumpBoardEnter(event){
+            if (event.keyCode == 13)
+                 document.getElementById('jumpBoardBtn').click();
         }
         function onJumpBoardClick(){
             destroyAll();
@@ -467,7 +471,6 @@
             document.getElementById("loginBtn").onclick = onLoginClick;
             document.getElementById("nextBoardBtn").onclick = onNextBoardClick;
             document.getElementById("prevBoardBtn").onclick = onPrevBoardClick;
-            document.getElementById("jumpBoardTxt").onkeydown = "if (event.keyCode == 13) document.getElementById('jumpBoardBtn').click";
             document.getElementById("jumpBoardBtn").onclick = onJumpBoardClick;
 
             setupMessages();
