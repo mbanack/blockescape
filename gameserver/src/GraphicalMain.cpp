@@ -138,9 +138,12 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
         message+= " ";
         vector<int> completed = auth.getCompletedBoards(username);
         if(completed[index]==1)
-            message+="completed";
+            message+="completed ";
         else
-            message+="notcompleted";
+            message+="notcompleted ";
+        stringstream ss2;
+        ss2 << b.getMinMoves();
+        message += ss2.str();
         s->send(hdl, message, websocketpp::frame::opcode::text);
     }
     catch( const websocketpp::lib::error_code &e){}

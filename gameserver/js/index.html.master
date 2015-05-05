@@ -113,6 +113,26 @@
         align:middle;
         text-align: center;
     }
+    #beginner{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
+    #average{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
+    #skilled{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
+    #expert{
+        display:none;
+        align:middle;
+        text-align: center;
+    }
     </style>
     <body>
     <div class="titleText">Block Escape</div>
@@ -153,11 +173,22 @@
     <div id="win2Txt">
         Player 2 Wins!
     </div>
+    <div id="beginner">
+        Difficulty: Beginner
+    </div>
+    <div id="average">
+        Difficulty: Average
+    </div>
+    <div id="skilled">
+        Difficulty: Skilled
+    </div>
+    <div id="expert">
+        Difficulty: Expert
+    </div>
     <div id="completed">
         (Completed)
     </div>
     <div id="boardNumber">
-                <p></p>
                 <p></p>
                 <p></p>
                 <input class="smallButton" id="prevBoardBtn" type="button" value="<">
@@ -177,7 +208,7 @@
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
     <script>
-        var websocket = new WebSocket("ws://173.60.61.234:9003");
+        var websocket = new WebSocket("ws://localhost:9003");
         var canvas = [];
         var rectangle;
         var mx = 0;
@@ -305,6 +336,23 @@
                     }
                     else {
                         document.getElementById("completed").style.display = "none";
+                    }
+                    difficulty = +payloadSplit[2];
+                    document.getElementById("beginner").style.display = "none";
+                    document.getElementById("average").style.display = "none";
+                    document.getElementById("skilled").style.display = "none";
+                    document.getElementById("expert").style.display = "none";
+                    if(difficulty <= 15) {
+                        document.getElementById("beginner").style.display = "block";
+                    }
+                    if(difficulty > 15 && difficulty <= 19) {
+                        document.getElementById("average").style.display = "block";
+                    }
+                    if(difficulty > 19 && difficulty <= 23) {
+                        document.getElementById("skilled").style.display = "block";
+                    }
+                    if(difficulty > 23) {
+                        document.getElementById("expert").style.display = "block";
                     }
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                     websocket.send('mouse input' + message);

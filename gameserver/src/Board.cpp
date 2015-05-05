@@ -53,6 +53,9 @@ Board Board::makeBoard(int targetMoves){
     
 }
 *************************************************************/
+int Board::getMinMoves() {
+    return minMoves;
+}
 bool Board::win(){
     return board[2][5]==PIECE_PLAYER;
 }
