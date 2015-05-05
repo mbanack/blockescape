@@ -12,9 +12,6 @@ using namespace std;
 
 // board is 6x6
 
-// TODO: helper sugars for "print current board state"
-//         and "print current tree/table state"
-//
 // space reqs at end:
 //    board_history will cap out at 128 or something arbitrary (max solve len)
 //    seen and unproductive (which could easily be merged)
