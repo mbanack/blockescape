@@ -34,4 +34,13 @@ int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
 void bsref_clone(bsref *bsb, bsref *bsa);
 
+int is_solvable(bsref *init);
+
+typedef struct solve_result {
+    int solved;
+    int moves;
+} solve_result;
+
+void ai_solve(bsref *init, solve_result *r_out);
+
 #endif // SOLVER_H

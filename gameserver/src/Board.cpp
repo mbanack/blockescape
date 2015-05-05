@@ -1,58 +1,18 @@
 #include "../inc/Board.hpp"
 #include <cstdlib>
 #include <sstream>
+#include "solver.h"
 using namespace std;
 typedef websocketpp::server<websocketpp::config::asio> server;
-/************************************************************
-void Board::removeRandomPiece(vvi &board){
-    int x = rand()%BOARD_COLS;
-    int y = rand()%BOARD_ROWS;
-    int index=getFirstBlockIndex(BOARD_COLS*y + x);
-    SDL_Rect dontUse;
-    int pieceTypeDontUse;
-    removePiece(index, board, dontUse, pieceTypeDontUse);
+
+void Board::attemptSolve() {
+    bsref board_init;
+    getIds(&board_init.s[0]);
+    solve_result sr;
+    ai_solve(&board_init, &sr);
 }
-void Board::placeRandomPiece(vvi &board){
-    do
-    {
-        //TODO Make sure x y combo different than before
-        int x = rand()%BOARD_COLS;
-        int y = rand()%BOARD_ROWS;
-        int pieceType;
-        vector<int> unusedPieceTypes;
-        unusedPieceTypes.push(PIECE_HORIZONTAL2);
-        unusedPieceTypes.push(PIECE_HORIZONTAL3);
-        unusedPieceTypes.push(PIECE_VERTICAL2);
-        unusedPieceTypes.push(PIECE_VERTICAL3);
-        do{
-            
-            int pieceTypeIndex = rand()%(unusedPieceTypes.size());
-            pieceType=unusedPieceTypes[pieceTypeIndex]; 
-            unusedPieceTypes.erase(unusedPieceTypes.begin()+pieceTypeIndex);
-        } while(!unusedPieceTypes.empty() &&
-            isCollision(x, y, pieceType));
-    } while(isCollision(x, y, pieceType)));
-    placePiece(board,x,pieceType);
-}
-Board Board::makeBoard(int targetMoves){
-    vvi originalBoard = board;
-    for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i)
-        board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-    while(solver.numMoves != targetMoves){
-        while(solver.numMoves() > targetMoves )
-            removeRandomPiece(board);
-        //TODO: Don't call placeRandomPiece if no two adjacent squares
-        placeRandomPiece(board);
-        if(solver.unsolvable())
-            board = lastBoard;
-        lastBoard=board;
-    }
-    Board b = *this;
-    board = originalBoard;
-    return b;
-    
-}
-*************************************************************/
+
+
 int Board::getMinMoves() {
     return minMoves;
 }
@@ -67,14 +27,10 @@ void Board::printIds(ostream &s){
     }
     cout << endl;
 }
-void Board::getIds(uint8_t ids[36]){
+void Board::getIds(uint8_t *ids){
     for(int i = 0; i < 36; ++i){
         ids[i]=this->ids[i];
     }
-}
-
-void Board::fillBoardstate(boardstate *b) {
-    Board::getIds(b->id);
 }
 
 void Board::initializeIds(){
