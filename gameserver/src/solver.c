@@ -691,7 +691,7 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 2; i++) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr);
