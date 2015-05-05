@@ -14,8 +14,7 @@ using namespace std;
 
 // space reqs at end:
 //    board_history will cap out at 1024 or something arbitrary (max solve len)
-//    seen and unproductive (which could easily be merged)
-//      could grow rather large.
+//    seen could grow rather large.
 //      we may be able to analyze seen "hits" and try to throw out
 //        the ones that heuristically never hit
 
@@ -38,7 +37,6 @@ using namespace std;
 bsref null_bstate;
 bsref board_init;
 set<bsref> seen;
-set<bsref> unproductive;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -373,31 +371,6 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
     return 1;
 }
 
-/*
-// pop all hashes until we see the given hash
-//   adding all popped hashes to an "unproductive" list
-// TODO: also needs the bstate as a parameter...
-//       needs to "forward-wind from the beginning"
-//       to go back to the previous board state
-//  OR: apply "anti-moves"
-//
-//
-// from a board hash and parsing the board_init,
-//   we can glean the size of the pieces, and overlay
-//   them on the hash
-// wait...
-// if we're not collapsing zeroes, it doesnt matter that
-//   we don't only store the topleft.
-void rewind(hash h) {
-    hash top = board_history.top();
-    while (top != h) {
-        unproductive.insert(top);
-        board_history.pop();
-        top = board_history.top();
-    }
-}
-*/
-
 // clones the contents of board bsa into board bsb
 void bsref_clone(bsref *bsb, bsref *bsa) {
     for (int i = 0; i < 36; i++) {
@@ -640,7 +613,6 @@ int is_solvable(bsref *init) {
 
             bsref top;
             sstack_pop(&board_history, &top);
-            unproductive.insert(top);
             steps++;
             printf("dead end, board_history size is %d\n", sstack_size(&board_history));
         } else {
