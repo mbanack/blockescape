@@ -1,5 +1,3 @@
-#include <SDL/SDL.h>
-#include <SDL/SDL_image.h>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -28,15 +26,12 @@ map<int, Board> boards;
 map<int, int> userBoardIndex;
 map<string, int> userId;
 set<int> ids;
-map<int,SDL_Surface*> pieceGraphics;
 map<string, string> userSalts1;
 map<string, string> userSalts2;
 string waitingId;
 bool waitingPlayer = false;
 websocketpp::connection_hdl waitingConnection;
 map<string, websocketpp::connection_hdl> opponentConnection;
-void junk();
-void junk2();
 int identification=0;
 const int TOTAL_BOARDS=2;
 void login(server *s, websocketpp::connection_hdl hdl, 
@@ -120,7 +115,7 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
     string boardPath="../data/board";
     boardPath+=ss.str();
     ifstream f(boardPath);
-    Board b(6, 6, pieceGraphics, f);
+    Board b(6, 6, f);
     f.close();
     if(coordinates.count(id)>0)
         coordinates.erase(coordinates.find(id));
@@ -143,9 +138,12 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
         message+= " ";
         vector<int> completed = auth.getCompletedBoards(username);
         if(completed[index]==1)
-            message+="completed";
+            message+="completed ";
         else
-            message+="notcompleted";
+            message+="notcompleted ";
+        stringstream ss2;
+        ss2 << b.getMinMoves();
+        message += ss2.str();
         s->send(hdl, message, websocketpp::frame::opcode::text);
     }
     catch( const websocketpp::lib::error_code &e){}
@@ -359,72 +357,9 @@ void startServer(server &s){
         cerr << "Error starting websocket server." << endl;
     }
 }
-void sdlExit(){
-    SDL_Event event;
-    while(SDL_PollEvent(&event)) {
-        switch(event.type){
-        case SDL_QUIT:
-            exit(0);
-        }
-    }
-}
 int main(int argc, char *argv[]){
-    junk();
     srand(time(0));
     startServer(webSocketServer);
     webSocketServer.run();
-    atexit(junk2);
 }
 
-void junk2(){
-    for(map<int, SDL_Surface *>::iterator it=pieceGraphics.begin();
-        it != pieceGraphics.end(); ++it)
-        SDL_FreeSurface(it->second);
-    IMG_Quit();
-    SDL_Quit();
-}
-//Junk but don't delete
-void junk()
-{
-    SDL_Init(SDL_INIT_EVERYTHING);
-    IMG_Init(IMG_INIT_PNG);
-    SDL_Surface *piecePlayerGraphic=IMG_Load("../data/pieceplayer.png");
-    SDL_Surface *pieceHoriz2Graphic=IMG_Load("../data/piecehorizontal2.png");
-    SDL_Surface *pieceHoriz3Graphic=IMG_Load("../data/piecehorizontal3.png");
-    SDL_Surface *pieceVert2Graphic=IMG_Load("../data/piecevertical2.png");
-    SDL_Surface *pieceVert3Graphic=IMG_Load("../data/piecevertical3.png");
-    pieceGraphics.insert(make_pair(Board::PIECE_PLAYER,piecePlayerGraphic));
-    pieceGraphics.insert(make_pair(Board::PIECE_HORIZONTAL2,pieceHoriz2Graphic));
-    pieceGraphics.insert(make_pair(Board::PIECE_HORIZONTAL3,pieceHoriz3Graphic));
-    pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL2,pieceVert2Graphic));
-    pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
-    sio::client h;
-    h.connect("http://127.0.0.1:9002");
-    //h.socket()->on("mouse input", &networkMouseInput);
-    //h.socket()->on("assign id html", &networkNewBoard);
-    while(true){
-        set<int> idsCopy = ids; //So that we don't modify while iterating
-        for(set<int>::iterator i=idsCopy.begin();i!=idsCopy.end();++i){
-            if(newInput.find(*i)->second){
-                newInput.find(*i)->second = false;
-                if(down.find(*i)->second==true)
-                    boards.find(*i)->second.mouseDrag(coordinates.find(*i)->second);
-                else
-                {
-                    boards.find(*i)->second.mouseRelease();
-                    boards.find(*i)->second.printIds(cout);
-                }
-            }
-            //boards.find(*i)->second.sendPieceLocations(h, *i);
-        }
-        sdlExit();
-    }
-    //SDL_FreeSurface(backgroundGraphic);
-    SDL_FreeSurface(piecePlayerGraphic);
-    SDL_FreeSurface(pieceHoriz2Graphic);
-    SDL_FreeSurface(pieceHoriz3Graphic);
-    SDL_FreeSurface(pieceVert2Graphic);
-    SDL_FreeSurface(pieceVert3Graphic);
-    IMG_Quit();
-    SDL_Quit();
-}

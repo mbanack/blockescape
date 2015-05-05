@@ -7,10 +7,14 @@
 #include <sodium.h>
 #include "mysql_driver.h"
 using namespace std;
+
+const char *DB_USER = "blockescape";
+const char *DB_PASS = "horthownavlokum3";
+
 void Auth::updateCompletedBoards(int index, const string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT levels FROM users WHERE username = \"" + username
@@ -38,7 +42,7 @@ void Auth::updateCompletedBoards(int index, const string &username){
 std::vector<int> Auth::getCompletedBoards(const std::string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT levels FROM users WHERE username = \"" + username
@@ -61,7 +65,7 @@ std::vector<int> Auth::getCompletedBoards(const std::string &username){
 bool Auth::userExists(const string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT * FROM users WHERE username = \"" + username
@@ -84,7 +88,7 @@ bool Auth::createUser(const string &username,
     bool success=true;
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string insert("INSERT INTO users (username, password, salt, levels) VALUES (\"");
@@ -111,7 +115,7 @@ bool Auth::Authorize(const string &username, const string &salt2,
     const string &password){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT password FROM users WHERE username = \"");
@@ -139,7 +143,7 @@ bool Auth::Authorize(const string &username, const string &salt2,
 string Auth::getSalt(const string &username){
     sql::Driver *driver = get_driver_instance();
     sql::Connection *con = 
-        driver->connect("localhost", "root", "%%horthownav%%lokum3%%");
+        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT salt FROM users WHERE username = \"");

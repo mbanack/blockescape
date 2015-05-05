@@ -4,7 +4,6 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <SDL/SDL.h>
 #include <string>
 #include <set>
 #include <websocketpp/config/asio_no_tls.hpp>
@@ -16,17 +15,19 @@ typedef std::set<std::vector<std::vector<int> > > svvi;
 const int BOARD_ROWS=6;
 const int BOARD_COLS=6;
 const int BOARD_CELL_SIZE=75;
+struct SDL_Rect {
+    int x;
+    int y;
+    int w;
+    int h;
+    SDL_Rect() : x(0),y(0),w(0),h(0){}
+};
 class Board {
 public:
     enum PIECE_TYPES { PIECE_PLAYER, EMPTY_SPACE, PIECE_HORIZONTAL2, 
         PIECE_HORIZONTAL3, PIECE_VERTICAL2, PIECE_VERTICAL3, 
         PIECE_TYPE_SIZE };
     Board(int width, int height); //unused
-    Board(int width, int height, 
-        const std::map<int, SDL_Surface *> &pieceGraphics);
-    Board(int width, int height, 
-        const std::map<int, SDL_Surface *> &pieceGraphics, 
-        std::ifstream &f);
     Board(int width, int height, std::ifstream &f); //Text based
     int numFree(); //unused
     bool fullBoard(); //unused
@@ -37,7 +38,6 @@ public:
     void placePiece(int x, int y, int pieceType, uint8_t pid);
     void print(std::ostream &s);
     void move(int x, int y, int xp, int yp);
-    void render(SDL_Surface *screen, SDL_Surface *background);
     void mouseDrag(SDL_Rect coordinates);
     void mouseRelease();
     void sendPieceLocations(websocketpp::server<websocketpp::config::asio> 
@@ -48,10 +48,11 @@ public:
     void getIds(uint8_t ids[36]); //IDs only updated if you call move(..)!
     void fillBoardstate(boardstate *b);
     bool win();
+    int getMinMoves();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
-    std::multimap<SDL_Surface *, SDL_Rect> coordinatePieces();
+    std::vector<SDL_Rect> coordinatePieces();
     bool fullBoard(vvi board);
     void placePiece(vvi &board, uint8_t ids[36], int x, int y, int pieceType, uint8_t pid);
     bool fullBoard(vvi board, int x, int y, int pieceType);
@@ -61,7 +62,6 @@ private:
     void removePiece(int index, vvi &board, uint8_t ids[36], 
         SDL_Rect &r, int &c, uint8_t &pid);
     int getFirstBlockIndex(int index);
-    std::map<int, SDL_Surface *> pieceGraphics;
     vvi board;
     bool mouseDown;
     SDL_Rect mouseInitialRect;
