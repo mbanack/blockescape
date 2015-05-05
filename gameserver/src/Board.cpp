@@ -1,6 +1,8 @@
 #include "../inc/Board.hpp"
 #include <cstdlib>
 #include <sstream>
+#include "solver.h"
+
 using namespace std;
 typedef websocketpp::server<websocketpp::config::asio> server;
 /************************************************************
@@ -122,40 +124,7 @@ void Board::initializeIds(){
         }
     }
 }
-/*****
-void Board::makeLotsOBoards(){
-    vvi b = board;
-    for(int i=1;i<=5;++i){
-        if(!isCollision(board,0,0,i));
-            makeLotsOBoards(board,-1,0,i);
-    }
-    for(svvi::const_iterator it = lotsOBoards.begin(); 
-        it != lotsOBoards.end(); ++it){
-        board=*it;
-        print(cout);
-        cout << endl;
-    }
-    board = b;
-}
-void Board::makeLotsOBoards(vvi b, int x, int y, int type){
-    if(y>=BOARD_ROWS){
-        lotsOBoards.insert(b);
-        return;
-    }
-    x++;
-    if(x>=BOARD_COLS){
-        x-=BOARD_COLS;
-        y++;
-    }
-    for(int i=1;i<=5;++i){
-        vvi bp=b;
-        if(!isCollision(bp, x, y, type)){
-            placePiece(bp,x,y,type);
-        }
-        makeLotsOBoards(bp,x,y,i);
-    }
-}
-****/
+
 void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, int tid){
     stringstream s;
     vector<SDL_Rect> pieces = coordinatePieces();
