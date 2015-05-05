@@ -630,9 +630,9 @@ void ai_solve(bsref *init, solve_result *r_out) {
     return;
 }
 
-void place_piece(bsref *out, int bidx, int id) {
-    int x = BIDX_TO_X(bidx);
-    int y = BIDX_TO_Y(bidx);
+void place_piece(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
         if (x != 0) {
             if (out->s[idx - 1] == ID_BLANK) {
