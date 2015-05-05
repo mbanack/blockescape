@@ -225,6 +225,7 @@
         var opponentId=-1;
         var initedCanvases=-1;
         var objectsLength = [];
+        var mouseLeave = 0;
         onload = init;
 
         function destroyAll(){
@@ -332,7 +333,6 @@
                     payload = getPayload('newboard', evt.data);
                     payloadSplit=payload.split(/[ ,]+/);
                     document.getElementById("jumpBoardTxt").value=+payloadSplit[0];
-                    console.log(payload);
                     document.getElementById("win1Txt").style.display="none";
                     document.getElementById("win2Txt").style.display="none";
                     if(payloadSplit[1]=="completed"){
@@ -410,7 +410,6 @@
                 }
                 if(isMessage('num pieces', evt.data)){
                     payload = getPayload('num pieces', evt.data);
-                    console.log(payload);
                     message=payload.split(/[ ,]+/);
                     if(+message[0]==clientId){
                         initObjects(+message[1],0);
@@ -426,7 +425,6 @@
                 }
                 if(isMessage('draw pieces', evt.data)){
                     payload = getPayload('draw pieces', evt.data);
-                    console.log(payload);
                     rect=payload.split(/[ ,]+/);
                     var startIndex=0;
                     var endIndex=0;
@@ -488,6 +486,8 @@
                     canvas[index] = oCanvas.create({
                         canvas: "#singleCanvas"
                     });
+                    canvas[index].bind("mouseleave", leaveCanv);
+                    canvas[index].bind("mouseenter", enterCanv);
                 }
             }
             else if(index==1){
@@ -497,6 +497,8 @@
                     canvas[index] = oCanvas.create({
                         canvas: "#multiCanvas1"
                     });
+                    canvas[index].bind("mouseleave", leaveCanv);
+                    canvas[index].bind("mouseenter", enterCanv);
                 }
             }
             else if(index==2){
@@ -506,6 +508,8 @@
                     canvas[index] = oCanvas.create({
                         canvas: "#multiCanvas2"
                     });
+                    canvas[index].bind("mouseleave", leaveCanv);
+                    canvas[index].bind("mouseenter", enterCanv);
                 }
             }
             canvas[index].addChild(canvas[index].display.rectangle({
@@ -567,26 +571,24 @@
             canvas[index].addChild(rectangle);
         }
 
-        function inputLoop() {
-            var index = 0;
-            if(initedCanvases>=1){
-                index=1;
+        function enterCanv(){
+            var endIndex=0;
+            if(initedCanvases==2){
+                endIndex=1;
             }
-            if(clientId!=-1&&win==false){
-                if(canvas[index].mouse.buttonState=="up"&&md==1){
-                    md=0;
-                    newInput=1;
+            for(var index = 0; index <= endIndex; index++){
+                if(canvas[index].mouse.buttonState=="up") {
+                    mouseLeave=0;
                 }
-                if(canvas[index].mouse.buttonState=="down"&&md==0){
-                    md=1;
-                    newInput=1;
-                }
-                if(canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
-                    mx=canvas[index].mouse.x;
-                    my=canvas[index].mouse.y;
-                    newInput=1;
-                }
-                if(canvas[index].mouse.buttonState=="down"&&canvas[index].mouse.canvasHovered==false){
+            }
+        }
+        function leaveCanv(){
+            var endIndex=0;
+            if(initedCanvases==2){
+                endIndex=1;
+            }
+            for(var index = 0; index <= endIndex; index++){
+                if(canvas[index].mouse.buttonState=="down"){
                     if(mx>225){
                         mx=450;
                     }
@@ -599,7 +601,31 @@
                     else {
                         my=0;
                     }
+                    mouseLeave=1;
+                }
+            }
+        }
+        function inputLoop() {
+            var index = 0;
+            if(initedCanvases>=1){
+                index=1;
+            }
+            if(clientId!=-1&&win==false){
+                if(canvas[index].mouse.buttonState=="up") {
+                    mouseLeave=0;
+                }
+                if(md==1&&(canvas[index].mouse.buttonState=="up"||mouseLeave==1)){
                     md=0;
+                    newInput=1;
+                    canvas[index].mouse.buttonState="up";
+                }
+                if(mouseLeave==0&&canvas[index].mouse.buttonState=="down"&&md==0){
+                    md=1;
+                    newInput=1;
+                }
+                if(md==1&&canvas[index].mouse.x!=mx||canvas[index].mouse.y!=my){ 
+                    mx=canvas[index].mouse.x;
+                    my=canvas[index].mouse.y;
                     newInput=1;
                 }
                 if(newInput == 1){

@@ -100,14 +100,12 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
     Auth auth;
     if(onePast) {
         vector<int> completed = auth.getCompletedBoards(username);
-        cout << "COMPLETED SIZE" << completed.size() << endl;
         index=levelOnePast(index,completed);
     }
     else if(random)
         index=rand()%TOTAL_BOARDS;
     else {
         vector<int> completed = auth.getCompletedBoards(username);
-        cout << "COMPLETED SIZE" << completed.size() << endl;
         index=levelIndexOkay(index,completed);
     }
     stringstream ss;
