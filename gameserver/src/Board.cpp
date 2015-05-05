@@ -72,6 +72,11 @@ void Board::getIds(uint8_t ids[36]){
         ids[i]=this->ids[i];
     }
 }
+
+void Board::fillBoardstate(boardstate *b) {
+    Board::getIds(b->id);
+}
+
 void Board::initializeIds(){
     vvi board = this->board;
     uint8_t highestId=1; //0 is empty space 1 is player
