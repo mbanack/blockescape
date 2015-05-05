@@ -280,7 +280,6 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
-    print_board(bs);
 }
 
 int is_piece(bsref *bs, int x, int y) {
@@ -461,7 +460,7 @@ int is_new_hash(bsref *bs) {
 //   and if they aren't already in seen, explore them (by ret 1)
 bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
-    printf("predict_next(%d @ %d, %d)\n", id, x, y);
+    //printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
         if (x != 5) {
             for (int ix = 1; ix < 6; ix++) {
@@ -515,7 +514,6 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                     make_move(c_out, id, x, y, x, y + 1);
                     if (is_new_hash(c_out)) {
                         printf("is new hash\n");
-                        print_boardhash(c_out);
                         sstack_push(&seen, c_out);
                         return 1;
                     }
@@ -631,9 +629,7 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
     // try again for all of the possible other pieces to move
     //   that are *NOT* on our depgraph?
-    print_depgraph(ss);
     fill_depgraph(bs, ss, curnode);
-    print_depgraph(ss);
     for (int i = ID_P; i < 36; i++) {
         node *newnode = &ss->map[i];
         fill_depgraph(bs, ss, newnode);
@@ -670,9 +666,6 @@ void ai_solve(bsref *init, solve_result *r_out) {
     bsref_clone(&curboard, init);
     while (steps < 0x20) {
         printf("\n[step %d] curid=%d\n", steps, curid);
-        print_boardhash(&curboard);
-        print_seen();
-        print_board(&curboard);
         depgraph ss;
         node *curnode = &ss.map[curid];
 
@@ -789,14 +782,14 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    for (int i = 0; i < 1024; i++) {
+    for (int i = 0; i < 32; i++) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr);
         if (sr.solved == 1) {
-            printf("solve in %d\n", sr.moves);
+            fprintf(stderr, "solve in %d\n", sr.moves);
         } else {
-            printf("no solve\n");
+            fprintf(stderr, "no solve\n");
         }
     }
 
