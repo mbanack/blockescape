@@ -131,7 +131,6 @@ void Board::makeLotsOBoards(){
         cout << endl;
     }
     board = b;
-    cout << "Number of boards generated is " << lotsOBoards.size() << endl;
 }
 void Board::makeLotsOBoards(vvi b, int x, int y, int type){
     if(y>=BOARD_ROWS){
@@ -501,7 +500,6 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     for(int i=0;i<height;++i){
         string line;
         f >> line;
-        cout << "LINE " << line << endl;
         vi row;
         for(string::iterator j=line.begin();j!=line.end();++j)
         {
