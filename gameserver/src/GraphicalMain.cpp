@@ -398,33 +398,4 @@ void junk()
     pieceGraphics.insert(make_pair(Board::PIECE_HORIZONTAL3,pieceHoriz3Graphic));
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL2,pieceVert2Graphic));
     pieceGraphics.insert(make_pair(Board::PIECE_VERTICAL3,pieceVert3Graphic));
-    sio::client h;
-    h.connect("http://127.0.0.1:9002");
-    //h.socket()->on("mouse input", &networkMouseInput);
-    //h.socket()->on("assign id html", &networkNewBoard);
-    while(true){
-        set<int> idsCopy = ids; //So that we don't modify while iterating
-        for(set<int>::iterator i=idsCopy.begin();i!=idsCopy.end();++i){
-            if(newInput.find(*i)->second){
-                newInput.find(*i)->second = false;
-                if(down.find(*i)->second==true)
-                    boards.find(*i)->second.mouseDrag(coordinates.find(*i)->second);
-                else
-                {
-                    boards.find(*i)->second.mouseRelease();
-                    boards.find(*i)->second.printIds(cout);
-                }
-            }
-            //boards.find(*i)->second.sendPieceLocations(h, *i);
-        }
-        sdlExit();
-    }
-    //SDL_FreeSurface(backgroundGraphic);
-    SDL_FreeSurface(piecePlayerGraphic);
-    SDL_FreeSurface(pieceHoriz2Graphic);
-    SDL_FreeSurface(pieceHoriz3Graphic);
-    SDL_FreeSurface(pieceVert2Graphic);
-    SDL_FreeSurface(pieceVert3Graphic);
-    IMG_Quit();
-    SDL_Quit();
 }

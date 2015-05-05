@@ -9,7 +9,7 @@
 using namespace std;
 
 const char *DB_USER = "blockescape";
-const char *DB_PASS = "%%horthownav%%lokum3%%";
+const char *DB_PASS = "horthownavlokum3";
 
 void Auth::updateCompletedBoards(int index, const string &username){
     sql::Driver *driver = get_driver_instance();
