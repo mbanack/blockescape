@@ -30,6 +30,8 @@ typedef struct bsref {
     uint8_t s[36];
 } bsref;
 
+int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
+void bsref_clone(bsref *bsb, bsref *bsa);
 
 #endif // SOLVER_H

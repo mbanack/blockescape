@@ -3,17 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stack>
 #include <set>
 
 #include "solver.h"
+#include "sstack.h"
 
 using namespace std;
 
 // board is 6x6
 
 // space reqs at end:
-//    board_history will cap out at 128 or something arbitrary (max solve len)
+//    board_history will cap out at 1024 or something arbitrary (max solve len)
 //    seen and unproductive (which could easily be merged)
 //      could grow rather large.
 //      we may be able to analyze seen "hits" and try to throw out
@@ -39,6 +39,60 @@ bsref null_bstate;
 bsref board_init;
 set<bsref> seen;
 set<bsref> unproductive;
+
+void sstack_init(sstack *s) {
+    s->idx = 0;
+    for (int i = 0; i < SSTACK_SIZE; i++) {
+        memset(&s->arr[i], 0x00, sizeof(bsref));
+    }
+}
+
+int sstack_contains(sstack *s, bsref *key) {
+    for (int i = 0; i < s->idx; i++) {
+        if (bsref_equal(key, &s->arr[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int sstack_empty(sstack *s) {
+    return s->idx == 0;
+}
+
+int sstack_size(sstack *s) {
+    return s->idx;
+}
+
+void sstack_push(sstack *s, bsref *key) {
+    if (s->idx == SSTACK_SIZE) {
+        printf("ERROR: max stack size (%d) exceeded.\n", SSTACK_SIZE);
+        return;
+    }
+
+    bsref_clone(&s->arr[s->idx], key);
+    s->idx++;
+}
+
+void sstack_pop(sstack *s, bsref *key_out) {
+    if (s->idx == 0) {
+        printf("ERROR: tried to pop empty stack\n");
+        return;
+    }
+
+    bsref_clone(key_out, &s->arr[s->idx - 1]);
+    s->idx--;
+}
+
+void sstack_peek(sstack *s, bsref *key_out) {
+    if (s->idx == 0) {
+        printf("ERROR: tried to peek empty stack\n");
+        return;
+    }
+
+    bsref_clone(key_out, &s->arr[s->idx - 1]);
+}
+
 
 uint8_t id_to_hex(int id) {
     if (id < 10) {
@@ -211,6 +265,10 @@ bool operator==(const bsref& l, const bsref& r) {
     return memcmp(l.s, r.s, 36) == 0;
 }
 
+int bsref_equal(bsref *a, bsref *b) {
+    return memcmp(a->s, b->s, 36) == 0;
+}
+
 bool operator!=(const bsref& l, const bsref& r) {
     return memcmp(l.s, r.s, 36) != 0;
 }
@@ -341,7 +399,7 @@ void rewind(hash h) {
 */
 
 // clones the contents of board bsa into board bsb
-void clone_bsref(bsref *bsb, bsref *bsa) {
+void bsref_clone(bsref *bsb, bsref *bsa) {
     for (int i = 0; i < 36; i++) {
         bsb->s[i] = bsa->s[i];
     }
@@ -467,7 +525,7 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     }
     int bidx = XY_TO_BIDX(x, y);
 
-    clone_bsref(c_out, bs);
+    bsref_clone(c_out, bs);
     printf("apply_heuristics(%d)\n", id);
     // consider free moves for this piece, then player piece, then all other pieces
     if (predict_next(bs, c_out, bidx, x, y)) {
@@ -530,15 +588,16 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 int is_solvable(bsref *init) {
     // the bottom of board_history is the initial board state.
     // the top of board_history is the current board state
-    stack<bsref> board_history;
-    // XXX: array copy
-    board_history.push(*init);
+    sstack board_history;
+    sstack_init(&board_history);
+    sstack_push(&board_history, init);
+
     int steps = 0;
     // the id of the current piece to move
     int curid = ID_P;
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
-    clone_bsref(&curboard, init);
+    bsref_clone(&curboard, init);
     while (steps < 0x20) {
         printf("\n[step %d] curid=%d\n", steps, curid);
         print_boardhash(&curboard);
@@ -574,19 +633,19 @@ int is_solvable(bsref *init) {
         bsref c;
         if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
             // this is a dead end, so pop it off the stack
-            if (board_history.empty()) {
+            if (sstack_empty(&board_history)) {
                 printf("error in is_solvable (board_history empty)\n");
                 return 0;
             }
 
-            bsref top = board_history.top();
+            bsref top;
+            sstack_pop(&board_history, &top);
             unproductive.insert(top);
-            board_history.pop();
             steps++;
-            printf("dead end, board_history size is %d\n", board_history.size());
+            printf("dead end, board_history size is %d\n", sstack_size(&board_history));
         } else {
-            board_history.push(c);
-            clone_bsref(&curboard, &c);
+            sstack_push(&board_history, &c);
+            bsref_clone(&curboard, &c);
             steps++;
         }
     }
