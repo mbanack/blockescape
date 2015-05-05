@@ -36,7 +36,7 @@ using namespace std;
 
 bsref null_bstate;
 bsref board_init;
-set<bsref> seen;
+sstack seen;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -134,12 +134,10 @@ void print_depgraph(depgraph *ss) {
 
 void print_seen() {
     printf("[== seen ==]\n");
-    for (std::set<bsref>::iterator it = seen.begin();
-         it != seen.end(); ++it)
-    {
-        const bsref val = *it;
-        print_boardhash((bsref *)&val);
+    for (int i = 0; i < sstack_size(&seen); i++) {
+        print_boardhash(&seen.arr[i]);
     }
+    printf("[==/seen/==]\n");
 }
 
 void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y) {
@@ -387,8 +385,7 @@ int is_null_hash(bsref *h) {
 }
 
 int is_new_hash(bsref *bs) {
-    // XXX: array copy
-    return seen.count(*bs) == 0;
+    return !sstack_contains(&seen, bs);
 }
 
 // enum all possible moves of the piece at bidx (ie x, y)
@@ -407,7 +404,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                     make_move(c_out, id, x, y, x + 1, y);
                     if (is_new_hash(c_out)) {
                         // this is our new move
-                        seen.insert(*c_out);
+                        sstack_push(&seen, c_out);
                         return 1;
                     }
                     make_move(c_out, id, x + 1, y, x , y);
@@ -421,7 +418,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 printf("horiz left\n");
                 make_move(c_out, id, x, y, x - 1, y);
                 if (is_new_hash(c_out)) {
-                    seen.insert(*c_out);
+                    sstack_push(&seen, c_out);
                     return 1;
                 }
                 make_move(c_out, id, x - 1, y, x, y);
@@ -433,7 +430,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 printf("vert up\n");
                 make_move(c_out, id, x, y, x, y - 1);
                 if (is_new_hash(c_out)) {
-                    seen.insert(*c_out);
+                    sstack_push(&seen, c_out);
                     return 1;
                 }
                 make_move(c_out, id, x, y - 1, x, y);
@@ -450,7 +447,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                     if (is_new_hash(c_out)) {
                         printf("is new hash\n");
                         print_boardhash(c_out);
-                        seen.insert(*c_out);
+                        sstack_push(&seen, c_out);
                         return 1;
                     }
                     make_move(c_out, id, x, y + 1, x, y);
