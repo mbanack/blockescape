@@ -5,7 +5,7 @@
 #ifndef SSTACK_H
 #define SSTACK_H
 
-#define SSTACK_SIZE 1024
+#define SSTACK_SIZE 10240
 
 // solver stack
 typedef struct sstack {

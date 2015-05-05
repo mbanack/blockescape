@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "solver.h"
 #include "sstack.h"
@@ -467,7 +468,6 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                     break;
                 }
                 if (bs->s[bidx + ix] == ID_BLANK) {
-                    printf("horiz right\n");
                     make_move(c_out, id, x, y, x + 1, y);
                     if (is_new_hash(c_out)) {
                         // this is our new move
@@ -482,7 +482,6 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
         }
         if (x != 0) {
             if (bs->s[bidx - 1] == ID_BLANK) {
-                printf("horiz left\n");
                 make_move(c_out, id, x, y, x - 1, y);
                 if (is_new_hash(c_out)) {
                     sstack_push(&seen, c_out);
@@ -494,7 +493,6 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     } else {
         if (y != 0) {
             if (bs->s[bidx - 6] == ID_BLANK) {
-                printf("vert up\n");
                 make_move(c_out, id, x, y, x, y - 1);
                 if (is_new_hash(c_out)) {
                     sstack_push(&seen, c_out);
@@ -509,10 +507,8 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                     break;
                 }
                 if (bs->s[bidx + 6 * iy] == ID_BLANK) {
-                    printf("vert down\n");
                     make_move(c_out, id, x, y, x, y + 1);
                     if (is_new_hash(c_out)) {
-                        printf("is new hash\n");
                         sstack_push(&seen, c_out);
                         return 1;
                     }
@@ -586,10 +582,8 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     int bidx = XY_TO_BIDX(x, y);
 
     bsref_clone(c_out, bs);
-    printf("apply_heuristics(%d)\n", id);
     // consider free moves for this piece, then player piece, then all other pieces
     if (predict_next(bs, c_out, bidx, x, y)) {
-        printf("found free move\n");
         *cid_out = id;
         return 1;
     }
@@ -604,7 +598,6 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
             find_piece(bs, i, &ox, &oy);
             int obidx = XY_TO_BIDX(ox, oy);
             if (predict_next(bs, c_out, obidx, ox, oy)) {
-                printf("found free move for other piece %d\n", i);
                 *cid_out = id;
                 return 1;
             }
@@ -616,7 +609,6 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     for (int i = 0; i < NUM_BLOCKERS; i++) {
         int b_id = curnode->blockers[i].id;
         if (b_id != ID_BLANK) {
-            printf("found blocker move\n");
             int b_x, b_y;
             find_piece(bs, b_id, &b_x, &b_y);
             if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
@@ -664,7 +656,6 @@ void ai_solve(bsref *init, solve_result *r_out) {
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
     while (steps < 0x20) {
-        printf("\n[step %d] curid=%d\n", steps, curid);
         depgraph ss;
         node *curnode = &ss.map[curid];
 
@@ -764,8 +755,35 @@ int generate_board(bsref *out) {
     return 0;
 }
 
+int id_to_boardtype(bsref *b, int id) {
+    switch (id) {
+        case ID_BLANK:
+            return 1;
+        case ID_P:
+            return 0;
+        default:
+            int x, y;
+            find_piece(b, id, &x, &y);
+            if (is_horiz(b, XY_TO_BIDX(x, y))) {
+                return 2;
+            } else {
+                return 4;
+            }
+    }
+}
+
 void write_board(bsref *board, solve_result *sr, int file_id) {
-    
+    char path[1024];
+    sprintf(&path[0], "../data/board%d", file_id);
+    FILE *fp = fopen(&path[0], "w");
+    fprintf(fp, "%d\n", sr->moves);
+    for (int i = 0; i < 36; i++) {
+        fprintf(fp, "%d", id_to_boardtype(board, board->s[i]));
+        if ((i % 6) == 5) {
+            fprintf(fp ,"\n");
+        }
+    }
+    fclose(fp);
 }
 
 int main() {
@@ -786,7 +804,7 @@ int main() {
     board_init.s[23] = 5;
 
     int out_id = 0;
-    for (int i = 0; i < 1024; i++) {
+    for (int i = 0; i < 32; i++) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr);
