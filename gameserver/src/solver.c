@@ -663,12 +663,14 @@ void place_piece(bsref *out, int idx, int id) {
 // attempt to generate a random board - returns 1 on success
 int generate_board(bsref *out) {
     clear_bsref(out);
+    int num_pieces = 4 + random() % 10;
 
-    for (int i = 1; i < 20; i++) {
+    for (int i = 1; i < num_pieces; i++) {
         int idx = random() % 36;
         place_piece(out, idx, i);
     }
     print_board(out);
+    printf("\n");
     return 0;
 }
 
@@ -689,12 +691,15 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
-    solve_result sr;
-    ai_solve(&board_init, &sr);
-    if (sr.solved == 1) {
-        printf("solve in %d\n", sr.moves);
-    } else {
-        printf("no solve\n");
+    for (int i = 0; i < 32; i++) {
+        generate_board(&board_init);
+        solve_result sr;
+        ai_solve(&board_init, &sr);
+        if (sr.solved == 1) {
+            printf("solve in %d\n", sr.moves);
+        } else {
+            printf("no solve\n");
+        }
     }
 
     return 0;
