@@ -691,7 +691,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
         if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
-                printf("error in is_solvable (board_history empty)\n");
+                //printf("error in is_solvable (board_history empty)\n");
                 r_out->solved = 0;
                 r_out->moves = steps;
                 return;
@@ -700,14 +700,14 @@ void ai_solve(bsref *init, solve_result *r_out) {
             bsref top;
             sstack_pop(&board_history, &top);
             steps++;
-            printf("dead end, board_history size is %d\n", sstack_size(&board_history));
+            //printf("dead end, board_history size is %d\n", sstack_size(&board_history));
         } else {
             sstack_push(&board_history, &c);
             bsref_clone(&curboard, &c);
             steps++;
         }
     }
-    printf("hit max step length -- give up\n");
+    //printf("hit max step length -- give up\n");
     r_out->solved = 0;
     r_out->moves = steps;
     return;
@@ -717,31 +717,61 @@ void place_piece(bsref *out, int idx, int id) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
-        if (x != 0) {
-            if (out->s[idx - 1] == ID_BLANK) {
-                out->s[idx - 1] = id;
-                out->s[idx] = id;
-                return;
+        if ((random() % 2) == 0) {
+            if (x != 0) {
+                if (out->s[idx - 1] == ID_BLANK) {
+                    out->s[idx - 1] = id;
+                    out->s[idx] = id;
+                    return;
+                }
+            } else {
+                if (out->s[idx + 1] == ID_BLANK) {
+                    out->s[idx + 1] = id;
+                    out->s[idx] = id;
+                    return;
+                }
             }
-        } else {
-            if (out->s[idx + 1] == ID_BLANK) {
-                out->s[idx + 1] = id;
-                out->s[idx] = id;
-                return;
-            }
-        }
 
-        if (y != 0) {
-            if (out->s[idx - 6] == ID_BLANK) {
-                out->s[idx - 6] = id;
-                out->s[idx] = id;
-                return;
+            if (y != 0) {
+                if (out->s[idx - 6] == ID_BLANK) {
+                    out->s[idx - 6] = id;
+                    out->s[idx] = id;
+                    return;
+                }
+            } else {
+                if (out->s[idx + 6] == ID_BLANK) {
+                    out->s[idx + 6] = id;
+                    out->s[idx] = id;
+                    return;
+                }
             }
         } else {
-            if (out->s[idx + 6] == ID_BLANK) {
-                out->s[idx + 6] = id;
-                out->s[idx] = id;
-                return;
+            if (y != 0) {
+                if (out->s[idx - 6] == ID_BLANK) {
+                    out->s[idx - 6] = id;
+                    out->s[idx] = id;
+                    return;
+                }
+            } else {
+                if (out->s[idx + 6] == ID_BLANK) {
+                    out->s[idx + 6] = id;
+                    out->s[idx] = id;
+                    return;
+                }
+            }
+
+            if (x != 0) {
+                if (out->s[idx - 1] == ID_BLANK) {
+                    out->s[idx - 1] = id;
+                    out->s[idx] = id;
+                    return;
+                }
+            } else {
+                if (out->s[idx + 1] == ID_BLANK) {
+                    out->s[idx + 1] = id;
+                    out->s[idx] = id;
+                    return;
+                }
             }
         }
     }
@@ -758,8 +788,6 @@ int generate_board(bsref *out) {
         int idx = random() % 36;
         place_piece(out, idx, i);
     }
-    print_board(out);
-    printf("\n");
     return 0;
 }
 
@@ -782,7 +810,7 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
-    sprintf(&path[0], "../data/board%d", file_id);
+    sprintf(&path[0], "../data/genboard%d", file_id);
     FILE *fp = fopen(&path[0], "w");
     fprintf(fp, "%d\n", sr->moves);
     for (int i = 0; i < 36; i++) {
@@ -818,10 +846,11 @@ int main() {
         write_board(&board_init, &sr, out_id++);
         ai_solve(&board_init, &sr);
         if (sr.solved == 1 && sr.moves > 4) {
+            print_board(&board_init);
             fprintf(stderr, "solve in %d\n", sr.moves);
             write_board(&board_init, &sr, out_id++);
         } else {
-            fprintf(stderr, "no solve\n");
+            //fprintf(stderr, "no solve\n");
         }
     }
 
