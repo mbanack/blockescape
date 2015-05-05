@@ -10,6 +10,8 @@
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
 
+#define NUM_GEN 1024
+
 using namespace std;
 
 // board is 6x6
@@ -842,16 +844,22 @@ int main() {
     board_init.s[22] = 5;
     board_init.s[23] = 5;
 
+    sstack gen_seen;
+    sstack_init(&gen_seen);
+
     int out_id = 0;
-    for (int i = 0; i < 4096; i++) {
+    while (out_id < NUM_GEN) {
         generate_board(&board_init);
         solve_result sr;
         write_board(&board_init, &sr, out_id++);
         ai_solve(&board_init, &sr);
         if (sr.solved == 1 && sr.moves > 4) {
-            print_board(&board_init);
-            fprintf(stderr, "solve in %d\n", sr.moves);
-            write_board(&board_init, &sr, out_id++);
+            if (!sstack_contains(&gen_seen, &board_init)) {
+                print_board(&board_init);
+                fprintf(stderr, "solve in %d\n", sr.moves);
+                write_board(&board_init, &sr, out_id++);
+                sstack_push(&gen_seen, &board_init);
+            }
         } else {
             //fprintf(stderr, "no solve\n");
         }
