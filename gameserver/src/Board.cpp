@@ -1,5 +1,4 @@
 #include "../inc/Board.hpp"
-#include <SDL/SDL_image.h>
 #include <cstdlib>
 #include <sstream>
 using namespace std;
@@ -152,11 +151,11 @@ void Board::makeLotsOBoards(vvi b, int x, int y, int type){
 ****/
 void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, int tid){
     stringstream s;
-    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
+    vector<SDL_Rect> pieces = coordinatePieces();
     int numPieces = 0;
-    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator 
+    for(vector<SDL_Rect>::const_iterator 
         i=pieces.begin(); i!=pieces.end();++i) {
-        if(i->second.w!=i->second.h)
+        if(i->w!=i->h)
             numPieces++;
         
     }
@@ -169,9 +168,9 @@ void Board::sendPieceLocations(server &ser, websocketpp::connection_hdl &hdl, in
     catch( const websocketpp::lib::error_code &e){}
     s.str("");
     SDL_Rect r;
-    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+    for(vector<SDL_Rect>::const_iterator i=pieces.begin();
         i!=pieces.end();++i) {
-        r=i->second;
+        r=*i;
         if(r.w != r.h)
             s << tid << " " << board[r.y/BOARD_CELL_SIZE][r.x/BOARD_CELL_SIZE] << " " 
                 << r.x << " " << r.y << " " << r.w << " " << r.h << " ";
@@ -269,28 +268,28 @@ void Board::grabFloatingPiece(SDL_Rect rect){
 }
 //Before running this make sure floating piece not still on board
 bool Board::checkCollision(SDL_Rect &rect, int pieceType, int xd, int yd){
-    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
-    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
+    vector<SDL_Rect> pieces = coordinatePieces();
+    for(vector<SDL_Rect>::const_iterator i=pieces.begin();
         i != pieces.end(); ++i){
             //Skip empty space pieces, which are square
-            if(i->second.w == i->second.h)
+            if(i->w == i->h)
                 continue;
-            if((rect.x+rect.w>i->second.x 
-                && rect.x<i->second.x+i->second.w)
-                ||(rect.x < i->second.x + i->second.w
-                    && rect.x > i->second.x)){
-                if((rect.y+rect.h>i->second.y 
-                    && rect.y<i->second.y+i->second.h)
-                || (rect.y < i->second.y + i->second.h
-                    && rect.y > i->second.y)){
+            if((rect.x+rect.w>i->x 
+                && rect.x<i->x+i->w)
+                ||(rect.x < i->x + i->w
+                    && rect.x > i->x)){
+                if((rect.y+rect.h>i->y 
+                    && rect.y<i->y+i->h)
+                || (rect.y < i->y + i->h
+                    && rect.y > i->y)){
                     if(xd>0)
-                        rect.x=i->second.x-rect.w;
+                        rect.x=i->x-rect.w;
                     else if(xd<0)
-                        rect.x=i->second.x+i->second.w;
+                        rect.x=i->x+i->w;
                     if(yd>0)
-                        rect.y=i->second.y-rect.h;
+                        rect.y=i->y-rect.h;
                     else if(yd<0)
-                        rect.y=i->second.y+i->second.h;
+                        rect.y=i->y+i->h;
                     return true;
                 }
             }
@@ -383,8 +382,8 @@ int Board::getFirstBlockIndex(int index){
     }
     return 0; //Err
 }
-multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
-    multimap<SDL_Surface *, SDL_Rect> ret;
+vector<SDL_Rect> Board::coordinatePieces(){
+    vector<SDL_Rect> ret;
     vvi board=this->board; //Local copy since we don't want to overwrite
     uint8_t ids[36];
     uint8_t pid=0;
@@ -392,25 +391,9 @@ multimap<SDL_Surface *, SDL_Rect> Board::coordinatePieces(){
         SDL_Rect rect;
         int piece;
         removePiece(i, board, ids, rect, piece, pid);
-        ret.insert(make_pair(pieceGraphics.find(piece)->second, rect));
+        ret.push_back(rect);
     }
     return ret;
-}
-void Board::render(SDL_Surface *screen, SDL_Surface *background){
-    multimap<SDL_Surface *, SDL_Rect> pieces = coordinatePieces();
-    SDL_Rect r;
-    r.w=r.h=600;
-    r.x=r.y=0;
-    SDL_BlitSurface(background, NULL, screen, &r);
-    for(multimap<SDL_Surface *, SDL_Rect>::const_iterator i=pieces.begin();
-        i!=pieces.end();++i) {
-        r=i->second;
-        SDL_BlitSurface(i->first,NULL,screen,&r);
-    }
-    r=floatingPieceRect;
-    if(floatingPieceType!=EMPTY_SPACE)
-        SDL_BlitSurface(pieceGraphics.find(floatingPieceType)->second,NULL,
-            screen,&r);
 }
 void Board::move(int x, int y, int xp, int yp){
     if(!validMove(x, y, xp, yp)){
@@ -504,23 +487,6 @@ Board::Board(int width, int height):mouseDown(false),
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
-    initializeIds();
-}
-Board::Board(int width, int height, 
-    const map<int, SDL_Surface *> &pieceGraphics):mouseDown(false),
-    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE), floatingPieceId(0){
-    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
-    vector<int> row(width, EMPTY_SPACE);
-    vvi ret(height, row);
-    ret[(height+1)/2-1][0]=PIECE_PLAYER;
-    ret[(height+1)/2-1][1]=PIECE_PLAYER;
-    board=ret;
-    initializeIds();
-}
-Board::Board(int width, int height, 
-    const map<int, SDL_Surface *> &pieceGraphics, std::ifstream &f):Board(width,height,f){ 
-    this->pieceGraphics.insert(pieceGraphics.begin(), pieceGraphics.end());
     initializeIds();
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
