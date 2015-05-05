@@ -785,7 +785,8 @@ int generate_board(bsref *out) {
     int num_pieces = 4 + random() % 10;
 
     int pidx = XY_TO_BIDX(0, random() % 6);
-    place_piece(out, pidx, ID_P);
+    out->s[pidx] = ID_P;
+    out->s[pidx + 1] = ID_P;
     for (int i = ID_P + 1; i < num_pieces; i++) {
         int idx = random() % 36;
         place_piece(out, idx, i);
@@ -842,7 +843,7 @@ int main() {
     board_init.s[23] = 5;
 
     int out_id = 0;
-    for (int i = 0; i < 1024; i++) {
+    for (int i = 0; i < 4096; i++) {
         generate_board(&board_init);
         solve_result sr;
         write_board(&board_init, &sr, out_id++);
