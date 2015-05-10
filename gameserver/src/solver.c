@@ -23,13 +23,17 @@ SUCH DAMAGES.
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include "time.h"
 
 #include "solver.h"
 #include "sstack.h"
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
 
-#define NUM_GEN 1024
+#define NUM_GEN 10
+// the minimum number of moves to solve the puzzle
+#define MIN_MOVES 1
+#define SHOW_MOVES 1
 
 using namespace std;
 
@@ -303,6 +307,9 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
+    printf("==>\n");
+    print_board(bs);
+    printf("\n");
 }
 
 int is_piece(bsref *bs, int x, int y) {
@@ -847,7 +854,7 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 }
 
 int main() {
-    srandom(0x4AFE0001);
+    srandom(time(NULL));
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(&null_bstate);
@@ -872,7 +879,7 @@ int main() {
         solve_result sr;
         write_board(&board_init, &sr, out_id++);
         ai_solve(&board_init, &sr);
-        if (sr.solved == 1 && sr.moves > 4) {
+        if (sr.solved == 1 && sr.moves > MIN_MOVES) {
             if (!sstack_contains(&gen_seen, &board_init)) {
                 print_board(&board_init);
                 fprintf(stderr, "solve in %d\n", sr.moves);
@@ -880,7 +887,7 @@ int main() {
                 sstack_push(&gen_seen, &board_init);
             }
         } else {
-            //fprintf(stderr, "no solve\n");
+            fprintf(stderr, "no solve\n");
         }
     }
 
