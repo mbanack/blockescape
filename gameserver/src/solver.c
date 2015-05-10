@@ -255,6 +255,10 @@ int is_horiz(bsref *bs, int idx) {
             return 1;
         }
     }
+    if (col == 5 && bs->s[idx + 1] == bs->s[idx]) {
+        printf("error: piece over edge\n");
+        exit(11);
+    }
     return 0;
 }
 
@@ -495,15 +499,21 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
     //printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
-        if (x != (5 - calc_width(bs, bidx))) {
+        if ((x + calc_width(bs, bidx) - 1) != 5) {
             for (int ix = 1; ix < 6; ix++) {
                 if (bidx + ix >= 36) {
+                    break;
+                }
+                if (((bidx + ix) % 6) < (bidx % 6)) {
                     break;
                 }
                 if (bs->s[bidx + ix] == ID_BLANK) {
                     make_move(c_out, id, x, y, x + 1, y);
                     if (is_new_hash(c_out)) {
                         // this is our new move
+                        if (SHOW_MOVES) {
+                            printf("MOVE %d RIGHT\n", id);
+                        }
                         sstack_push(&seen, c_out);
                         return 1;
                     }
@@ -517,6 +527,9 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 1] == ID_BLANK) {
                 make_move(c_out, id, x, y, x - 1, y);
                 if (is_new_hash(c_out)) {
+                    if (SHOW_MOVES) {
+                        printf("MOVE %d LEFT\n", id);
+                    }
                     sstack_push(&seen, c_out);
                     return 1;
                 }
@@ -528,13 +541,16 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 6] == ID_BLANK) {
                 make_move(c_out, id, x, y, x, y - 1);
                 if (is_new_hash(c_out)) {
+                    if (SHOW_MOVES) {
+                        printf("MOVE %d UP\n", id);
+                    }
                     sstack_push(&seen, c_out);
                     return 1;
                 }
                 make_move(c_out, id, x, y - 1, x, y);
             }
         }
-        if (y != (5 - calc_height(bs, bidx))) {
+        if ((y + calc_height(bs, bidx) - 1) != 5) {
             for (int iy = 1; iy < 6; iy++) {
                 if ((bidx + 6 * iy) >= 36) {
                     break;
@@ -542,6 +558,9 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 if (bs->s[bidx + 6 * iy] == ID_BLANK) {
                     make_move(c_out, id, x, y, x, y + 1);
                     if (is_new_hash(c_out)) {
+                        if (SHOW_MOVES) {
+                            printf("MOVE %d DOWN\n", id);
+                        }
                         sstack_push(&seen, c_out);
                         return 1;
                     }
@@ -718,7 +737,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
-    while (steps < 0x30) {
+    while (steps < 15) {
         depgraph ss;
         node *curnode = &ss.map[curid];
 
