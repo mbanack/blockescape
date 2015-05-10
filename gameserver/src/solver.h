@@ -25,7 +25,12 @@ SUCH DAMAGES.
 
 typedef struct blocker {
     uint8_t id;
+    // dir refers to the blocker of depth 0 in this chain
+    // ie for depth > 0 keep the same block direction as depth 0
+    //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
     uint8_t dir;
+    // 0 is "immediate blocker"
+    uint8_t depth;
 } blocker;
 
 #define NUM_BLOCKERS 20

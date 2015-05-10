@@ -29,11 +29,15 @@ SUCH DAMAGES.
 #include "sstack.h"
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
+//
+// TODO: hints
+// TODO: 1x3 pieces at boardgen
 
-#define NUM_GEN 10
+#define NUM_GEN 1
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 1
 #define SHOW_MOVES 1
+#define DEPGRAPH_DEPTH 3
 
 using namespace std;
 
@@ -205,9 +209,11 @@ void print_depgraph(depgraph *ss) {
     for (int i = 0; i < 36; i++) {
         node *n = &ss->map[i];
         if (n->init == 1) {
-            printf("node %d\n", n->id);
             for (int i = 0; i < NUM_BLOCKERS; i++) {
                 if (n->blockers[i].id != ID_BLANK) {
+                    if (i == 0) {
+                        printf("node %d\n", n->id);
+                    }
                     printf("  %d (%d)\n", n->blockers[i].id,
                                           n->blockers[i].dir);
                 }
@@ -307,9 +313,6 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id, 1, height, new_x, new_y);
     }
-    printf("==>\n");
-    print_board(bs);
-    printf("\n");
 }
 
 int is_piece(bsref *bs, int x, int y) {
@@ -394,8 +397,7 @@ int blocker_exists(node *c, int id) {
     return 0;
 }
 
-// TODO: this currently allows multiple adds of same blocker
-void add_blocker(node *c, int id, int dir) {
+void add_blocker(node *c, int id, int dir, int depth) {
     if (id == c->id) {
         return;
     }
@@ -407,6 +409,7 @@ void add_blocker(node *c, int id, int dir) {
         if (c->blockers[i].id == ID_BLANK) {
             c->blockers[i].id = id;
             c->blockers[i].dir = dir;
+            c->blockers[i].depth = depth;
             return;
         }
     }
@@ -422,7 +425,7 @@ void fill_node(node *c, int id) {
 }
 
 // calculates the blockers and fills in ss.map
-int calc_blockers(bsref *bs, depgraph *ss, int id) {
+int calc_blockers(bsref *bs, depgraph *ss, int id, int depth) {
     if (id == ID_BLANK) {
         return -1;
     }
@@ -445,9 +448,9 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
             int other_id = bs->s[XY_TO_BIDX(i, y)];
             if (is_piece(bs, i, y) && id != other_id) {
                 if (i < x) {
-                    add_blocker(c, other_id, LEFT);
+                    add_blocker(c, other_id, LEFT, depth);
                 } else {
-                    add_blocker(c, other_id, RIGHT);
+                    add_blocker(c, other_id, RIGHT, depth);
                 }
             }
         }
@@ -456,9 +459,9 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
             int other_id = bs->s[XY_TO_BIDX(x, i)];
             if (is_piece(bs, x, i) && id != other_id) {
                 if (i < y) {
-                    add_blocker(c, other_id, UP);
+                    add_blocker(c, other_id, UP, depth);
                 } else {
-                    add_blocker(c, other_id, DOWN);
+                    add_blocker(c, other_id, DOWN, depth);
                 }
             }
         }
@@ -492,7 +495,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
     //printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
-        if (x != 5) {
+        if (x != (5 - calc_width(bs, bidx))) {
             for (int ix = 1; ix < 6; ix++) {
                 if (bidx + ix >= 36) {
                     break;
@@ -531,7 +534,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 make_move(c_out, id, x, y - 1, x, y);
             }
         }
-        if (y != 5) {
+        if (y != (5 - calc_height(bs, bidx))) {
             for (int iy = 1; iy < 6; iy++) {
                 if ((bidx + 6 * iy) >= 36) {
                     break;
@@ -552,11 +555,38 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     return 0;
 }
 
+// fill entire depgraph
+void fill_full_depgraph(bsref *bs, depgraph *ss) {
+    // calculate the immediate blockers (depth 0)
+    for (int id = 0; id <= ID_MAX; id++) {
+        node *a = &ss->map[id];
+        a->init = 1;
+        calc_blockers(bs, ss, id, 0);
+    }
+
+    // propagate dependencies
+    for (int n = 0; n < DEPGRAPH_DEPTH; n++) {
+        for (int id = 0; id <= ID_MAX; id++) {
+            node *blocked = &ss->map[id];
+            for (int bx = 0; bx < NUM_BLOCKERS; bx++) {
+                blocker *b = &blocked->blockers[bx];
+                // add to blocked all of b's blockers with depth + 1
+                for (int bxx = 0; bxx < NUM_BLOCKERS; bxx++) {
+                    blocker *sub = &ss->map[b->id].blockers[bxx];
+                    // keep the same block direction
+                    //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
+                    add_blocker(blocked, sub->id, b->dir, n);
+                }
+            }
+        }
+    }
+}
+
 // fill partial depgraph starting from curnode->id
 void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
     int curid = curnode->id;
     ss->map[curid].init = 1;
-    calc_blockers(bs, ss, curid);
+    calc_blockers(bs, ss, curid, 0);
 
     // walk the current set of blockers and continue graph generation
     for (int i = 0; i < NUM_BLOCKERS; i++) {
@@ -566,7 +596,7 @@ void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
             if (a->init == 0) {
                 a->init = 1;
                 a->id = curnode->blockers[i].id;
-                calc_blockers(bs, ss, a->id);
+                calc_blockers(bs, ss, a->id, 0);
             }
         }
     }
@@ -672,6 +702,7 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
 void ai_solve(bsref *init, solve_result *r_out) {
     sstack_init(&seen);
+    sstack_push(&seen, init);
 
     r_out->solved = 0;
     r_out->moves = -1;
@@ -687,7 +718,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
-    while (steps < 0x20) {
+    while (steps < 0x30) {
         depgraph ss;
         node *curnode = &ss.map[curid];
 
@@ -708,7 +739,11 @@ void ai_solve(bsref *init, solve_result *r_out) {
             fill_node(&ss.map[i], i);
         }
 
-        fill_depgraph(&curboard, &ss, curnode);
+        //fill_depgraph(&curboard, &ss, curnode);
+        fill_full_depgraph(&curboard, &ss);
+        printf("[step %d]=================================\n", steps);
+        print_board(&curboard);
+        //print_depgraph(&ss);
 
         // now that we have generated the "blocking dependency graph" in ss
         // we try to pick a reasonable move based on heuristics
@@ -854,7 +889,9 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 }
 
 int main() {
-    srandom(time(NULL));
+    //srandom(time(NULL));
+    srandom(0x37);
+
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(&null_bstate);
