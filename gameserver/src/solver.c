@@ -747,8 +747,6 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
                 continue;
             }
             int obidx = XY_TO_BIDX(ox, oy);
-            printf("(%d, %d) => %d\n", ox, oy, obidx);
-            printf(" ah(%d)->%d\n", id, bs->s[obidx]);
             if (predict_next(bs, c_out, obidx, ox, oy)) {
                 *cid_out = i;
                 return 1;
