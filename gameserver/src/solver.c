@@ -33,10 +33,10 @@ SUCH DAMAGES.
 // TODO: hints
 // TODO: 1x3 pieces at boardgen
 
-#define NUM_GEN 1
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 1
 #define SHOW_MOVES 1
+#define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
 #define MAX_STEPS 0x30
 
@@ -847,7 +847,9 @@ void ai_solve(bsref *init, solve_result *r_out) {
         fill_full_depgraph(&curboard, &ss);
         printf("[step %d]=================================\n", steps);
         print_board(&curboard);
-        print_depgraph(&ss);
+        if (SHOW_DEPGRAPH) {
+            print_depgraph(&ss);
+        }
         printf("\n");
 
         // now that we have generated the "blocking dependency graph" in ss
@@ -997,9 +999,9 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     fclose(fp);
 }
 
-int main() {
+int main(int argc, char **argv) {
     time_t sd = time(NULL) % 1024;
-    sd = 215;
+    //sd = 215;
     printf("random seed is %d\n", sd);
     srandom(sd);
 
@@ -1021,16 +1023,22 @@ int main() {
     sstack gen_seen;
     sstack_init(&gen_seen);
 
+    // arg handling
+    int num_gen = 1;
+    if (argc > 1) {
+        num_gen = atoi(argv[1]);
+    }
+
     int out_id = 0;
-    while (out_id < NUM_GEN) {
+    while (out_id < num_gen) {
         generate_board(&board_init);
         solve_result sr;
-        write_board(&board_init, &sr, out_id++);
         ai_solve(&board_init, &sr);
         if (sr.solved == 1 && sr.moves > MIN_MOVES) {
             if (!sstack_contains(&gen_seen, &board_init)) {
                 print_board(&board_init);
                 fprintf(stderr, "solve in %d\n", sr.moves);
+                printf("{puzzle %d}\n", out_id);
                 write_board(&board_init, &sr, out_id++);
                 sstack_push(&gen_seen, &board_init);
             }
