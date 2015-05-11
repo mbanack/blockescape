@@ -885,11 +885,12 @@ void ai_solve(bsref *init, solve_result *r_out) {
     return;
 }
 
-void place_piece(bsref *out, int idx, int id) {
+void place_piece(bsref *out, int idx, int id, int pidx) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
-        if ((random() % 2) == 0) {
+        if ((idx / 6) != (pidx / 6) && (random() % 2) == 0) {
+            // horizontal
             if (x != 0) {
                 if (out->s[idx - 1] == ID_BLANK) {
                     out->s[idx - 1] = id;
@@ -918,6 +919,7 @@ void place_piece(bsref *out, int idx, int id) {
                 }
             }
         } else {
+            // vertical
             if (y != 0) {
                 if (out->s[idx - 6] == ID_BLANK) {
                     out->s[idx - 6] = id;
@@ -959,7 +961,7 @@ int generate_board(bsref *out) {
     out->s[pidx + 1] = ID_P;
     for (int i = ID_P + 1; i < num_pieces; i++) {
         int idx = random() % 36;
-        place_piece(out, idx, i);
+        place_piece(out, idx, i, pidx);
     }
     return 0;
 }
@@ -997,7 +999,7 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 
 int main() {
     time_t sd = time(NULL) % 1024;
-    //sd = 191;
+    sd = 215;
     printf("random seed is %d\n", sd);
     srandom(sd);
 
