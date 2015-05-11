@@ -38,7 +38,7 @@ SUCH DAMAGES.
 #define MIN_MOVES 1
 #define SHOW_MOVES 1
 #define DEPGRAPH_DEPTH 3
-#define MAX_STEPS 0x10
+#define MAX_STEPS 0x3
 
 using namespace std;
 
@@ -225,9 +225,9 @@ void print_depgraph(depgraph *ss) {
                     if (i == 0) {
                         printf("node %d\n", n->id);
                     }
-                    printf("  %d (%s) depth %d\n", n->blockers[i].id,
-                                                   DIRNAMES[n->blockers[i].dir],
-                                                   n->blockers[i].depth);
+                    printf("  %d %s depth %d\n", n->blockers[i].id,
+                                                 DIRNAMES[n->blockers[i].dir],
+                                                 n->blockers[i].depth);
                 }
             }
         }
@@ -318,11 +318,15 @@ int calc_height(bsref *bs, int id) {
             h++;
         }
     }
+    printf("calc_height couldnt find piece id %d\n", id);
+    print_board(bs);
+    exit(16);
     return -1;
 }
 
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(old_x, old_y);
+    printf("make_move(%d, %d, %d, %d, %d)\n", id, old_x, old_y, new_x, new_y);
     if (id == ID_BLANK) {
         printf("cannot make_move(ID_BLANK)\n");
         exit(12);
@@ -330,11 +334,13 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
         insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
-        insert_piece(bs, id, width, 1, new_x, new_y);
+        insert_piece(bs, id,       width, 1, new_x, new_y);
     } else {
+        printf("is_vert\n");
         int height = calc_height(bs, id);
+        printf("height is %d\n", height);
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
-        insert_piece(bs, id, 1, height, new_x, new_y);
+        insert_piece(bs, id,       1, height, new_x, new_y);
     }
 }
 
@@ -525,7 +531,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     if (id == ID_BLANK) {
         return 0;
     }
-    //printf("predict_next(%d @ %d, %d)\n", id, x, y);
+    printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
         if ((x + calc_width(bs, bidx) - 1) != 5) {
             for (int ix = 1; ix < 6; ix++) {
@@ -566,19 +572,24 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
         }
     } else {
         if (y != 0) {
+            printf("id is %d y not 0 vert\n", id);
             if (bs->s[bidx - 6] == ID_BLANK) {
+                printf("!! id is %d y not 0 vert\n", id);
                 make_move(c_out, id, x, y, x, y - 1);
+                print_board(c_out);
                 if (is_new_hash(c_out)) {
                     if (SHOW_MOVES) {
                         printf("MOVE %d UP\n", id);
                     }
                     sstack_push(&seen, c_out);
                     return 1;
+                } else {
+                    printf("old news...\n");
                 }
                 make_move(c_out, id, x, y - 1, x, y);
             }
         }
-        if ((y + calc_height(bs, bidx) - 1) != 5) {
+        if ((y + calc_height(bs, bs->s[bidx]) - 1) != 5) {
             for (int iy = 1; iy < 6; iy++) {
                 if ((bidx + 6 * iy) >= 36) {
                     break;
@@ -703,8 +714,24 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
         printf("error in apply_heuristics\n");
     }
     int bidx = XY_TO_BIDX(x, y);
-
     bsref_clone(c_out, bs);
+
+    // consider the depgraph of ID_P
+    for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
+        blocker *b = &ss->map[ID_P].blockers[bid];
+        if (b->id == ID_BLANK) {
+            break;
+        }
+        int b_x, b_y;
+        find_piece(bs, b->id, &b_x, &b_y);
+        int b_bidx = XY_TO_BIDX(b_x, b_y);
+        if (predict_next(bs, c_out, b_bidx, b_x, b_y)) {
+            printf("{HA %d}\n", b->id);
+            *cid_out = b->id;
+            return 1;
+        }
+    }
+
     // consider free moves for this piece, then player piece, then all other pieces
     if (predict_next(bs, c_out, bidx, x, y)) {
         *cid_out = id;
@@ -726,7 +753,7 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
             printf("(%d, %d) => %d\n", ox, oy, obidx);
             printf(" ah(%d)->%d\n", id, bs->s[obidx]);
             if (predict_next(bs, c_out, obidx, ox, oy)) {
-                *cid_out = id;
+                *cid_out = i;
                 return 1;
             }
         }
