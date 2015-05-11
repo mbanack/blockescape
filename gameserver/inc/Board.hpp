@@ -49,6 +49,8 @@ public:
     bool win();
     int getMinMoves();
     void attemptSolve();
+    void removeHorizontalNextToPlayer();
+    int playerRow();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);

@@ -33,7 +33,7 @@ bool waitingPlayer = false;
 websocketpp::connection_hdl waitingConnection;
 map<string, websocketpp::connection_hdl> opponentConnection;
 int identification=0;
-const int TOTAL_BOARDS=2;
+const int TOTAL_BOARDS=1000;
 void login(server *s, websocketpp::connection_hdl hdl, 
     message_ptr msg, string username) {
     try {
@@ -69,7 +69,7 @@ int levelIndexOkay(int index, const vector<int> &completed){
     int level = 0;
     for(int i = 0; i < TOTAL_BOARDS && i < completed.size() 
         && i <= index;++i){
-        if((i+1)%10==0)
+        if(i>0&&i%10==0)
         {
             previousLevel=thisLevel;
             thisLevel=0;
@@ -97,15 +97,15 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
     bool random) {
     SDL_Rect r;
     int id = userId.find(username)->second;
-    Auth auth;
+    Auth *auth = Auth::getInstance();
     if(onePast) {
-        vector<int> completed = auth.getCompletedBoards(username);
-        index=levelOnePast(index,completed);
+        vector<int> completed = auth->getCompletedBoards(username);
+        index=levelIndexOkay(levelOnePast(index,completed), completed);
     }
     else if(random)
         index=rand()%TOTAL_BOARDS;
     else {
-        vector<int> completed = auth.getCompletedBoards(username);
+        vector<int> completed = auth->getCompletedBoards(username);
         index=levelIndexOkay(index,completed);
     }
     stringstream ss;
@@ -134,7 +134,7 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
         string message("newboard");
         message+= ss.str();
         message+= " ";
-        vector<int> completed = auth.getCompletedBoards(username);
+        vector<int> completed = auth->getCompletedBoards(username);
         if(completed[index]==1)
             message+="completed ";
         else
@@ -215,8 +215,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         try {
             string message("get salt username");
             string str(msg->get_payload().substr(askSaltUsername.size()));
-            Auth auth;
-            string salt = auth.getSalt(str);
+            Auth *auth = Auth::getInstance();
+            string salt = auth->getSalt(str);
             userSalts1.insert(make_pair(str,salt));
             message+=salt;
             s->send(hdl, message, websocketpp::frame::opcode::text);
@@ -228,9 +228,9 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         try {
             string message("get salts username");
             string str(msg->get_payload().substr(askSaltsUsername.size()));
-            Auth auth;
-            string salt1=auth.getSalt(str);
-            string salt2=auth.genSalt();
+            Auth *auth = Auth::getInstance();
+            string salt1=auth->getSalt(str);
+            string salt2=auth->genSalt();
             if(userSalts2.count(str)>0)
                 userSalts2.erase(userSalts2.find(str));
             userSalts2.insert(make_pair(str, salt2));
@@ -248,13 +248,13 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             string phash;
             usernamePhashStream >> username;
             usernamePhashStream >> phash;
-            Auth auth;
-            if(auth.userExists(username)){
+            Auth *auth = Auth::getInstance();
+            if(auth->userExists(username)){
                 loginFail(s, hdl, msg);
                 return;
             }
             string salt1 = userSalts1.find(username)->second;
-            if(auth.createUser(username, phash, salt1))
+            if(auth->createUser(username, phash, salt1))
                 login(s, hdl, msg, username);
             else
                 loginFail(s, hdl, msg);
@@ -271,15 +271,15 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         userPassStream >> phash;
         string salt1;
         string salt2;
-        Auth auth;
-        salt1 = auth.getSalt(username);
+        Auth *auth = Auth::getInstance();
+        salt1 = auth->getSalt(username);
         if(userSalts2.count(username)>0){
             salt2=userSalts2.find(username)->second;
         }
         else
             cerr << "Error: could not get salt" << endl;
         //Compare hashes
-        if(auth.Authorize(username, salt2, phash))
+        if(auth->Authorize(username, salt2, phash))
             login(s, hdl, msg, username);
         else{
             loginFail(s, hdl, msg);
@@ -329,7 +329,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                 opponentConnection.erase(opponentConnection.find(fromId));
             }
             else{
-                Auth auth;
+                Auth *auth = Auth::getInstance();
                 string username;
                 for(map<string, int>::iterator it = userId.begin(); it !=
                     userId.end(); ++it) {
@@ -337,7 +337,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                         username = it->first;
                     }
                 }
-                auth.updateCompletedBoards(userBoardIndex.find(tempId)->second,
+                auth->updateCompletedBoards(userBoardIndex.find(tempId)->second,
                     username);
             }
         }

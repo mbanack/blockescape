@@ -17,7 +17,12 @@ int Board::getMinMoves() {
     return minMoves;
 }
 bool Board::win(){
-    return board[2][5]==PIECE_PLAYER;
+    return board[0][5]==PIECE_PLAYER ||
+        board[1][5] == PIECE_PLAYER ||
+        board[2][5] == PIECE_PLAYER ||
+        board[3][5] == PIECE_PLAYER ||
+        board[4][5] == PIECE_PLAYER ||
+        board[5][5] == PIECE_PLAYER;
 }
 void Board::printIds(ostream &s){
     for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
@@ -57,15 +62,18 @@ void Board::initializeIds(){
             ids[i]=++highestId;
             ids[i+BOARD_COLS]=highestId;
             board[i/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         }  
         else if(piece==PIECE_VERTICAL3){
             ids[i]=++highestId;
             ids[i+BOARD_COLS]=highestId;
             ids[i+BOARD_COLS*2]=highestId;
             board[i/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+2*BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         } 
         else if(piece==EMPTY_SPACE){
             ids[i]=0;
@@ -286,7 +294,8 @@ void Board::removePiece(int i, vvi &board,
         ids[i]=0;
         ids[i+BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=2;
     }  
     else if(piece==PIECE_VERTICAL3){
@@ -294,8 +303,10 @@ void Board::removePiece(int i, vvi &board,
         ids[i+BOARD_COLS]=0;
         ids[i+2*BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS)
+            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=3;
     } 
 }
@@ -417,7 +428,20 @@ Board::Board(int width, int height):mouseDown(false),
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
-    initializeIds();
+    //initializeIds();
+}
+void Board::removeHorizontalNextToPlayer(){
+    int pr = playerRow();
+    for(int i = 0; i < BOARD_COLS;++i){
+        if(board[pr][i]!=PIECE_PLAYER)
+            board[pr][i] = EMPTY_SPACE;
+    }
+}
+int Board::playerRow(){
+    for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
+        if(board[i/BOARD_COLS][i%BOARD_COLS]==PIECE_PLAYER)
+            return i/BOARD_COLS;
+    }
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
@@ -438,7 +462,8 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
         }
         board.push_back(row);
     }
-    initializeIds();
+    removeHorizontalNextToPlayer();
+    //initializeIds();
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);

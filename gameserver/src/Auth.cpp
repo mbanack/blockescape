@@ -11,10 +11,22 @@ using namespace std;
 const char *DB_USER = "blockescape";
 const char *DB_PASS = "horthownavlokum3";
 
-void Auth::updateCompletedBoards(int index, const string &username){
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
+Auth *Auth::instance = NULL;
+Auth::Auth() 
+{
+    driver = get_driver_instance();
+    con = 
         driver->connect("localhost", DB_USER, DB_PASS);
+}
+Auth *Auth::getInstance(){
+    if(!instance)
+        instance = new Auth();
+    return instance;
+}
+Auth::~Auth(){
+    delete con;
+}
+void Auth::updateCompletedBoards(int index, const string &username){
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT levels FROM users WHERE username = \"" + username
@@ -37,12 +49,8 @@ void Auth::updateCompletedBoards(int index, const string &username){
     s->execute(update.c_str());
     delete s;
     delete r;
-    delete con;
 }
 std::vector<int> Auth::getCompletedBoards(const std::string &username){
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
-        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT levels FROM users WHERE username = \"" + username
@@ -59,12 +67,9 @@ std::vector<int> Auth::getCompletedBoards(const std::string &username){
     }
     delete s;
     delete r;
-    delete con;
     return ret;
 }
 bool Auth::userExists(const string &username){
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
         driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
@@ -75,20 +80,15 @@ bool Auth::userExists(const string &username){
     {
         delete s;
         delete r;
-        delete con;
         return true;
     }
     delete s;
     delete r;
-    delete con;
     return false;
 }
 bool Auth::createUser(const string &username,
     const string &password, const string &salt){
     bool success=true;
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
-        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string insert("INSERT INTO users (username, password, salt, levels) VALUES (\"");
@@ -108,14 +108,10 @@ bool Auth::createUser(const string &username,
         success = false;
     }
     delete s;
-    delete con;
     return success;
 }
 bool Auth::Authorize(const string &username, const string &salt2,
     const string &password){
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
-        driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT password FROM users WHERE username = \"");
@@ -137,13 +133,12 @@ bool Auth::Authorize(const string &username, const string &salt2,
     //end new
     delete s;
     delete r;
-    delete con;
     return finalHash == password;
 }
 string Auth::getSalt(const string &username){
-    sql::Driver *driver = get_driver_instance();
-    sql::Connection *con = 
-        driver->connect("localhost", DB_USER, DB_PASS);
+    //sql::Driver *driver = get_driver_instance();
+    //sql::Connection *con = 
+     //   driver->connect("localhost", DB_USER, DB_PASS);
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
     string select("SELECT salt FROM users WHERE username = \"");
@@ -156,7 +151,6 @@ string Auth::getSalt(const string &username){
     }
     delete s;
     delete r;
-    delete con;
     return salt;
 }
 string Auth::genSalt(){
