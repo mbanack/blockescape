@@ -57,6 +57,7 @@ typedef struct bsref {
 int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
 void bsref_clone(bsref *bsb, bsref *bsa);
+void bsref_print(bsref *a);
 
 int is_solvable(bsref *init);
 

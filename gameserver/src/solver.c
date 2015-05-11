@@ -38,6 +38,7 @@ SUCH DAMAGES.
 #define MIN_MOVES 1
 #define SHOW_MOVES 1
 #define DEPGRAPH_DEPTH 3
+#define MAX_STEPS 0x10
 
 using namespace std;
 
@@ -60,6 +61,8 @@ using namespace std;
 #define DOWN  3
 #define NULL_DIR -1
 
+const char *DIRNAMES[] = {"LEFT", "RIGHT", "UP", "DOWN"};
+
 // convert board idx in 0 .. 35 to x, y in 0 .. 5
 #define BIDX_TO_X(bidx) ((bidx) % 6)
 #define BIDX_TO_Y(bidx) ((bidx) / 6)
@@ -71,7 +74,7 @@ bsref board_init;
 sstack seen;
 
 // should we consider free moves of other pieces such as the player piece
-const int HEURISTIC_CREEP = 0;
+const int HEURISTIC_CREEP = 1;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -124,6 +127,14 @@ void sstack_peek(sstack *s, bsref *key_out) {
     }
 
     bsref_clone(key_out, &s->arr[s->idx - 1]);
+}
+
+void sstack_print(sstack *s) {
+    for (int i = 0; i < s->idx; i++) {
+        printf("[%3d] ", i);
+        bsref_print(&s->arr[i]);
+        printf("\n");
+    }
 }
 
 void dstack_init(dstack *s) {
@@ -214,8 +225,9 @@ void print_depgraph(depgraph *ss) {
                     if (i == 0) {
                         printf("node %d\n", n->id);
                     }
-                    printf("  %d (%d)\n", n->blockers[i].id,
-                                          n->blockers[i].dir);
+                    printf("  %d (%s) depth %d\n", n->blockers[i].id,
+                                                   DIRNAMES[n->blockers[i].dir],
+                                                   n->blockers[i].depth);
                 }
             }
         }
@@ -245,6 +257,9 @@ void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y
 
 int is_horiz(bsref *bs, int idx) {
     int col = idx % 6;
+    if (bs->s[idx] == ID_BLANK) {
+        return 0;
+    }
     if (col != 0) {
         if (bs->s[idx - 1] == bs->s[idx]) {
             return 1;
@@ -255,8 +270,8 @@ int is_horiz(bsref *bs, int idx) {
             return 1;
         }
     }
-    if (col == 5 && bs->s[idx + 1] == bs->s[idx]) {
-        printf("error: piece over edge\n");
+    if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
+        printf("error: piece %d over edge\n", idx);
         exit(11);
     }
     return 0;
@@ -308,6 +323,10 @@ int calc_height(bsref *bs, int id) {
 
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(old_x, old_y);
+    if (id == ID_BLANK) {
+        printf("cannot make_move(ID_BLANK)\n");
+        exit(12);
+    }
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
         insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
@@ -356,6 +375,12 @@ bool operator==(const bsref& l, const bsref& r) {
 
 int bsref_equal(bsref *a, bsref *b) {
     return memcmp(a->s, b->s, 36) == 0;
+}
+
+void bsref_print(bsref *a) {
+    for (int i = 0; i < 36; i++) {
+        printf("%c", id_to_hex(a->s[i]));
+    }
 }
 
 bool operator!=(const bsref& l, const bsref& r) {
@@ -497,6 +522,9 @@ int is_new_hash(bsref *bs) {
 //   and if they aren't already in seen, explore them (by ret 1)
 bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
+    if (id == ID_BLANK) {
+        return 0;
+    }
     //printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
         if ((x + calc_width(bs, bidx) - 1) != 5) {
@@ -574,10 +602,19 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     return 0;
 }
 
+void clear_depgraph(depgraph *ss) {
+    for (int id = 0; id <= ID_MAX; id++) {
+        node *a = &ss->map[id];
+        a->id = id;
+        a->init = 0;
+        memset(&a->blockers, 0x00, sizeof(blocker) * NUM_BLOCKERS);
+    }
+}
+
 // fill entire depgraph
 void fill_full_depgraph(bsref *bs, depgraph *ss) {
     // calculate the immediate blockers (depth 0)
-    for (int id = 0; id <= ID_MAX; id++) {
+    for (int id = ID_P; id <= ID_MAX; id++) {
         node *a = &ss->map[id];
         a->init = 1;
         calc_blockers(bs, ss, id, 0);
@@ -585,16 +622,22 @@ void fill_full_depgraph(bsref *bs, depgraph *ss) {
 
     // propagate dependencies
     for (int n = 0; n < DEPGRAPH_DEPTH; n++) {
-        for (int id = 0; id <= ID_MAX; id++) {
+        for (int id = ID_P; id <= ID_MAX; id++) {
             node *blocked = &ss->map[id];
             for (int bx = 0; bx < NUM_BLOCKERS; bx++) {
                 blocker *b = &blocked->blockers[bx];
-                // add to blocked all of b's blockers with depth + 1
-                for (int bxx = 0; bxx < NUM_BLOCKERS; bxx++) {
-                    blocker *sub = &ss->map[b->id].blockers[bxx];
-                    // keep the same block direction
-                    //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
-                    add_blocker(blocked, sub->id, b->dir, n);
+                if (b->id != ID_BLANK) {
+                    // add to blocked all of b's blockers with depth + 1
+                    for (int bxx = 0; bxx < NUM_BLOCKERS; bxx++) {
+                        blocker *sub = &ss->map[b->id].blockers[bxx];
+                        if (sub->id != ID_BLANK) {
+                            if (!blocker_exists(blocked, sub->id)) {
+                                // keep the same block direction
+                                //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
+                                add_blocker(blocked, sub->id, b->dir, b->depth + 1);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -653,6 +696,7 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
 //   and sets c_out with the updated board state
 int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *cid_out) {
     int id = curnode->id;
+    printf("ah(%d)\n", id);
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x == -1) {
@@ -675,7 +719,12 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
             }
             int ox, oy;
             find_piece(bs, i, &ox, &oy);
+            if (ox == -1) {
+                continue;
+            }
             int obidx = XY_TO_BIDX(ox, oy);
+            printf("(%d, %d) => %d\n", ox, oy, obidx);
+            printf(" ah(%d)->%d\n", id, bs->s[obidx]);
             if (predict_next(bs, c_out, obidx, ox, oy)) {
                 *cid_out = id;
                 return 1;
@@ -690,6 +739,9 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
         if (b_id != ID_BLANK) {
             int b_x, b_y;
             find_piece(bs, b_id, &b_x, &b_y);
+            if (b_x == -1) {
+                continue;
+            }
             if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
                 *cid_out = b_id;
                 return 1;
@@ -699,15 +751,17 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
 
     // try again for all of the possible other pieces to move
     //   that are *NOT* on our depgraph?
-    fill_depgraph(bs, ss, curnode);
+    fill_full_depgraph(bs, ss);
     for (int i = ID_P; i < 36; i++) {
         node *newnode = &ss->map[i];
-        fill_depgraph(bs, ss, newnode);
         if (newnode->id != id) {
             if (!on_depgraph(bs, ss, curnode, newnode)) {
                 int o_id = newnode->id;
                 int o_x, o_y;
                 find_piece(bs, o_id, &o_x, &o_y);
+                if (o_x == -1) {
+                    continue;
+                }
                 if (predict_next(bs, c_out, XY_TO_BIDX(o_x, o_y), o_x, o_y)) {
                     *cid_out = o_id;
                     return 1;
@@ -737,8 +791,9 @@ void ai_solve(bsref *init, solve_result *r_out) {
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
-    while (steps < 15) {
+    while (steps < MAX_STEPS) {
         depgraph ss;
+        clear_depgraph(&ss);
         node *curnode = &ss.map[curid];
 
         // is it solved right now?
@@ -762,7 +817,8 @@ void ai_solve(bsref *init, solve_result *r_out) {
         fill_full_depgraph(&curboard, &ss);
         printf("[step %d]=================================\n", steps);
         print_board(&curboard);
-        //print_depgraph(&ss);
+        print_depgraph(&ss);
+        printf("\n");
 
         // now that we have generated the "blocking dependency graph" in ss
         // we try to pick a reasonable move based on heuristics
@@ -775,7 +831,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
         if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
-                //printf("error in is_solvable (board_history empty)\n");
+                printf("error in is_solvable (board_history empty)\n");
                 r_out->solved = 0;
                 r_out->moves = steps;
                 return;
@@ -784,14 +840,16 @@ void ai_solve(bsref *init, solve_result *r_out) {
             bsref top;
             sstack_pop(&board_history, &top);
             steps++;
-            //printf("dead end, board_history size is %d\n", sstack_size(&board_history));
+            printf("dead end, board_history size is %d\n", sstack_size(&board_history));
+            //sstack_print(&board_history);
+            exit(1);
         } else {
             sstack_push(&board_history, &c);
             bsref_clone(&curboard, &c);
             steps++;
         }
     }
-    //printf("hit max step length -- give up\n");
+    printf("hit max step length -- give up\n");
     r_out->solved = 0;
     r_out->moves = steps;
     return;
@@ -908,8 +966,10 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 }
 
 int main() {
-    //srandom(time(NULL));
-    srandom(0x37);
+    time_t sd = time(NULL) % 1024;
+    sd = 191;
+    printf("random seed is %d\n", sd);
+    srandom(sd);
 
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
@@ -947,5 +1007,6 @@ int main() {
         }
     }
 
+    printf("random seed is %d\n", sd);
     return 0;
 }
