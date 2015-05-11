@@ -34,11 +34,10 @@ SUCH DAMAGES.
 // TODO: 1x3 pieces at boardgen
 
 // the minimum number of moves to solve the puzzle
-#define MIN_MOVES 1
+#define MIN_MOVES 4
 #define SHOW_MOVES 1
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
-#define MAX_STEPS 0x30
 
 using namespace std;
 
@@ -329,7 +328,6 @@ int calc_height(bsref *bs, int id) {
 
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(old_x, old_y);
-    printf("make_move(%d, %d, %d, %d, %d)\n", id, old_x, old_y, new_x, new_y);
     if (id == ID_BLANK) {
         printf("cannot make_move(ID_BLANK)\n");
         exit(12);
@@ -339,9 +337,7 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
         insert_piece(bs, id,       width, 1, new_x, new_y);
     } else {
-        printf("is_vert\n");
         int height = calc_height(bs, id);
-        printf("height is %d\n", height);
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id,       1, height, new_x, new_y);
     }
@@ -710,7 +706,6 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
 //   and sets c_out with the updated board state
 int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *cid_out) {
     int id = curnode->id;
-    printf("ah(%d)\n", id);
     int x, y;
     find_piece(bs, id, &x, &y);
     if (x == -1) {
@@ -729,7 +724,6 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
         find_piece(bs, b->id, &b_x, &b_y);
         int b_bidx = XY_TO_BIDX(b_x, b_y);
         if (predict_next(bs, c_out, b_bidx, b_x, b_y)) {
-            printf("{HA %d}\n", b->id);
             *cid_out = b->id;
             return 1;
         }
@@ -803,7 +797,7 @@ int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *
     return 0;
 }
 
-void ai_solve(bsref *init, solve_result *r_out) {
+void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     sstack_init(&seen);
     sstack_push(&seen, init);
 
@@ -821,7 +815,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
-    while (steps < MAX_STEPS) {
+    while (steps < max_steps) {
         depgraph ss;
         clear_depgraph(&ss);
         node *curnode = &ss.map[curid];
@@ -1025,25 +1019,29 @@ int main(int argc, char **argv) {
 
     // arg handling
     int num_gen = 1;
+    int max_steps = 0x30;
     if (argc > 1) {
         num_gen = atoi(argv[1]);
+        printf("num_gen is %d\n", num_gen);
+    }
+    if (argc > 2) {
+        max_steps = atoi(argv[2]);
     }
 
     int out_id = 0;
     while (out_id < num_gen) {
         generate_board(&board_init);
         solve_result sr;
-        ai_solve(&board_init, &sr);
+        ai_solve(&board_init, &sr, max_steps);
         if (sr.solved == 1 && sr.moves > MIN_MOVES) {
             if (!sstack_contains(&gen_seen, &board_init)) {
                 print_board(&board_init);
                 fprintf(stderr, "solve in %d\n", sr.moves);
                 printf("{puzzle %d}\n", out_id);
-                write_board(&board_init, &sr, out_id++);
+                write_board(&board_init, &sr, out_id);
                 sstack_push(&gen_seen, &board_init);
+                out_id++;
             }
-        } else {
-            fprintf(stderr, "no solve\n");
         }
     }
 
