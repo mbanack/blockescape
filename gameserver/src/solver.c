@@ -530,7 +530,6 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     if (id == ID_BLANK) {
         return 0;
     }
-    printf("predict_next(%d @ %d, %d)\n", id, x, y);
     if (is_horiz(bs, bidx)) {
         if ((x + calc_width(bs, bidx) - 1) != 5) {
             for (int ix = 1; ix < 6; ix++) {
