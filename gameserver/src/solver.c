@@ -38,7 +38,7 @@ SUCH DAMAGES.
 #define MIN_MOVES 1
 #define SHOW_MOVES 1
 #define DEPGRAPH_DEPTH 3
-#define MAX_STEPS 0x3
+#define MAX_STEPS 0x30
 
 using namespace std;
 
@@ -314,6 +314,9 @@ int calc_height(bsref *bs, int id) {
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
             if (bs->s[bidx] != id) {
                 return h;
+            }
+            if (bidx >= 30) {
+                return h + 1;
             }
             h++;
         }
@@ -994,7 +997,7 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 
 int main() {
     time_t sd = time(NULL) % 1024;
-    sd = 191;
+    //sd = 191;
     printf("random seed is %d\n", sd);
     srandom(sd);
 
