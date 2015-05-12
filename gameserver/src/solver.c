@@ -732,8 +732,9 @@ void clear_depgraph(depgraph *ss) {
     }
 }
 
-// fill entire depgraph
+// fill entire depgraph (automatically clears/inits the depgraph)
 void fill_full_depgraph(bsref *bs, depgraph *ss) {
+    clear_depgraph(ss);
     // calculate the immediate blockers (depth 0)
     for (int id = ID_P; id <= ID_MAX; id++) {
         node *a = &ss->map[id];
@@ -834,50 +835,24 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     sstack_push(&board_history, init);
 
     int steps = 0;
-    // the id of the current piece to move
-    int curid = ID_P;
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
     while (steps < max_steps) {
-        depgraph ss;
-        clear_depgraph(&ss);
-        node *curnode = &ss.map[curid];
-
         if (solved(&curboard)) {
             r_out->solved = 1;
             r_out->moves = steps;
             return;
         }
 
-        // create depgraph with default node values
-        //  (ie all pre-allocated)
-        // we need to re-wipe the depgraph if steps != 1
-        //       because we just moved a piece.
-        for (int i = 0; i < 36; i++) {
-            fill_node(&ss.map[i], i);
-        }
-
-        //fill_depgraph(&curboard, &ss, curnode);
-        fill_full_depgraph(&curboard, &ss);
         printf("[step %d]=================================\n", steps);
         print_board(&curboard);
-        if (SHOW_DEPGRAPH) {
-            print_depgraph(&ss);
-        }
         printf("\n");
 
-        // now that we have generated the "blocking dependency graph" in ss
-        // we try to pick a reasonable move based on heuristics
-        // once a move has been exhausted, it is no longer considered,
-        //   and we fall through to subsequent weighted heuristics
-
-        // XXX: can we update the depgraph faster than wipe+regen?
-
-        bsref c;
-        printf("STUB: rework apply_heuristics block\n");
-        /*
-        if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
+        int moved_id = ID_BLANK;
+        int dir = NULL_DIR;
+        heuristics(&curboard, &dir, &moved_id);
+        if (dir == NULL_DIR) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
                 printf("error in is_solvable (board_history empty)\n");
@@ -890,8 +865,18 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             sstack_pop(&board_history, &top);
             steps++;
             printf("dead end, board_history size is %d\n", sstack_size(&board_history));
-            //sstack_print(&board_history);
-            exit(1);
+            r_out->solved = 0;
+            r_out->moves = steps;
+            return;
+        } else {
+            make_move(&curboard, moved_id, dir);
+            sstack_push(&board_history, &curboard);
+            steps++;
+        }
+
+        printf("STUB: rework apply_heuristics block\n");
+        /*
+        if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
         } else {
             sstack_push(&board_history, &c);
             bsref_clone(&curboard, &c);
@@ -1019,6 +1004,10 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 
 // if there is a viable move, it is returned in dir_out and id_out
 //   we probably dont care which block is "current" -- move the best one
+// after generating the "blocking dependency graph" in ss
+//   we try to pick a reasonable move based on heuristics
+//   once a move has been exhausted, it is no longer considered,
+//   and we fall through to subsequent weighted heuristics
 void heuristics(bsref *bs, int *dir_out, int *id_out) {
     bsref work;
     bsref_clone(&work, bs);
@@ -1070,6 +1059,7 @@ void print_moves(bsref *b_init) {
             return;
         } else {
             printf("%d %s\n", moved_id, DIRNAMES[dir]);
+            make_move(work, moved_id, dir);
         }
     }
 }
