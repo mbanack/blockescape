@@ -276,18 +276,21 @@ int is_horiz(bsref *bs, int idx) {
     return 0;
 }
 
-// attempts to find a piece with given id, and returns its loc in x,y
-void find_piece(bsref *bs, int id, int *x, int *y) {
+// attempts to find a piece with given id, and returns its loc in x,y,bidx
+int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out) {
     *x = -1;
     *y = -1;
+    *bidx_out = -1;
 
     for (int i = 0; i < 36; i++) {
         if (bs->s[i] == id && is_topleft(bs, i)) {
+            *bidx_out = i;
             *x = BIDX_TO_X(i);
             *y = BIDX_TO_Y(i);
-            return;
+            return 1;
         }
     }
+    return 0;
 }
 
 int calc_width(bsref *bs, int id) {
@@ -990,12 +993,38 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     fclose(fp);
 }
 
+// if there is a viable move, it is returned in dir_out and id_out
+//   we probably dont care which block is "current" -- move the best one
+void heuristics(bsref *b, int *dir_out, int *id_out) {
+    bsref work;
+    bsref_clone(&work, b);
+    depgraph ss;
+    clear_depgraph(&ss);
+
+    // consider the depgraph of ID_P
+    for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
+        blocker *b = &ss->map[ID_P].blockers[bid];
+        if (b->id == ID_BLANK) {
+            break;
+        }
+        int b_x, b_y, b_bidx;
+        if (find_piece(bs, b->id, &b_x, &b_y, &b_bidx)) {
+            if (predict_next(bs, c_out, b_bidx, b_x, b_y)) {
+                *id_out = b->id;
+                *dir_out
+                return;
+            }
+        }
+    }
+}
+
 void print_moves(bsref *b_init) {
     bsref work;
     bsref_clone(&work, b_init);
     while (!solved(&work)) {
         int moved_id = ID_BLANK;
-        int dir = heuristics(&work, &moved_id);
+        int dir = NULL_DIR;
+        heuristics(&work, &dir, &moved_id);
         if (dir == NULL_DIR) {
             return;
         } else {
