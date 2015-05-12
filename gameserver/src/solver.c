@@ -278,15 +278,15 @@ int is_horiz(bsref *bs, int idx) {
 
 // attempts to find a piece with given id, and returns its loc in x,y,bidx
 int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out) {
-    *x = -1;
-    *y = -1;
+    *x_out = -1;
+    *y_out = -1;
     *bidx_out = -1;
 
     for (int i = 0; i < 36; i++) {
         if (bs->s[i] == id && is_topleft(bs, i)) {
             *bidx_out = i;
-            *x = BIDX_TO_X(i);
-            *y = BIDX_TO_Y(i);
+            *x_out = BIDX_TO_X(i);
+            *y_out = BIDX_TO_Y(i);
             return 1;
         }
     }
@@ -294,9 +294,8 @@ int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out) {
 }
 
 int calc_width(bsref *bs, int id) {
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x != -1) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
         int w = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx++) {
             if (bs->s[bidx] != id) {
@@ -309,9 +308,8 @@ int calc_width(bsref *bs, int id) {
 }
 
 int calc_height(bsref *bs, int id) {
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x != -1) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
         int h = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
             if (bs->s[bidx] != id) {
@@ -323,9 +321,6 @@ int calc_height(bsref *bs, int id) {
             h++;
         }
     }
-    printf("calc_height couldnt find piece id %d\n", id);
-    print_board(bs);
-    exit(16);
     return -1;
 }
 
@@ -357,24 +352,22 @@ void make_move(bsref *bs, int id, int dir) {
         exit(12);
     }
 
+    int width = calc_width(bs, id);
+    int height = calc_height(bs, id);
     switch (dir) {
         case RIGHT:
-            int width = calc_width(bs, id);
             insert_piece(bs, ID_BLANK, width, 1, x, y);
             insert_piece(bs, id,       width, 1, x + 1, y);
             break;
         case LEFT:
-            int width = calc_width(bs, id);
             insert_piece(bs, ID_BLANK, width, 1, x, y);
             insert_piece(bs, id,       width, 1, x - 1, y);
             break;
         case DOWN:
-            int height = calc_height(bs, id);
             insert_piece(bs, ID_BLANK, 1, height, x, y);
             insert_piece(bs, id,       1, height, x, y + 6);
             break;
         case UP:
-            int height = calc_height(bs, id);
             insert_piece(bs, ID_BLANK, 1, height, x, y);
             insert_piece(bs, id,       1, height, x, y - 6);
             break;
@@ -512,8 +505,8 @@ int calc_blockers(bsref *bs, depgraph *ss, int id, int depth) {
     c->init = 1;
     c->id = id;
     // look in either direction of move axis and add all seen to list
-    int x, y;
-    find_piece(bs, id, &x, &y);
+    int x, y, bidx;
+    find_piece(bs, id, &x, &y, &bidx);
     if (x == -1) {
         return -1;
     }
@@ -566,7 +559,7 @@ int is_new_hash(bsref *bs) {
 // assumes move is valid for piece
 int move_unseen(bsref *bs, int id, int x, int y, int bidx, int dir) {
     bsref work;
-    clone_bsref(&work, bs);
+    bsref_clone(&work, bs);
     switch (dir) {
         case RIGHT:
             break;
