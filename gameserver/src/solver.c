@@ -72,9 +72,6 @@ bsref null_bstate;
 bsref board_init;
 sstack seen;
 
-// should we consider free moves of other pieces such as the player piece
-const int HEURISTIC_CREEP = 1;
-
 void sstack_init(sstack *s) {
     s->idx = 0;
     for (int i = 0; i < SSTACK_SIZE; i++) {
@@ -1036,25 +1033,6 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
     // consider free moves for the player piece
     if (piece_moves(bs, ID_P, dir_out)) {
         return;
-    }
-
-    if (HEURISTIC_CREEP) {
-        for (int i = ID_P; i < ID_MAX; i++) {
-            if (i == id) {
-                // we already did ourself
-                continue;
-            }
-            int ox, oy;
-            find_piece(bs, i, &ox, &oy);
-            if (ox == -1) {
-                continue;
-            }
-            int obidx = XY_TO_BIDX(ox, oy);
-            if (predict_next(bs, work, obidx, ox, oy)) {
-                *cid_out = i;
-                return 1;
-            }
-        }
     }
 
     // consider free moves for all other pieces
