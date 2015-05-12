@@ -1059,7 +1059,7 @@ void print_moves(bsref *b_init) {
             return;
         } else {
             printf("%d %s\n", moved_id, DIRNAMES[dir]);
-            make_move(work, moved_id, dir);
+            make_move(&work, moved_id, dir);
         }
     }
 }

@@ -58,8 +58,9 @@ int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
 void bsref_clone(bsref *bsb, bsref *bsa);
 void bsref_print(bsref *a);
-
-int is_solvable(bsref *init);
+void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y);
+void make_move(bsref *bs, int id, int dir);
+int solved(bsref *bs);
 
 typedef struct solve_result {
     int solved;
@@ -67,5 +68,9 @@ typedef struct solve_result {
 } solve_result;
 
 void ai_solve(bsref *init, solve_result *r_out);
+void heuristics(bsref *bs, int *dir_out, int *id_out);
+void clear_depgraph(depgraph *ss);
+void fill_full_depgraph(bsref *bs, depgraph *ss);
+int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode);
 
 #endif // SOLVER_H
