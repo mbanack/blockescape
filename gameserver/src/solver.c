@@ -40,6 +40,8 @@ SUCH DAMAGES.
 #define DEPGRAPH_DEPTH 3
 #define SPIN_DIFFICULT 1
 
+#define NUM_PIECES_RANGE 24
+
 using namespace std;
 
 // board is 6x6
@@ -875,7 +877,7 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     return;
 }
 
-void place_piece(bsref *out, int idx, int id, int pidx) {
+int place_piece(bsref *out, int idx, int id, int pidx) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
@@ -885,13 +887,13 @@ void place_piece(bsref *out, int idx, int id, int pidx) {
                 if (out->s[idx - 1] == ID_BLANK) {
                     out->s[idx - 1] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             } else {
                 if (out->s[idx + 1] == ID_BLANK) {
                     out->s[idx + 1] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             }
 
@@ -899,13 +901,13 @@ void place_piece(bsref *out, int idx, int id, int pidx) {
                 if (out->s[idx - 6] == ID_BLANK) {
                     out->s[idx - 6] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             } else {
                 if (out->s[idx + 6] == ID_BLANK) {
                     out->s[idx + 6] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             }
         } else {
@@ -914,13 +916,13 @@ void place_piece(bsref *out, int idx, int id, int pidx) {
                 if (out->s[idx - 6] == ID_BLANK) {
                     out->s[idx - 6] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             } else {
                 if (out->s[idx + 6] == ID_BLANK) {
                     out->s[idx + 6] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             }
 
@@ -928,30 +930,34 @@ void place_piece(bsref *out, int idx, int id, int pidx) {
                 if (out->s[idx - 1] == ID_BLANK) {
                     out->s[idx - 1] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             } else {
                 if (out->s[idx + 1] == ID_BLANK) {
                     out->s[idx + 1] = id;
                     out->s[idx] = id;
-                    return;
+                    return 1;
                 }
             }
         }
     }
+    return 0;
 }
 
 // attempt to generate a random board - returns 1 on success
 int generate_board(bsref *out) {
     clear_bsref(out);
-    int num_pieces = 4 + random() % 10;
+    int num_pieces = 4 + random() % NUM_PIECES_RANGE;
 
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
-    for (int i = ID_P + 1; i < num_pieces; i++) {
+    int next_id = ID_P + 1;
+    for (int i = 0; i < num_pieces; i++) {
         int idx = random() % 36;
-        place_piece(out, idx, i, pidx);
+        if (place_piece(out, idx, next_id, pidx)) {
+            next_id++;
+        }
     }
     return 0;
 }
@@ -1098,6 +1104,7 @@ int main(int argc, char **argv) {
         solve_result sr;
         ai_solve(&board_init, &sr, max_steps);
         if (SPIN_DIFFICULT) {
+            // TODO: if solved but not enough moves, add some more pieces and try again?
             // try to find difficult boards
             if (sr.solved == 1 && sr.moves > MIN_MOVES + out_id) {
                 printf("{puzzle %d %d}\n", out_id, sr.moves);
