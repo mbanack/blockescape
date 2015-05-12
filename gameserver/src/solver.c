@@ -811,6 +811,16 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
     return 0;
 }
 
+int solved(bsref *bs) {
+    int px, py, pbidx;
+    if (find_piece(bs, ID_P, &px, &px, &pbidx)) {
+        if (px == 4) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     sstack_init(&seen);
     sstack_push(&seen, init);
@@ -834,10 +844,7 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
         clear_depgraph(&ss);
         node *curnode = &ss.map[curid];
 
-        // is it solved right now?
-        int px, py, pbidx;
-        find_piece(&curboard, ID_P, &px, &py, &pbidx);
-        if (px == 4) {
+        if (solved(&curboard)) {
             r_out->solved = 1;
             r_out->moves = steps;
             return;
