@@ -28,6 +28,8 @@ SUCH DAMAGES.
 #include "solver.h"
 #include "sstack.h"
 
+using namespace std;
+
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
 //
 // TODO: hints
@@ -45,7 +47,7 @@ SUCH DAMAGES.
 
 #define NUM_PIECES_RANGE 24
 
-using namespace std;
+#define MAX(a, b) (((a) < (b)) ? (b) : (a))
 
 // board is 6x6
 
@@ -274,6 +276,7 @@ int is_horiz(bsref *bs, int idx) {
     }
     if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
         printf("error: piece %d over edge\n", idx);
+        print_board(bs);
         exit(11);
     }
     return 0;
@@ -341,6 +344,30 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
         int height = calc_height(bs, id);
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
         insert_piece(bs, id,       1, height, new_x, new_y);
+    }
+}
+
+// TODO: warning: this voids any depgraph that might have been built
+void delete_piece(bsref *bs, int id) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
+        if (is_horiz(bs, bidx)) {
+            int width = calc_width(bs, id);
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            for (int i = 0; i < 36; i++) {
+                if (bs->s[i] > id) {
+                    bs->s[i] = bs->s[i] - 1;
+                }
+            }
+        } else {
+            int height = calc_height(bs, id);
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            for (int i = 0; i < 36; i++) {
+                if (bs->s[i] > id) {
+                    bs->s[i] = bs->s[i] - 1;
+                }
+            }
+        }
     }
 }
 
@@ -951,19 +978,25 @@ int place_piece(bsref *out, int idx, int id, int pidx) {
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, int moves) {
     clear_bsref(out);
-
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     int next_id = ID_P + 1;
-    for (int i = 0; i < MAX_PIECES; i++) {
-        int idx = random() % 36;
-        if (place_piece(out, idx, next_id, pidx)) {
-            next_id++;
-        }
-        ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
-        if (sr->solved == 1 && sr->moves > moves) {
-            return 1;
+
+    for (int k = 0; k < 12; k++) {
+        for (int i = 0; i < MAX_PIECES; i++) {
+            int idx = random() % 36;
+            if (place_piece(out, idx, next_id, pidx)) {
+                next_id++;
+            }
+            ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
+            if (sr->solved == 1) {
+                if (sr->moves > moves) {
+                    return 1;
+                } else {
+                    printf("moves %d, i=%d\n", moves, i);
+                }
+            }
         }
     }
     return 0;
