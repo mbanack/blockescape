@@ -35,9 +35,10 @@ SUCH DAMAGES.
 
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 4
-#define SHOW_MOVES 1
+#define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
+#define SPIN_DIFFICULT 1
 
 using namespace std;
 
@@ -846,17 +847,12 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             return;
         }
 
-        printf("[step %d]=================================\n", steps);
-        print_board(&curboard);
-        printf("\n");
-
         int moved_id = ID_BLANK;
         int dir = NULL_DIR;
         heuristics(&curboard, &dir, &moved_id);
         if (dir == NULL_DIR) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
-                printf("error in is_solvable (board_history empty)\n");
                 r_out->solved = 0;
                 r_out->moves = steps;
                 return;
@@ -865,7 +861,6 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             bsref top;
             sstack_pop(&board_history, &top);
             steps++;
-            printf("dead end, board_history size is %d\n", sstack_size(&board_history));
             r_out->solved = 0;
             r_out->moves = steps;
             return;
@@ -875,7 +870,6 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             steps++;
         }
     }
-    printf("hit max step length -- give up\n");
     r_out->solved = 0;
     r_out->moves = steps;
     return;
@@ -1103,15 +1097,32 @@ int main(int argc, char **argv) {
         generate_board(&board_init);
         solve_result sr;
         ai_solve(&board_init, &sr, max_steps);
-        if (sr.solved == 1 && sr.moves > MIN_MOVES) {
-            if (!sstack_contains(&gen_seen, &board_init)) {
+        if (SPIN_DIFFICULT) {
+            // try to find difficult boards
+            if (sr.solved == 1 && sr.moves > MIN_MOVES + out_id) {
+                printf("{puzzle %d %d}\n", out_id, sr.moves);
                 print_board(&board_init);
-                print_moves(&board_init);
-                fprintf(stderr, "solve in %d\n", sr.moves);
-                printf("{puzzle %d}\n", out_id);
+                if (SHOW_MOVES) {
+                    print_moves(&board_init);
+                }
+                printf("{/puzzle %d %d}\n", out_id, sr.moves);
                 write_board(&board_init, &sr, out_id);
                 sstack_push(&gen_seen, &board_init);
                 out_id++;
+            }
+        } else {
+            if (sr.solved == 1 && sr.moves > MIN_MOVES) {
+                if (!sstack_contains(&gen_seen, &board_init)) {
+                    printf("{puzzle %d %d}\n", out_id, sr.moves);
+                    print_board(&board_init);
+                    if (SHOW_MOVES) {
+                        print_moves(&board_init);
+                    }
+                    printf("{/puzzle %d %d}\n", out_id, sr.moves);
+                    write_board(&board_init, &sr, out_id);
+                    sstack_push(&gen_seen, &board_init);
+                    out_id++;
+                }
             }
         }
     }
