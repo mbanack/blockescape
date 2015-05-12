@@ -346,6 +346,43 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     }
 }
 
+void make_move(bsref *bs, int id, int dir) {
+    int x, y, bidx;
+    if (!find_piece(bs, id, &x, &y, &bidx)) {
+        return;
+    }
+
+    if (id == ID_BLANK) {
+        printf("cannot make_move(ID_BLANK)\n");
+        exit(12);
+    }
+
+    switch (dir) {
+        case RIGHT:
+            int width = calc_width(bs, id);
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            insert_piece(bs, id,       width, 1, x + 1, y);
+            break;
+        case LEFT:
+            int width = calc_width(bs, id);
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            insert_piece(bs, id,       width, 1, x - 1, y);
+            break;
+        case DOWN:
+            int height = calc_height(bs, id);
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            insert_piece(bs, id,       1, height, x, y + 6);
+            break;
+        case UP:
+            int height = calc_height(bs, id);
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            insert_piece(bs, id,       1, height, x, y - 6);
+            break;
+        default:
+            break;
+    }
+}
+
 int is_piece(bsref *bs, int x, int y) {
     if (bs->s[XY_TO_BIDX(x, y)] != ID_BLANK) {
         return 1;
@@ -526,9 +563,91 @@ int is_new_hash(bsref *bs) {
     return !sstack_contains(&seen, bs);
 }
 
+// assumes move is valid for piece
+int move_unseen(bsref *bs, int id, int x, int y, int bidx, int dir) {
+    bsref work;
+    clone_bsref(&work, bs);
+    switch (dir) {
+        case RIGHT:
+            break;
+        case LEFT:
+            break;
+        case DOWN:
+            break;
+        case UP:
+            break;
+        default:
+            return 0;
+            break;
+    }
+}
+
+// if a move is found, returns 1 and sets dir_out to the direction to be moved
+// else returns 0
+int piece_moves(bsref *bs, int id, int *dir_out) {
+    int x, y, bidx;
+    if (id == ID_BLANK || !find_piece(bs, id, &x, &y, &bidx)) {
+        return 0;
+    }
+
+    if (is_horiz(bs, bidx)) {
+        if ((x + calc_width(bs, bidx) - 1) != 5) {
+            for (int ix = 1; ix < 6; ix++) {
+                if (bidx + ix >= 36) {
+                    break;
+                }
+                if (((bidx + ix) % 6) < (bidx % 6)) {
+                    break;
+                }
+                if (bs->s[bidx + ix] == ID_BLANK) {
+                    if (move_unseen(bs, id, x, y, bidx, RIGHT)) {
+                        *dir_out = RIGHT;
+                        return 1;
+                    }
+                } else if (bs->s[bidx + ix] != id) {
+                    break;
+                }
+            }
+        }
+        if (x != 0) {
+            if (bs->s[bidx - 1] == ID_BLANK) {
+                if (move_unseen(bs, id, x, y, bidx, LEFT)) {
+                    *dir_out = LEFT;
+                    return 1;
+                }
+            }
+        }
+    } else {
+        if (y != 0) {
+            if (bs->s[bidx - 6] == ID_BLANK) {
+                if (move_unseen(bs, id, x, y, bidx, UP)) {
+                    *dir_out = UP;
+                    return 1;
+                }
+            }
+        }
+        if ((y + calc_height(bs, bs->s[bidx]) - 1) != 5) {
+            for (int iy = 1; iy < 6; iy++) {
+                if ((bidx + 6 * iy) >= 36) {
+                    break;
+                }
+                if (bs->s[bidx + 6 * iy] == ID_BLANK) {
+                    if (move_unseen(bs, id, x, y, bidx, DOWN)) {
+                        *dir_out = DOWN;
+                        return 1;
+                    }
+                } else if (bs->s[bidx + 6 * iy] != id) {
+                    break;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 // enum all possible moves of the piece at bidx (ie x, y)
 //   and if they aren't already in seen, explore them (by ret 1)
-bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
+int predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
     int id = bs->s[bidx];
     if (id == ID_BLANK) {
         return 0;
@@ -550,7 +669,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                             printf("MOVE %d RIGHT\n", id);
                         }
                         sstack_push(&seen, c_out);
-                        return 1;
+                        return RIGHT;
                     }
                     make_move(c_out, id, x + 1, y, x , y);
                 } else if (bs->s[bidx + ix] != id) {
@@ -566,7 +685,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                         printf("MOVE %d LEFT\n", id);
                     }
                     sstack_push(&seen, c_out);
-                    return 1;
+                    return LEFT;
                 }
                 make_move(c_out, id, x - 1, y, x, y);
             }
@@ -583,7 +702,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                         printf("MOVE %d UP\n", id);
                     }
                     sstack_push(&seen, c_out);
-                    return 1;
+                    return UP;
                 } else {
                     printf("old news...\n");
                 }
@@ -602,7 +721,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                             printf("MOVE %d DOWN\n", id);
                         }
                         sstack_push(&seen, c_out);
-                        return 1;
+                        return DOWN;
                     }
                     make_move(c_out, id, x, y + 1, x, y);
                 } else if (bs->s[bidx + 6 * iy] != id) {
@@ -611,7 +730,7 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             }
         }
     }
-    return 0;
+    return NULL_DIR;
 }
 
 void clear_depgraph(depgraph *ss) {
@@ -1007,15 +1126,12 @@ void heuristics(bsref *b, int *dir_out, int *id_out) {
         if (b->id == ID_BLANK) {
             break;
         }
-        int b_x, b_y, b_bidx;
-        if (find_piece(bs, b->id, &b_x, &b_y, &b_bidx)) {
-            if (predict_next(bs, c_out, b_bidx, b_x, b_y)) {
-                *id_out = b->id;
-                *dir_out
-                return;
-            }
+        if (piece_moves(bs, b->id, dir_out)) {
+            return;
         }
     }
+
+    // [...] rest of apply_heuristics
 }
 
 void print_moves(bsref *b_init) {
