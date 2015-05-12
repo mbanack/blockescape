@@ -59,7 +59,7 @@ int is_topleft(bsref *, int);
 void bsref_clone(bsref *bsb, bsref *bsa);
 void bsref_print(bsref *a);
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y);
-void make_move(bsref *bs, int id, int dir);
+void make_move_dir(bsref *bs, int id, int dir);
 int solved(bsref *bs);
 
 typedef struct solve_result {

@@ -338,14 +338,15 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     }
 }
 
-void make_move(bsref *bs, int id, int dir) {
+void make_move_dir(bsref *bs, int id, int dir) {
     int x, y, bidx;
     if (!find_piece(bs, id, &x, &y, &bidx)) {
+        printf("cannot find piece %d\n", id);
         return;
     }
 
     if (id == ID_BLANK) {
-        printf("cannot make_move(ID_BLANK)\n");
+        printf("cannot make_move_dir(ID_BLANK)\n");
         exit(12);
     }
 
@@ -362,11 +363,11 @@ void make_move(bsref *bs, int id, int dir) {
             break;
         case DOWN:
             insert_piece(bs, ID_BLANK, 1, height, x, y);
-            insert_piece(bs, id,       1, height, x, y + 6);
+            insert_piece(bs, id,       1, height, x, y + 1);
             break;
         case UP:
             insert_piece(bs, ID_BLANK, 1, height, x, y);
-            insert_piece(bs, id,       1, height, x, y - 6);
+            insert_piece(bs, id,       1, height, x, y - 1);
             break;
         default:
             break;
@@ -814,7 +815,7 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
 
 int solved(bsref *bs) {
     int px, py, pbidx;
-    if (find_piece(bs, ID_P, &px, &px, &pbidx)) {
+    if (find_piece(bs, ID_P, &px, &py, &pbidx)) {
         if (px == 4) {
             return 1;
         }
@@ -869,20 +870,10 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             r_out->moves = steps;
             return;
         } else {
-            make_move(&curboard, moved_id, dir);
+            make_move_dir(&curboard, moved_id, dir);
             sstack_push(&board_history, &curboard);
             steps++;
         }
-
-        printf("STUB: rework apply_heuristics block\n");
-        /*
-        if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
-        } else {
-            sstack_push(&board_history, &c);
-            bsref_clone(&curboard, &c);
-            steps++;
-        }
-        */
     }
     printf("hit max step length -- give up\n");
     r_out->solved = 0;
@@ -1014,6 +1005,8 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
     depgraph ss;
     clear_depgraph(&ss);
     fill_full_depgraph(bs, &ss);
+    *dir_out = NULL_DIR;
+    *id_out = ID_BLANK;
 
     // consider the depgraph of ID_P
     for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
@@ -1022,12 +1015,14 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
             break;
         }
         if (piece_moves(bs, b->id, dir_out)) {
+            *id_out = b->id;
             return;
         }
     }
 
     // consider free moves for the player piece
     if (piece_moves(bs, ID_P, dir_out)) {
+        *id_out = ID_P;
         return;
     }
 
@@ -1036,11 +1031,15 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
     node *p_node = &ss.map[ID_P];
     for (int id = ID_P + 1; id <= ID_MAX; id++) {
         node *newnode = &ss.map[id];
+        if (newnode->id == ID_BLANK) {
+            break;
+        }
         if (!on_depgraph(bs, &ss, p_node, newnode)) {
             int o_id = newnode->id;
             int o_x, o_y, o_bidx;
             if (find_piece(bs, o_id, &o_x, &o_y, &o_bidx)) {
                 if (piece_moves(bs, o_id, dir_out)) {
+                    *id_out = o_id;
                     return;
                 }
             }
@@ -1059,14 +1058,14 @@ void print_moves(bsref *b_init) {
             return;
         } else {
             printf("%d %s\n", moved_id, DIRNAMES[dir]);
-            make_move(&work, moved_id, dir);
+            make_move_dir(&work, moved_id, dir);
         }
     }
 }
 
 int main(int argc, char **argv) {
     time_t sd = time(NULL) % 1024;
-    //sd = 215;
+    //sd = 887;
     printf("random seed is %d\n", sd);
     srandom(sd);
 
