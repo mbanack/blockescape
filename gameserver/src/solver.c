@@ -814,101 +814,6 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
     return 0;
 }
 
-// consider "free moves" of cur
-//   and moves of cur's blockers
-// returns 1 if we have a viable move,
-//   and sets c_out with the updated board state
-int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *cid_out) {
-    int id = curnode->id;
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x == -1) {
-        printf("error in apply_heuristics\n");
-    }
-    int bidx = XY_TO_BIDX(x, y);
-    bsref_clone(c_out, bs);
-
-    // consider the depgraph of ID_P
-    for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
-        blocker *b = &ss->map[ID_P].blockers[bid];
-        if (b->id == ID_BLANK) {
-            break;
-        }
-        int b_x, b_y;
-        find_piece(bs, b->id, &b_x, &b_y);
-        int b_bidx = XY_TO_BIDX(b_x, b_y);
-        if (predict_next(bs, c_out, b_bidx, b_x, b_y)) {
-            *cid_out = b->id;
-            return 1;
-        }
-    }
-
-    // consider free moves for this piece, then player piece, then all other pieces
-    if (predict_next(bs, c_out, bidx, x, y)) {
-        *cid_out = id;
-        return 1;
-    }
-
-    if (HEURISTIC_CREEP) {
-        for (int i = ID_P; i < ID_MAX; i++) {
-            if (i == id) {
-                // we already did ourself
-                continue;
-            }
-            int ox, oy;
-            find_piece(bs, i, &ox, &oy);
-            if (ox == -1) {
-                continue;
-            }
-            int obidx = XY_TO_BIDX(ox, oy);
-            if (predict_next(bs, c_out, obidx, ox, oy)) {
-                *cid_out = i;
-                return 1;
-            }
-        }
-    }
-
-
-    // consider blocker moves
-    for (int i = 0; i < NUM_BLOCKERS; i++) {
-        int b_id = curnode->blockers[i].id;
-        if (b_id != ID_BLANK) {
-            int b_x, b_y;
-            find_piece(bs, b_id, &b_x, &b_y);
-            if (b_x == -1) {
-                continue;
-            }
-            if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
-                *cid_out = b_id;
-                return 1;
-            }
-        }
-    }
-
-    // try again for all of the possible other pieces to move
-    //   that are *NOT* on our depgraph?
-    fill_full_depgraph(bs, ss);
-    for (int i = ID_P; i < 36; i++) {
-        node *newnode = &ss->map[i];
-        if (newnode->id != id) {
-            if (!on_depgraph(bs, ss, curnode, newnode)) {
-                int o_id = newnode->id;
-                int o_x, o_y;
-                find_piece(bs, o_id, &o_x, &o_y);
-                if (o_x == -1) {
-                    continue;
-                }
-                if (predict_next(bs, c_out, XY_TO_BIDX(o_x, o_y), o_x, o_y)) {
-                    *cid_out = o_id;
-                    return 1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
 void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     sstack_init(&seen);
     sstack_push(&seen, init);
@@ -933,8 +838,8 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
         node *curnode = &ss.map[curid];
 
         // is it solved right now?
-        int px, py;
-        find_piece(&curboard, ID_P, &px, &py);
+        int px, py, pbidx;
+        find_piece(&curboard, ID_P, &px, &py, &pbidx);
         if (px == 4) {
             r_out->solved = 1;
             r_out->moves = steps;
@@ -966,6 +871,8 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
         // XXX: can we update the depgraph faster than wipe+regen?
 
         bsref c;
+        printf("STUB: rework apply_heuristics block\n");
+        /*
         if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
@@ -986,6 +893,7 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
             bsref_clone(&curboard, &c);
             steps++;
         }
+        */
     }
     printf("hit max step length -- give up\n");
     r_out->solved = 0;
@@ -1081,9 +989,9 @@ int id_to_boardtype(bsref *b, int id) {
         case ID_P:
             return 0;
         default:
-            int x, y;
-            find_piece(b, id, &x, &y);
-            if (is_horiz(b, XY_TO_BIDX(x, y))) {
+            int x, y, bidx;
+            find_piece(b, id, &x, &y, &bidx);
+            if (is_horiz(b, bidx)) {
                 return 2;
             } else {
                 return 4;
@@ -1107,15 +1015,16 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
 
 // if there is a viable move, it is returned in dir_out and id_out
 //   we probably dont care which block is "current" -- move the best one
-void heuristics(bsref *b, int *dir_out, int *id_out) {
+void heuristics(bsref *bs, int *dir_out, int *id_out) {
     bsref work;
-    bsref_clone(&work, b);
+    bsref_clone(&work, bs);
     depgraph ss;
     clear_depgraph(&ss);
+    fill_full_depgraph(bs, &ss);
 
     // consider the depgraph of ID_P
     for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
-        blocker *b = &ss->map[ID_P].blockers[bid];
+        blocker *b = &ss.map[ID_P].blockers[bid];
         if (b->id == ID_BLANK) {
             break;
         }
@@ -1124,7 +1033,45 @@ void heuristics(bsref *b, int *dir_out, int *id_out) {
         }
     }
 
-    // [...] rest of apply_heuristics
+    // consider free moves for the player piece
+    if (piece_moves(bs, ID_P, dir_out)) {
+        return;
+    }
+
+    if (HEURISTIC_CREEP) {
+        for (int i = ID_P; i < ID_MAX; i++) {
+            if (i == id) {
+                // we already did ourself
+                continue;
+            }
+            int ox, oy;
+            find_piece(bs, i, &ox, &oy);
+            if (ox == -1) {
+                continue;
+            }
+            int obidx = XY_TO_BIDX(ox, oy);
+            if (predict_next(bs, work, obidx, ox, oy)) {
+                *cid_out = i;
+                return 1;
+            }
+        }
+    }
+
+    // consider free moves for all other pieces
+    //   that are *NOT* on ID_P's depgraph (else we already did them)
+    node p_node = &ss.map[ID_P];
+    for (int id = ID_P + 1; id <= ID_MAX; id++) {
+        node *newnode = &ss.map[id];
+        if (!on_depgraph(bs, &ss, p_node, newnode)) {
+            int o_id = newnode->id;
+            int o_x, o_y, o_bidx;
+            if (find_piece(bs, o_id, &o_x, &o_y, &o_bidx)) {
+                if (piece_moves(bs, o_id, dir_out)) {
+                    return;
+                }
+            }
+        }
+    }
 }
 
 void print_moves(bsref *b_init) {
