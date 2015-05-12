@@ -974,32 +974,45 @@ int place_piece(bsref *out, int idx, int id, int pidx) {
     return 0;
 }
 
+// next avail id
+int free_id(bsref *bs) {
+    for (int i = ID_P; i <= ID_MAX; i++) {
+        int x, y, bidx;
+        if (!find_piece(bs, i, &x, &y, &bidx)) {
+            return i;
+        }
+    }
+    return ID_NUM;
+}
+
+void add_board(bsref *bs, int moves) {
+    printf("add_board(%d)\n", moves);
+    // TODO: add to global gen_seen
+}
+
 // attempt to generate a random board of at least given # moves
 // returns 1 on success
-int generate_board(bsref *out, solve_result *sr, int moves) {
+int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
-    int next_id = ID_P + 1;
+    int found = 0;
 
     for (int k = 0; k < 12; k++) {
         for (int i = 0; i < MAX_PIECES; i++) {
             int idx = random() % 36;
-            if (place_piece(out, idx, next_id, pidx)) {
-                next_id++;
-            }
+            place_piece(out, idx, free_id(out), pidx);
             ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
-                    return 1;
-                } else {
-                    printf("moves %d, i=%d\n", moves, i);
+                    add_board(out, sr->moves);
+                    found = 1;
                 }
             }
         }
     }
-    return 0;
+    return found;
 }
 
 int id_to_boardtype(bsref *b, int id) {
@@ -1141,7 +1154,7 @@ int main(int argc, char **argv) {
     int out_id = 0;
     while (out_id < num_gen) {
         solve_result sr;
-        if (generate_board(&board_init, &sr, 4 + (out_id + 3) / 3)) {
+        if (generate_board(&board_init, &sr, &gen_seen, 4 + (out_id + 3) / 3)) {
             printf("{puzzle %d %d}\n", out_id, sr.moves);
             print_board(&board_init);
             if (SHOW_MOVES) {
