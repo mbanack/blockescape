@@ -39,6 +39,9 @@ SUCH DAMAGES.
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
 #define SPIN_DIFFICULT 1
+// TODO: obo check this
+#define MAX_PIECES ID_MAX
+#define MOVE_DIFF_RANGE 48
 
 #define NUM_PIECES_RANGE 24
 
@@ -944,19 +947,23 @@ int place_piece(bsref *out, int idx, int id, int pidx) {
     return 0;
 }
 
-// attempt to generate a random board - returns 1 on success
-int generate_board(bsref *out) {
+// attempt to generate a random board of at least given # moves
+// returns 1 on success
+int generate_board(bsref *out, solve_result *sr, int moves) {
     clear_bsref(out);
-    int num_pieces = 4 + random() % NUM_PIECES_RANGE;
 
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     int next_id = ID_P + 1;
-    for (int i = 0; i < num_pieces; i++) {
+    for (int i = 0; i < MAX_PIECES; i++) {
         int idx = random() % 36;
         if (place_piece(out, idx, next_id, pidx)) {
             next_id++;
+        }
+        ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
+        if (sr->solved == 1 && sr->moves > moves) {
+            return 1;
         }
     }
     return 0;
@@ -1100,37 +1107,17 @@ int main(int argc, char **argv) {
 
     int out_id = 0;
     while (out_id < num_gen) {
-        generate_board(&board_init);
         solve_result sr;
-        ai_solve(&board_init, &sr, max_steps);
-        if (SPIN_DIFFICULT) {
-            // TODO: if solved but not enough moves, add some more pieces and try again?
-            // try to find difficult boards
-            if (sr.solved == 1 && sr.moves > MIN_MOVES + out_id) {
-                printf("{puzzle %d %d}\n", out_id, sr.moves);
-                print_board(&board_init);
-                if (SHOW_MOVES) {
-                    print_moves(&board_init);
-                }
-                printf("{/puzzle %d %d}\n", out_id, sr.moves);
-                write_board(&board_init, &sr, out_id);
-                sstack_push(&gen_seen, &board_init);
-                out_id++;
+        if (generate_board(&board_init, &sr, 4 + (out_id + 3) / 3)) {
+            printf("{puzzle %d %d}\n", out_id, sr.moves);
+            print_board(&board_init);
+            if (SHOW_MOVES) {
+                print_moves(&board_init);
             }
-        } else {
-            if (sr.solved == 1 && sr.moves > MIN_MOVES) {
-                if (!sstack_contains(&gen_seen, &board_init)) {
-                    printf("{puzzle %d %d}\n", out_id, sr.moves);
-                    print_board(&board_init);
-                    if (SHOW_MOVES) {
-                        print_moves(&board_init);
-                    }
-                    printf("{/puzzle %d %d}\n", out_id, sr.moves);
-                    write_board(&board_init, &sr, out_id);
-                    sstack_push(&gen_seen, &board_init);
-                    out_id++;
-                }
-            }
+            printf("{/puzzle %d %d}\n", out_id, sr.moves);
+            write_board(&board_init, &sr, out_id);
+            sstack_push(&gen_seen, &board_init);
+            out_id++;
         }
     }
 
