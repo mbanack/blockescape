@@ -1037,7 +1037,7 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
 
     // consider free moves for all other pieces
     //   that are *NOT* on ID_P's depgraph (else we already did them)
-    node p_node = &ss.map[ID_P];
+    node *p_node = &ss.map[ID_P];
     for (int id = ID_P + 1; id <= ID_MAX; id++) {
         node *newnode = &ss.map[id];
         if (!on_depgraph(bs, &ss, p_node, newnode)) {
