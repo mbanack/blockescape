@@ -175,6 +175,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     string multiplayer("multiplayer");
     string createUser("create user");
     string newBoardStr("newboard");
+    string undoStr("undo");
     if(msg->get_payload().substr(0,multiplayer.size())==
         multiplayer){
         try {
@@ -360,6 +361,25 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                     username);
             }
         }
+    }
+    else if(msg->get_payload().substr(0,undoStr.size())==
+        undoStr){
+        try {
+            stringstream ss;
+            ss.str(msg->get_payload().substr(undoStr.size()));
+            string fromId;
+            ss >> fromId;
+            int iFromId = atoi(fromId.c_str());
+            if(boards.count(iFromId)>0)
+            {
+                if(boards.find(iFromId)->second.undo()){
+                    string message = "undo0"; //disable undo button
+                    s->send(hdl, message, 
+                        websocketpp::frame::opcode::text);
+                }
+            }
+        }
+        catch( const websocketpp::lib::error_code &e){}
     }
 }
 void startServer(server &s){
