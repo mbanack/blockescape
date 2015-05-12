@@ -990,6 +990,20 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     fclose(fp);
 }
 
+void print_moves(bsref *b_init) {
+    bsref work;
+    bsref_clone(&work, b_init);
+    while (!solved(&work)) {
+        int moved_id = ID_BLANK;
+        int dir = heuristics(&work, &moved_id);
+        if (dir == NULL_DIR) {
+            return;
+        } else {
+            printf("%d %s\n", moved_id, DIRNAMES[dir]);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     time_t sd = time(NULL) % 1024;
     //sd = 215;
@@ -1033,6 +1047,7 @@ int main(int argc, char **argv) {
         if (sr.solved == 1 && sr.moves > MIN_MOVES) {
             if (!sstack_contains(&gen_seen, &board_init)) {
                 print_board(&board_init);
+                print_moves(&board_init);
                 fprintf(stderr, "solve in %d\n", sr.moves);
                 printf("{puzzle %d}\n", out_id);
                 write_board(&board_init, &sr, out_id);
