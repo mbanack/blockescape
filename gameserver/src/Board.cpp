@@ -12,12 +12,21 @@ void Board::attemptSolve() {
     //ai_solve(&board_init, &sr);
 }
 
+void Board::getIds(uint8_t *ids){
+    for(int i = 0; i < 36; ++i)
+        ids[i] = this->ids[i];
+}
 
 int Board::getMinMoves() {
     return minMoves;
 }
 bool Board::win(){
-    return board[2][5]==PIECE_PLAYER;
+    return board[0][5]==PIECE_PLAYER ||
+        board[1][5] == PIECE_PLAYER ||
+        board[2][5] == PIECE_PLAYER ||
+        board[3][5] == PIECE_PLAYER ||
+        board[4][5] == PIECE_PLAYER ||
+        board[5][5] == PIECE_PLAYER;
 }
 void Board::printIds(ostream &s){
     for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
@@ -26,11 +35,6 @@ void Board::printIds(ostream &s){
             cout << endl;
     }
     cout << endl;
-}
-void Board::getIds(uint8_t *ids){
-    for(int i = 0; i < 36; ++i){
-        ids[i]=this->ids[i];
-    }
 }
 
 void Board::initializeIds(){
@@ -57,15 +61,18 @@ void Board::initializeIds(){
             ids[i]=++highestId;
             ids[i+BOARD_COLS]=highestId;
             board[i/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         }  
         else if(piece==PIECE_VERTICAL3){
             ids[i]=++highestId;
             ids[i+BOARD_COLS]=highestId;
             ids[i+BOARD_COLS*2]=highestId;
             board[i/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
-            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
+            if(i+2*BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+                board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=-1;
         } 
         else if(piece==EMPTY_SPACE){
             ids[i]=0;
@@ -183,6 +190,12 @@ void Board::mouseDrag(SDL_Rect rect){
         stopUp=false;
 }
 void Board::grabFloatingPiece(SDL_Rect rect){
+    //For undo
+    if(ids!=undoIds && board != undoBoard){
+        undoBoard = board;
+        undoIds=ids;
+    }
+
     int index = rect.y/BOARD_CELL_SIZE*BOARD_COLS + rect.x/BOARD_CELL_SIZE;
     int newIndex=getFirstBlockIndex(index);
     removePiece(newIndex,board,ids,floatingPieceRect,floatingPieceType,
@@ -258,7 +271,7 @@ void Board::mouseRelease(){
 }
 //Doesn't work if i not first section of piece
 void Board::removePiece(int i, vvi &board,
-    uint8_t ids[36], SDL_Rect &rect, int &p, uint8_t &pid){
+    vi &ids, SDL_Rect &rect, int &p, uint8_t &pid){
     int piece=board[i/BOARD_COLS][i%BOARD_COLS];
     p=piece;
     pid=ids[i];
@@ -286,7 +299,8 @@ void Board::removePiece(int i, vvi &board,
         ids[i]=0;
         ids[i+BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=2;
     }  
     else if(piece==PIECE_VERTICAL3){
@@ -294,15 +308,17 @@ void Board::removePiece(int i, vvi &board,
         ids[i+BOARD_COLS]=0;
         ids[i+2*BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+            board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS)
+            board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         rect.h*=3;
     } 
 }
 int Board::getFirstBlockIndex(int index){
     vvi board=this->board; //Local copy since we don't want to overwrite
     int piece = board[index/BOARD_CELL_SIZE][index%BOARD_CELL_SIZE];
-    uint8_t ids[36];
+    vi ids(36);
     uint8_t pid=0;
     for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
         SDL_Rect rect;
@@ -315,7 +331,7 @@ int Board::getFirstBlockIndex(int index){
 vector<SDL_Rect> Board::coordinatePieces(){
     vector<SDL_Rect> ret;
     vvi board=this->board; //Local copy since we don't want to overwrite
-    uint8_t ids[36];
+    vi ids(36);
     uint8_t pid=0;
     for(int i=0;i<BOARD_COLS*BOARD_ROWS;++i){
         SDL_Rect rect;
@@ -411,17 +427,44 @@ bool Board::validMove(int x, int y, int xp, int yp){
 }
 Board::Board(int width, int height):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE), floatingPieceId(0){
+    floatingPieceType(EMPTY_SPACE), floatingPieceId(0),
+    undoAvailable(true), ids(36,0), undoIds(36,0){
     vector<int> row(width, EMPTY_SPACE);
     vvi ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
     ret[(height+1)/2-1][1]=PIECE_PLAYER;
     board=ret;
     initializeIds();
+    undoBoard = board;
+    undoIds = ids;
+}
+//Doesn't actually undo, just sets undoAvailable to false
+//  and returns what it was prior to call
+bool Board::undo() {
+    if(win() || !undoAvailable || undoBoard == board)
+        return false;
+    board = undoBoard;
+    ids=undoIds;
+    undoAvailable = false;
+    return true; //As in, undo was successful
+}
+void Board::removeHorizontalNextToPlayer(){
+    int pr = playerRow();
+    for(int i = 0; i < BOARD_COLS;++i){
+        if(board[pr][i]!=PIECE_PLAYER)
+            board[pr][i] = EMPTY_SPACE;
+    }
+}
+int Board::playerRow(){
+    for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
+        if(board[i/BOARD_COLS][i%BOARD_COLS]==PIECE_PLAYER)
+            return i/BOARD_COLS;
+    }
 }
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),board(){
+    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),
+    undoAvailable(true), ids(36,0), undoIds(36,0), board(){
     string minMovesStr;
     f >> minMovesStr;
     minMoves = atoi(minMovesStr.c_str());
@@ -438,7 +481,10 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
         }
         board.push_back(row);
     }
+    removeHorizontalNextToPlayer();
     initializeIds();
+    undoBoard = board;
+    undoIds = ids;
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);
@@ -466,7 +512,7 @@ bool Board::isCollision(const vvi &board, int x, int y, int pieceType){
 }
 bool Board::oneMoveSolution(vvi board, int x, int y, int pieceType){
     uint8_t pid=0;
-    uint8_t ids[36];
+    vi ids(36);
     placePiece(board,ids,x,y,pieceType,pid);
     return oneMoveSolution();
 }
@@ -490,7 +536,7 @@ int Board::numFree(){
 }
 bool Board::fullBoard(vvi board, int x, int y, int pieceType){
     uint8_t pid=0;
-    uint8_t ids[36];
+    vi ids(36);
     placePiece(board,ids,x,y,pieceType,pid);
     return fullBoard(board);
 }
@@ -510,7 +556,7 @@ bool Board::fullBoard(vvi board){
 void Board::placePiece(int x, int y, int pieceType, uint8_t pid){
     placePiece(board,ids,x,y,pieceType,pid);
 }
-void Board::placePiece(vvi &board, uint8_t ids[36], int x, int y, int pieceType, uint8_t pid){
+void Board::placePiece(vvi &board, vi &ids, int x, int y, int pieceType, uint8_t pid){
     int width=1;
     int height=1;
     if(pieceType==PIECE_HORIZONTAL2||pieceType==PIECE_PLAYER)

@@ -1,9 +1,29 @@
+/*
+THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.
+*/
 #include <unistd.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <set>
 
 #include "solver.h"
 #include "sstack.h"
@@ -717,7 +737,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
     return;
 }
 
-void place_piece(bsref *out, int idx, int id) {
+void place_piece(bsref *out, int idx, int id, int tries) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
@@ -779,19 +799,29 @@ void place_piece(bsref *out, int idx, int id) {
             }
         }
     }
+    if(tries < 35)
+        place_piece(out, idx, id, ++tries); //try again
 }
 
-// attempt to generate a random board - returns 1 on success
+// Matt, I changed this so that a horizontal piece can't block player
+// Function purpose: attempt to generate a random board - returns 1 on success
 int generate_board(bsref *out) {
     clear_bsref(out);
-    int num_pieces = 4 + random() % 10;
+    int num_pieces = 6 + random() % 10;
 
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     for (int i = ID_P + 1; i < num_pieces; i++) {
-        int idx = random() % 36;
-        place_piece(out, idx, i);
+        int idx = 0;
+        bsref tmp;
+        do
+        {
+            idx = random() % 36;
+            tmp = *out;
+            place_piece(&tmp, idx, i, 0);
+        } while(idx / 6 == pidx && is_horiz(&tmp, idx));
+        *out = tmp;
     }
     return 0;
 }
@@ -815,7 +845,7 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
-    sprintf(&path[0], "../data/genboard%d", file_id);
+    sprintf(&path[0], "../data/board%d", file_id);
     FILE *fp = fopen(&path[0], "w");
     fprintf(fp, "%d\n", sr->moves);
     for (int i = 0; i < 36; i++) {
@@ -827,6 +857,76 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     fclose(fp);
 }
 
+
+bool bsref_lt(bsref lhs, bsref rhs){
+    for(int i = 0; i < 36; ++i) {
+        if(lhs.s[i] < rhs.s[i])
+            return true;
+        else if(lhs.s[i] > rhs.s[i])
+            return false;
+    }
+    return true;
+}
+bool solve_result_lt(solve_result lhs, solve_result rhs){
+    if(lhs.solved < rhs.solved)
+        return true;
+    else if(lhs.solved > rhs.solved)
+        return false;
+    if(lhs.moves < rhs.moves)
+        return true;
+    else if(lhs.moves < rhs.moves)
+        return false;
+    return true;
+}
+int main() {
+    srandom(0x4AFE0001);
+    memset(&null_bstate, 0x00, sizeof(null_bstate));
+    memset(&board_init, 0x00, sizeof(board_init));
+    clear_bsref(&null_bstate);
+    // initialize global bstate board_init with test board
+    board_init.s[12] = 1;
+    board_init.s[13] = 1;
+    board_init.s[10] = 2;
+    board_init.s[11] = 2;
+    board_init.s[14] = 3;
+    board_init.s[20] = 3;
+    board_init.s[15] = 4;
+    board_init.s[21] = 4;
+    board_init.s[22] = 5;
+    board_init.s[23] = 5;
+    bool(*solve_result_lt_p)(solve_result,solve_result) = solve_result_lt;
+    bool(*bsref_lt_p)(bsref,bsref) = bsref_lt;
+    std::set<solve_result, bool(*)(solve_result,solve_result)> sresults(solve_result_lt_p);
+    std::set<bsref, bool(*)(bsref,bsref)> boards(bsref_lt_p);
+
+    sstack gen_seen;
+    sstack_init(&gen_seen);
+
+    int out_id = 0;
+    while (boards.size() < NUM_GEN) {
+        generate_board(&board_init);
+        solve_result sr;
+        ai_solve(&board_init, &sr);
+        if (sr.solved == 1) {
+            if(boards.count(board_init) == 0){
+                sresults.insert(sr);
+                boards.insert(board_init);
+                int boardssize = boards.size();
+                printf("boards.size = %d\n", boardssize);
+            }
+        }
+    }
+    out_id = 0;
+    std::set<solve_result>::iterator it2 = sresults.begin();
+    for( std::set<bsref>::iterator it = boards.begin(); 
+        it != boards.end() && it2 != sresults.end(); ++it, ++it2){
+            bsref bwrite = *it;
+            solve_result swrite = *it2;
+            write_board(&bwrite, &swrite, out_id++);
+    }
+    return 0;
+}
+/************************************
 int main() {
     srandom(0x4AFE0001);
     memset(&null_bstate, 0x00, sizeof(null_bstate));
@@ -867,3 +967,4 @@ int main() {
 
     return 0;
 }
+************************************/
