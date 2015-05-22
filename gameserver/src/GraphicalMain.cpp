@@ -342,13 +342,15 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
-            string message = "win" + fromId;
+	    stringstream st;
+	    st << boards.find(tempId)->second.getNumberOfMoves();
+            string message = "win" + fromId + " " + st.str(); //add number of moves and time
             s->send(hdl, message, websocketpp::frame::opcode::text);
             if(opponentConnection.count(fromId)>0){
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
                 opponentConnection.erase(opponentConnection.find(fromId));
             }
-            else{
+            else{ 
                 Auth *auth = Auth::getInstance();
                 string username;
                 for(map<string, int>::iterator it = userId.begin(); it !=

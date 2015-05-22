@@ -224,6 +224,9 @@
     <div class="wrapper3" id="wrap3">
         <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
     </div>
+    <div id="numMoves">
+           asdfasdfasdfasdfasdf
+    </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
     <script>
@@ -401,12 +404,16 @@
                     websocket.send("newboard " + usernameStr + " random");
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                 }
-                if(isMessage("win", evt.data)){
-                    clientIdWin = +getPayload('win', evt.data);
+                if(isMessage("win", evt.data)){ //get number of moves and time
+                    payload = getPayload('win', evt.data);
+                    data=payload.split(/[ ,]+/);
                     win=true;
-                    if(clientIdWin == clientId){
+                    if(+data[0] == clientId){
                         document.getElementById("completed").style.display="none";
                         document.getElementById("win1Txt").style.display="block";
+                        document.getElementById("numMoves").style.display="block";
+			document.getElementById("numMoves").innerHTML = data[1]; 
+			console.log(data[1]);
                     }
                     else {
                         document.getElementById("completed").style.display="none";

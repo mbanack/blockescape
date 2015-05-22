@@ -29,6 +29,7 @@ SUCH DAMAGES.
 #include <websocketpp/server.hpp>
 #include "../src/sio_client.h"
 #include "Solver.hpp"
+#include <boost/timer/timer.hpp>
 typedef std::vector<std::vector<int> > vvi;
 typedef std::vector<int> vi;
 typedef std::set<std::vector<std::vector<int> > > svvi;
@@ -50,7 +51,7 @@ public:
         PIECE_HORIZONTAL3, PIECE_VERTICAL2, PIECE_VERTICAL3, 
         PIECE_TYPE_SIZE };
     Board(int width, int height); //unused
-    Board(int width, int height, std::ifstream &f); //Text based
+    Board(int width, int height, std::ifstream &f); //Text baseds
     int numFree(); //unused
     bool fullBoard(); //unused
     bool oneMoveSolution(); //unused
@@ -74,6 +75,8 @@ public:
     void removeHorizontalNextToPlayer();
     int playerRow();
     bool undo(); //Only works in graphical mode
+    int getNumberOfMoves();
+    std::string getNumberOfSeconds();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
@@ -103,5 +106,8 @@ private:
     svvi lotsOBoards;
     int minMoves;
     bool undoAvailable;
+    int numberOfMoves;
+    std::string numberOfSeconds;
+    boost::timer::cpu_timer timer;
 };
 #endif

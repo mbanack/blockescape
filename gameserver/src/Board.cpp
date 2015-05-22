@@ -3,6 +3,8 @@
 #include <sstream>
 #include "solver.h"
 using namespace std;
+using boost::timer::cpu_timer;
+using boost::timer::cpu_times;
 typedef websocketpp::server<websocketpp::config::asio> server;
 
 void Board::attemptSolve() {
@@ -21,12 +23,21 @@ int Board::getMinMoves() {
     return minMoves;
 }
 bool Board::win(){
-    return board[0][5]==PIECE_PLAYER ||
+	if(board[0][5]==PIECE_PLAYER ||
         board[1][5] == PIECE_PLAYER ||
         board[2][5] == PIECE_PLAYER ||
         board[3][5] == PIECE_PLAYER ||
         board[4][5] == PIECE_PLAYER ||
-        board[5][5] == PIECE_PLAYER;
+        board[5][5] == PIECE_PLAYER)
+    {
+		stringstream ss(timer.format(0));
+		string seconds;
+		ss >> seconds;
+		cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << seconds << endl;
+		return true;
+	}
+			
+    return false;
 }
 void Board::printIds(ostream &s){
     for(int i = 0; i < BOARD_ROWS*BOARD_COLS;++i){
@@ -260,7 +271,11 @@ void Board::mouseRelease(){
         mouseDown=false;
         int x = floatingPieceRect.x/BOARD_CELL_SIZE;
         int y = floatingPieceRect.y/BOARD_CELL_SIZE;
+        int ix = floatingPieceInitial.x/BOARD_CELL_SIZE;
+        int iy = floatingPieceInitial.y/BOARD_CELL_SIZE;
         placePiece(x,y,floatingPieceType,floatingPieceId);
+        if(x != ix || y != iy)
+	    numberOfMoves += 1;
         floatingPieceType = EMPTY_SPACE;
         floatingPieceId = 0;
         stopLeft = false;
@@ -425,6 +440,8 @@ bool Board::validMove(int x, int y, int xp, int yp){
     }
     return true;
 }
+
+//constructor 1
 Board::Board(int width, int height):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
     floatingPieceType(EMPTY_SPACE), floatingPieceId(0),
@@ -437,6 +454,16 @@ Board::Board(int width, int height):mouseDown(false),
     initializeIds();
     undoBoard = board;
     undoIds = ids;
+    numberOfMoves = 0;
+    timer.start(); //restart timer on load new board
+}
+int Board::getNumberOfMoves()
+{
+    return numberOfMoves;
+}
+std::string Board::getNumberOfSeconds()
+{
+	return numberOfSeconds;
 }
 //Doesn't actually undo, just sets undoAvailable to false
 //  and returns what it was prior to call
@@ -444,6 +471,7 @@ bool Board::undo() {
     if(win() || !undoAvailable || undoBoard == board)
         return false;
     board = undoBoard;
+    numberOfMoves--;
     ids=undoIds;
     undoAvailable = false;
     return true; //As in, undo was successful
@@ -461,9 +489,10 @@ int Board::playerRow(){
             return i/BOARD_COLS;
     }
 }
+//constructor 2
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),
+    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),numberOfMoves(0),
     undoAvailable(true), ids(36,0), undoIds(36,0), board(){
     string minMovesStr;
     f >> minMovesStr;
@@ -485,6 +514,7 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     initializeIds();
     undoBoard = board;
     undoIds = ids;
+    timer.start(); //restart timer on load new board
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);
@@ -582,3 +612,4 @@ void Board::print(ostream &s){
         s << '\n';
     }
 }
+s
