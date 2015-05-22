@@ -612,4 +612,4 @@ void Board::print(ostream &s){
         s << '\n';
     }
 }
-s
+
