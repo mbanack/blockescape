@@ -4,7 +4,6 @@
 #include "solver.h"
 using namespace std;
 using boost::timer::cpu_timer;
-using boost::timer::cpu_times;
 typedef websocketpp::server<websocketpp::config::asio> server;
 
 void Board::attemptSolve() {
@@ -22,6 +21,60 @@ void Board::getIds(uint8_t *ids){
 int Board::getMinMoves() {
     return minMoves;
 }
+/***
+Board::Board(const Board &rhs) {
+    board = rhs.board;
+    undoBoard = rhs.undoBoard;
+    ids = rhs.ids;
+    undoIds = rhs.undoIds;
+    mouseDown = rhs.mouseDown;
+    mouseInitialRect = rhs.mouseInitialRect;
+    floatingPieceRect = rhs.floatingPieceRect;
+    floatingPieceInitial = rhs.floatingPieceInitial;
+    floatingPieceStuckRect = rhs.floatingPieceStuckRect;
+    floatingPieceType = rhs.floatingPieceType;
+    floatingPieceId = rhs.floatingPieceId;
+    stopLeft = rhs.stopLeft;
+	stopRight = rhs.stopRight;
+	stopUp = rhs.stopUp;
+	stopDown = rhs.stopDown;
+    lastNetworkMessage = rhs.lastNetworkMessage;
+    lotsOBoards = rhs.lotsOBoards;
+    minMoves = rhs.minMoves;
+    undoAvailable = rhs.undoAvailable;
+    numberOfMoves = rhs.numberOfMoves;
+    numberOfSeconds = rhs.numberOfSeconds;
+    timergame = rhs.timergame;
+}
+Board Board::operator=(const Board &rhs) {
+	if(&rhs == this)
+		return *this;
+    board = rhs.board;
+    undoBoard = rhs.undoBoard;
+    ids = rhs.ids;
+    undoIds = rhs.undoIds;
+    mouseDown = rhs.mouseDown;
+    mouseInitialRect = rhs.mouseInitialRect;
+    floatingPieceRect = rhs.floatingPieceRect;
+    floatingPieceInitial = rhs.floatingPieceInitial;
+    floatingPieceStuckRect = rhs.floatingPieceStuckRect;
+    floatingPieceType = rhs.floatingPieceType;
+    floatingPieceId = rhs.floatingPieceId;
+    stopLeft = rhs.stopLeft;
+	stopRight = rhs.stopRight;
+	stopUp = rhs.stopUp;
+	stopDown = rhs.stopDown;
+    lastNetworkMessage = rhs.lastNetworkMessage;
+    lotsOBoards = rhs.lotsOBoards;
+    minMoves = rhs.minMoves;
+    undoAvailable = rhs.undoAvailable;
+    numberOfMoves = rhs.numberOfMoves;
+    numberOfSeconds = rhs.numberOfSeconds;
+    timergame = rhs.timergame;
+
+	return *this;
+}
+***/
 bool Board::win(){
 	if(board[0][5]==PIECE_PLAYER ||
         board[1][5] == PIECE_PLAYER ||
@@ -30,10 +83,13 @@ bool Board::win(){
         board[4][5] == PIECE_PLAYER ||
         board[5][5] == PIECE_PLAYER)
     {
-		stringstream ss(timer.format(0));
-		string seconds;
-		ss >> seconds;
-		cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << seconds << endl;
+		//stringstream ss(timergame.format(0));
+		//string seconds;
+		//ss >> seconds;
+		//cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << seconds << endl;
+		stringstream ss;
+		ss << (float(clock()) - float(timergame)) / CLOCKS_PER_SEC;
+		numberOfSeconds = ss.str();
 		return true;
 	}
 			
@@ -445,7 +501,7 @@ bool Board::validMove(int x, int y, int xp, int yp){
 Board::Board(int width, int height):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
     floatingPieceType(EMPTY_SPACE), floatingPieceId(0),
-    undoAvailable(true), ids(36,0), undoIds(36,0){
+    undoAvailable(true), ids(36,0), undoIds(36,0), timergame(){
     vector<int> row(width, EMPTY_SPACE);
     vvi ret(height, row);
     ret[(height+1)/2-1][0]=PIECE_PLAYER;
@@ -455,7 +511,7 @@ Board::Board(int width, int height):mouseDown(false),
     undoBoard = board;
     undoIds = ids;
     numberOfMoves = 0;
-    timer.start(); //restart timer on load new board
+	timergame = clock();
 }
 int Board::getNumberOfMoves()
 {
@@ -493,7 +549,7 @@ int Board::playerRow(){
 Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
     floatingPieceType(EMPTY_SPACE),floatingPieceId(0),numberOfMoves(0),
-    undoAvailable(true), ids(36,0), undoIds(36,0), board(){
+    undoAvailable(true), ids(36,0), undoIds(36,0), timergame(), board(){
     string minMovesStr;
     f >> minMovesStr;
     minMoves = atoi(minMovesStr.c_str());
@@ -514,7 +570,7 @@ Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
     initializeIds();
     undoBoard = board;
     undoIds = ids;
-    timer.start(); //restart timer on load new board
+	timergame = clock();
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);

@@ -25,6 +25,7 @@ SUCH DAMAGES.
 #include <map>
 #include <string>
 #include <set>
+#include <ctime>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include "../src/sio_client.h"
@@ -52,6 +53,8 @@ public:
         PIECE_TYPE_SIZE };
     Board(int width, int height); //unused
     Board(int width, int height, std::ifstream &f); //Text baseds
+	//Board(const Board &rhs);
+	//Board operator=(const Board &rhs);
     int numFree(); //unused
     bool fullBoard(); //unused
     bool oneMoveSolution(); //unused
@@ -77,6 +80,7 @@ public:
     bool undo(); //Only works in graphical mode
     int getNumberOfMoves();
     std::string getNumberOfSeconds();
+    std::string numberOfSeconds;
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);
@@ -107,7 +111,6 @@ private:
     int minMoves;
     bool undoAvailable;
     int numberOfMoves;
-    std::string numberOfSeconds;
-    boost::timer::cpu_timer timer;
+	clock_t timergame;
 };
 #endif

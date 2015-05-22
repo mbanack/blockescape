@@ -344,7 +344,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         if(boards.find(tempId)->second.win()){
 	    stringstream st;
 	    st << boards.find(tempId)->second.getNumberOfMoves();
-            string message = "win" + fromId + " " + st.str(); //add number of moves and time
+            string message = "win" + fromId + " " + st.str() + " " +
+				boards.find(tempId)->second.numberOfSeconds; //add number of moves and time
             s->send(hdl, message, websocketpp::frame::opcode::text);
             if(opponentConnection.count(fromId)>0){
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
