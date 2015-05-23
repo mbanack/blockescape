@@ -76,6 +76,7 @@ int solved(bsref *bs);
 
 int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out);
 int is_horiz(bsref *bs, int idx);
+int is_solvable(bsref *init);
 
 void ai_solve(bsref *init, solve_result *r_out);
 void heuristics(bsref *bs, int *dir_out, int *id_out);

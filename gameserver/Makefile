@@ -2,7 +2,7 @@ SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp
 OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o 
 LDFLAGS=-std=c++11 -Ilib/libsodium/src/libsodium/include -Ilib/libsodium/builds/msvc -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -lsodium -lmysqlcppconn -I/usr/local/include/websocketpp/ -I/opt/local/include -D_GNU_SOURCE=1 -D_THREAD_SAFE -L/opt/local/lib 
 graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
-	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -L/opt/local/lib -lboost_system -lboost_date_time -lboost_random -pthread
+	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -L/opt/local/lib -lboost_system -lboost_date_time -lboost_random -lboost_timer -pthread
 
 dbtest:
 	g++ dbtest.cpp $(LDFLAGS)
