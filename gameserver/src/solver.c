@@ -40,8 +40,8 @@ using namespace std;
 // how many puzzles of each "solve-rank" ie num moves to solve should we gen?
 #define GEN_EACH_DIFF 150
 
-#define WRITE_TO_DISK 0
-#define DISK_BATCH 250
+#define WRITE_TO_DISK 1
+#define DISK_BATCH 25
 
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
@@ -1139,7 +1139,8 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
-    sprintf(&path[0], "../data/genboard%d", file_id);
+    sprintf(&path[0], "../data/genboard_%d_%d_%d",
+            sr->moves, sr->num_pieces, file_id);
     FILE *fp = fopen(&path[0], "w");
     fprintf(fp, "%d %d\n", sr->moves, sr->num_pieces);
     for (int i = 0; i < 36; i++) {
