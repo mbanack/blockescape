@@ -37,7 +37,7 @@ using namespace std;
 
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 4
-#define SHOW_MOVES 1
+#define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
 #define SPIN_DIFFICULT 1
@@ -79,6 +79,8 @@ const char *DIRNAMES[] = {"LEFT", "RIGHT", "UP", "DOWN"};
 bsref null_bstate;
 bsref board_init;
 sstack seen;
+
+int num_generated;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -204,6 +206,13 @@ uint8_t id_to_hex(int id) {
 }
 
 void print_board(bsref *bs) {
+    int x, y, bidx;
+    if (find_piece(bs, ID_P, &x, &y, &bidx)) {
+        if (!is_horiz(bs, bidx)) {
+            printf("{!!!} ID_P not horiz\n");
+            exit(-1);
+        }
+    }
     for (int i = 0; i < 36; i++) {
         printf("%c ", id_to_hex(bs->s[i]));
         if ((i + 1) % 6 == 0) {
@@ -726,7 +735,6 @@ int predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 6] == ID_BLANK) {
                 printf("!! id is %d y not 0 vert\n", id);
                 make_move(c_out, id, x, y, x, y - 1);
-                print_board(c_out);
                 if (is_new_hash(c_out)) {
                     if (SHOW_MOVES) {
                         printf("MOVE %d UP\n", id);
@@ -988,20 +996,24 @@ int free_id(bsref *bs) {
             return i;
         }
     }
+    printf("{!!!} free_id() overflow\n");
     return ID_NUM;
 }
 
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
         printf("add_board(%d) with free_id %d\n", bs->sr.moves, free_id(bs));
+        print_board(bs);
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
+        num_generated++;
     }
 }
 
 // attempt to generate a random board of at least given # moves
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
+    printf("gen_board(... , %d) (have %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, num_generated);
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
@@ -1009,8 +1021,11 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
     int found = 0;
     int last_id = 0;
 
-    for (int k = 0; k < 12; k++) {
+    for (int k = 0; k < 120; k++) {
         for (int i = 0; i < MAX_PIECES; i++) {
+            if (free_id(out) == ID_MAX) {
+                break;
+            }
             int idx = random() % 36;
             for (int ii = 0; ii < 10; ii++) {
                 last_id = free_id(out);
@@ -1022,15 +1037,19 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
                     add_board(out, gen_seen);
-                    found = 1;
+                    return 1;
                 }
-            } else {
-                // delete that last piece
-                delete_piece(out, last_id);
             }
         }
+
+        // delete some random pieces
+        int num_del = 1 + (random() % 6);
+        for (int dx = 0; dx < num_del; dx++) {
+            int id = ID_P + 1 + (random() % (free_id(out) - 1));
+            delete_piece(out, id);
+        }
     }
-    return found;
+    return 0;
 }
 
 int id_to_boardtype(bsref *b, int id) {
@@ -1121,7 +1140,8 @@ void heuristics(bsref *bs, int *dir_out, int *id_out) {
 void print_moves(bsref *b_init) {
     bsref work;
     bsref_clone(&work, b_init);
-    while (!solved(&work)) {
+    int num_moves = 0;
+    while (!solved(&work) && num_moves < 1024) {
         int moved_id = ID_BLANK;
         int dir = NULL_DIR;
         heuristics(&work, &dir, &moved_id);
@@ -1130,7 +1150,21 @@ void print_moves(bsref *b_init) {
         } else {
             printf("%d %s\n", moved_id, DIRNAMES[dir]);
             make_move_dir(&work, moved_id, dir);
+            num_moves++;
         }
+    }
+}
+
+int get_hint(bsref *bs, int *moved_id, int *dir) {
+    bsref work;
+    bsref_clone(&work, bs);
+    *moved_id = ID_BLANK;
+    *dir = NULL_DIR;
+    heuristics(&work, dir, moved_id);
+    if (*dir == NULL_DIR) {
+        return 0;
+    } else {
+        return 1;
     }
 }
 
@@ -1170,7 +1204,9 @@ int main(int argc, char **argv) {
     }
 
     int out_id = 0;
-    while (out_id < num_gen) {
+    num_generated = 0;
+    while (num_generated < num_gen) {
+        // the last param to gen_board is the desired num moves
         if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
@@ -1182,6 +1218,7 @@ int main(int argc, char **argv) {
             write_board(&board_init, &board_init.sr, out_id);
             sstack_push(&gen_seen, &board_init);
             out_id++;
+            num_generated++;
         }
     }
 

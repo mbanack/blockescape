@@ -74,6 +74,9 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y);
 void make_move_dir(bsref *bs, int id, int dir);
 int solved(bsref *bs);
 
+int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out);
+int is_horiz(bsref *bs, int idx);
+
 void ai_solve(bsref *init, solve_result *r_out);
 void heuristics(bsref *bs, int *dir_out, int *id_out);
 void clear_depgraph(depgraph *ss);
