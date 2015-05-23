@@ -1,10 +1,25 @@
 #include "../inc/Board.hpp"
 #include <cstdlib>
 #include <sstream>
+#include <stdio.h>
+#include <sys/timeb.h>
 #include "solver.h"
 using namespace std;
-using boost::timer::cpu_timer;
+//using boost::timer::cpu_timer;
 typedef websocketpp::server<websocketpp::config::asio> server;
+
+int first_time;
+int second_time;
+int first_clock;
+int second_clock;
+double final_time;
+
+time_t ft;
+time_t st;
+
+struct timeb tstart, tend;
+double difference;
+
 
 void Board::attemptSolve() {
     bsref board_init;
@@ -83,13 +98,46 @@ bool Board::win(){
         board[4][5] == PIECE_PLAYER ||
         board[5][5] == PIECE_PLAYER)
     {
-		//stringstream ss(timergame.format(0));
-		//string seconds;
-		//ss >> seconds;
-		//cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << seconds << endl;
+		time(&st);
+		final_time = difftime(st,ft);
+		cout << "diff time = " << difftime(st,ft) << endl;
+		cout << "final_time = " << final_time << endl;
+		
+		//millisecond precision
+		ftime(&tend);
+		difference = (double)((1000.0*(tend.time - tstart.time) + (tend.millitm-tstart.millitm))/(1000.0));
+		cout << "difference = "<< difference << "sec" << endl;
+		
+		second_time = time(NULL);
+		second_clock = clock();
+		int realCLOCKS_PER_SEC = (second_clock-first_clock)/(second_time-first_time);
+		cout << "first_time = " << first_time << endl;
+		cout << "second_time = " << second_time << endl;
+		cout << "first_clock = " << first_clock << endl;
+		cout << "second_clock = " << second_clock << endl << endl;
+		cout << "second_clock - first_clock = " << second_clock-first_clock << endl;
+		cout << "second_time - first_time = " << second_time-first_time << endl << endl;
 		stringstream ss;
-		ss << (float(clock()) - float(timergame)) / CLOCKS_PER_SEC;
+		ss << difference << "sec";
 		numberOfSeconds = ss.str();
+		
+		stringstream ss2;
+		ss << (clock() - timergame) / (double)realCLOCKS_PER_SEC;
+		string numberOfSeconds2 = ss2.str();
+		
+		cout << "numberOfSeconds(with ss) = " << numberOfSeconds << endl;
+		cout << "CLOCKS_PER_SEC = " << CLOCKS_PER_SEC << endl;
+		cout << "numberOfSeconds without the ss = "
+		     << (clock() - timergame) / (double)CLOCKS_PER_SEC << endl;
+		cout << "================================================" << endl;
+		cout << "numberOfSeconds2(with realCPS) = "
+		     << numberOfSeconds2 << endl;
+		cout << "Actual clocks per second = " << realCLOCKS_PER_SEC
+		      << endl;
+		cout << "Actual clocks per second(1000 conv) = " 
+		     << realCLOCKS_PER_SEC / 1000.0
+		     << endl;
+		  
 		return true;
 	}
 			
@@ -368,21 +416,23 @@ void Board::removePiece(int i, vvi &board,
     } 
     else if(piece==PIECE_VERTICAL2){
         ids[i]=0;
-        ids[i+BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS){
+        	ids[i+BOARD_COLS]=0;
             board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+		}
         rect.h*=2;
     }  
     else if(piece==PIECE_VERTICAL3){
         ids[i]=0;
-        ids[i+BOARD_COLS]=0;
-        ids[i+2*BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
         if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
             board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS)
+        	ids[i+BOARD_COLS]=0;
+        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS){
             board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        	ids[i+2*BOARD_COLS]=0;
+		}
         rect.h*=3;
     } 
 }
@@ -497,22 +547,6 @@ bool Board::validMove(int x, int y, int xp, int yp){
     return true;
 }
 
-//constructor 1
-Board::Board(int width, int height):mouseDown(false),
-    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE), floatingPieceId(0),
-    undoAvailable(true), ids(36,0), undoIds(36,0), timergame(){
-    vector<int> row(width, EMPTY_SPACE);
-    vvi ret(height, row);
-    ret[(height+1)/2-1][0]=PIECE_PLAYER;
-    ret[(height+1)/2-1][1]=PIECE_PLAYER;
-    board=ret;
-    initializeIds();
-    undoBoard = board;
-    undoIds = ids;
-    numberOfMoves = 0;
-	timergame = clock();
-}
 int Board::getNumberOfMoves()
 {
     return numberOfMoves;
@@ -544,33 +578,6 @@ int Board::playerRow(){
         if(board[i/BOARD_COLS][i%BOARD_COLS]==PIECE_PLAYER)
             return i/BOARD_COLS;
     }
-}
-//constructor 2
-Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
-    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
-    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),numberOfMoves(0),
-    undoAvailable(true), ids(36,0), undoIds(36,0), timergame(), board(){
-    string minMovesStr;
-    f >> minMovesStr;
-    minMoves = atoi(minMovesStr.c_str());
-    for(int i=0;i<height;++i){
-        string line;
-        f >> line;
-        vi row;
-        for(string::iterator j=line.begin();j!=line.end();++j)
-        {
-            char s[2];
-            s[0]=*j;
-            s[1]='\0';
-            row.push_back(atoi(s));
-        }
-        board.push_back(row);
-    }
-    removeHorizontalNextToPlayer();
-    initializeIds();
-    undoBoard = board;
-    undoIds = ids;
-	timergame = clock();
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);
@@ -669,3 +676,55 @@ void Board::print(ostream &s){
     }
 }
 
+//constructor 1
+Board::Board(int width, int height):mouseDown(false),
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE), floatingPieceId(0),
+    undoAvailable(true), ids(36,0), undoIds(36,0){
+    vector<int> row(width, EMPTY_SPACE);
+    vvi ret(height, row);
+    ret[(height+1)/2-1][0]=PIECE_PLAYER;
+    ret[(height+1)/2-1][1]=PIECE_PLAYER;
+    board=ret;
+    initializeIds();
+    undoBoard = board;
+    undoIds = ids;
+    numberOfMoves = 0;
+    time(&ft);
+    ftime(&tstart);
+    first_time = time(NULL);
+    first_clock = clock();
+	timergame = clock();
+}
+//constructor 2
+Board::Board(int width, int height, std::ifstream &f):mouseDown(false),
+    stopLeft(false), stopRight(false), stopUp(false), stopDown(false),
+    floatingPieceType(EMPTY_SPACE),floatingPieceId(0),numberOfMoves(0),
+    undoAvailable(true), ids(36,0), undoIds(36,0), board(){
+    string minMovesStr;
+    f >> minMovesStr;
+    minMoves = atoi(minMovesStr.c_str());
+    for(int i=0;i<height;++i){
+        string line;
+        f >> line;
+        vi row;
+        for(string::iterator j=line.begin();j!=line.end();++j)
+        {
+            char s[2];
+            s[0]=*j;
+            s[1]='\0';
+            row.push_back(atoi(s));
+        }
+        board.push_back(row);
+    }
+    removeHorizontalNextToPlayer();
+    initializeIds();
+    undoBoard = board;
+    undoIds = ids;
+    time(&ft);
+    ftime(&tstart);
+    first_time = time(NULL);
+    first_clock = clock();
+	timergame = clock();
+	timergame = (clock() - timergame) / (double)CLOCKS_PER_SEC;
+}

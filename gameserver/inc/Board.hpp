@@ -26,6 +26,7 @@ SUCH DAMAGES.
 #include <string>
 #include <set>
 #include <ctime>
+#include <time.h>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include "../src/sio_client.h"

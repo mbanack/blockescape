@@ -158,6 +158,7 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
             message+="completed ";
         else
             message+="notcompleted ";
+        cout << "index: " << index << endl;
         stringstream ss2;
         ss2 << b.getMinMoves();
         message += ss2.str();
@@ -179,6 +180,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     if(msg->get_payload().substr(0,multiplayer.size())==
         multiplayer){
         try {
+			cout << "inside multiplayer line 182" << endl;
             string str(msg->get_payload().substr(multiplayer.size()));
             if(waitingPlayer){
                 waitingPlayer=false;
@@ -202,7 +204,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     if(msg->get_payload().substr(0,newBoardStr.size())==
         newBoardStr){
         try {
-            string str(msg->get_payload().substr(newBoardStr.size()));
+            cout << "inside newBoardStr line 206" << endl;
+			string str(msg->get_payload().substr(newBoardStr.size()));
             stringstream ss(str);
             string username;
             string action;
@@ -233,6 +236,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     if(msg->get_payload().substr(0,askSaltUsername.size())==
         askSaltUsername){
         try {
+			cout << "inside username line 238" << endl;
             string message("get salt username");
             string str(msg->get_payload().substr(askSaltUsername.size()));
             Auth *auth = Auth::getInstance();
@@ -262,7 +266,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     else if(msg->get_payload().substr(0,createUser.size())==
         createUser){
         try {
-            string str(msg->get_payload().substr(createUser.size()));
+            cout << "inside create user line 267" << endl;
+			string str(msg->get_payload().substr(createUser.size()));
             stringstream usernamePhashStream(str);
             string username;
             string phash;
@@ -283,7 +288,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     }
     else if(msg->get_payload().substr(0,loginStr.size())==
         loginStr){
-        string str(msg->get_payload().substr(loginStr.size()));
+        cout << "inside login line 290" << endl;
+		string str(msg->get_payload().substr(loginStr.size()));
         stringstream userPassStream(str);
         string username;
         string phash;
@@ -307,7 +313,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     }
     else if(msg->get_payload().substr(0,mouseInput.size())==
         mouseInput){
-        stringstream ss;
+        //cout << "inside mouseInput line 315" << endl;
+		stringstream ss;
         ss.str(msg->get_payload().substr(mouseInput.size()));
         string downStr;
         string xStr;
@@ -317,6 +324,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         ss >> downStr;
         ss >> xStr;
         ss >> yStr;
+        //cout << "inside mouseInput line 326" << endl;
         int tempId = atoi(fromId.c_str());
         if(newInput.count(tempId)>0)
             newInput.find(tempId)->second=true;
@@ -328,32 +336,46 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             if(down.count(tempId)>0)
                 down.find(tempId)->second = true;
         }
+        //cout << "inside mouseInput line 338" << endl;
         if(coordinates.count(tempId)>0){
+			//cout << "inside mouseInput line 340" << endl;
             coordinates.find(tempId)->second.x = atoi(xStr.c_str());
             coordinates.find(tempId)->second.y = atoi(yStr.c_str());
         }
-        if(down.find(tempId)->second==true)
+        if(down.find(tempId)->second==true){
+			//cout << "inside mouseInput line 344" << endl;
             boards.find(tempId)->second.mouseDrag(  
                 coordinates.find(tempId)->second);
+		}
         else
+        {
+			//cout << "inside mouseInput line 349" << endl;
             boards.find(tempId)->second.mouseRelease();
+            //cout << "inside mouseInput line 353" << endl;
+        }
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
+        //cout << "inside mouseInput line 354" << endl;
         if(opponentConnection.count(fromId)>0){
+			//cout << "inside mouseInput line 355" << endl;
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
+			//cout << "inside mouseInput line 359" << endl;
 	    stringstream st;
 	    st << boards.find(tempId)->second.getNumberOfMoves();
             string message = "win" + fromId + " " + st.str() + " " +
 				boards.find(tempId)->second.numberOfSeconds; //add number of moves and time
             s->send(hdl, message, websocketpp::frame::opcode::text);
             if(opponentConnection.count(fromId)>0){
+				//cout << "inside mouseInput line 366" << endl;
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
                 opponentConnection.erase(opponentConnection.find(fromId));
             }
             else{ 
+				//cout << "inside mouseInput line 371" << endl;
                 Auth *auth = Auth::getInstance();
                 string username;
+                //cout << "inside mouseInput line 374" << endl;
                 for(map<string, int>::iterator it = userId.begin(); it !=
                     userId.end(); ++it) {
                     if(it->second==tempId){
@@ -368,7 +390,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     else if(msg->get_payload().substr(0,undoStr.size())==
         undoStr){
         try {
-            stringstream ss;
+            //cout << "inside undo line 377" << endl;
+ 			stringstream ss;
             ss.str(msg->get_payload().substr(undoStr.size()));
             string fromId;
             ss >> fromId;
@@ -384,6 +407,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         }
         catch( const websocketpp::lib::error_code &e){}
     }
+    //cout << "finished onMessage line 410" << endl;
 }
 void startServer(server &s){
     try {
