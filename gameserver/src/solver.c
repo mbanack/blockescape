@@ -305,6 +305,10 @@ int is_legal(bsref *bs) {
     }
 
     for (int idx = 0; idx < 36; idx++) {
+        if (bs->s[idx] > ID_MAX) {
+            printf("{!!!} id > ID_MAX\n");
+            exit(-1);
+        }
         if (bs->s[idx] != ID_BLANK) {
             int col = idx % 6;
             if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
@@ -383,26 +387,31 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     }
 }
 
+int delete_piece_h(bsref *out, int id, int idx) {
+    if (out->s[idx] == id && out->s[idx + 1] == id) {
+        out->s[idx] = ID_BLANK;
+        out->s[idx + 1] = ID_BLANK;
+        if (out->s[idx + 2] == id) {
+            out->s[idx + 2] = ID_BLANK;
+        }
+        return 1;
+    }
+
+    if (out->s[idx] == id && out->s[idx + 6] == id) {
+        out->s[idx] = ID_BLANK;
+        out->s[idx + 6] = ID_BLANK;
+        if (out->s[idx + 12] == id) {
+            out->s[idx + 12] = ID_BLANK;
+        }
+        return 1;
+    }
+    return 0;
+}
+
 void delete_piece(bsref *bs, int id) {
     int x, y, bidx;
     if (find_piece(bs, id, &x, &y, &bidx)) {
-        if (is_horiz(bs, bidx)) {
-            int width = calc_width(bs, id);
-            insert_piece(bs, ID_BLANK, width, 1, x, y);
-            for (int i = 0; i < 36; i++) {
-                if (bs->s[i] > id) {
-                    bs->s[i] = bs->s[i] - 1;
-                }
-            }
-        } else {
-            int height = calc_height(bs, id);
-            insert_piece(bs, ID_BLANK, 1, height, x, y);
-            for (int i = 0; i < 36; i++) {
-                if (bs->s[i] > id) {
-                    bs->s[i] = bs->s[i] - 1;
-                }
-            }
-        }
+        delete_piece_h(bs, id, bidx);
     }
 }
 
@@ -1073,7 +1082,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
     int found = 0;
     int last_id = 0;
 
-    for (int k = 0; k < 120; k++) {
+    for (int k = 0; k < 255; k++) {
         int fid = free_id(out);
         for (int i = fid; i < ID_MAX; i++) {
             int idx = random() % 36;
@@ -1092,6 +1101,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             if (sr->solved == 1) {
                 if (sr->moves >= moves) {
                     add_board(out, gen_seen);
+                    printf("solve k=%3d m=%3d\n", k, sr->moves);
+                    print_board(out);
                     return 1;
                 }
             }
@@ -1117,6 +1128,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             }
         }
     }
+    printf("no solve\n");
+    print_board(out);
     return 0;
 }
 
@@ -1139,6 +1152,8 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
+    // ignore file_id, use uuid :)
+    file_id = random();
     sprintf(&path[0], "../data/genboard_%d_%d_%d",
             sr->moves, sr->num_pieces, file_id);
     FILE *fp = fopen(&path[0], "w");
