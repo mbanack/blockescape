@@ -36,7 +36,7 @@ using namespace std;
 // TODO: 1x3 pieces at boardgen
 
 // the minimum number of moves to solve the puzzle
-#define MIN_MOVES 10
+#define MIN_MOVES 5
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
 #define SHOW_MOVES 0
@@ -1220,9 +1220,7 @@ int main(int argc, char **argv) {
             }
             printf("{/puzzle %d %d}\n", out_id, board_init.sr.moves);
             add_board(&board_init, &gen_seen);
-            write_board(&board_init, &board_init.sr, out_id);
             sstack_push(&gen_seen, &board_init);
-            out_id++;
             num_generated++;
         }
     }
@@ -1236,7 +1234,9 @@ int main(int argc, char **argv) {
                 if (bs->sr.moves == m && bs->sr.num_pieces == p) {
                     printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
                     print_boardhash(bs);
-                    // TODO: write them out here (in some order by difficulty?)
+                    write_board(bs, bs.sr, out_id);
+                    out_id++;
+                    write_board(bs);
                 }
             }
         }
