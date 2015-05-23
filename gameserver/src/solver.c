@@ -39,7 +39,10 @@ using namespace std;
 #define MAX_MOVES 64
 // how many puzzles of each "solve-rank" ie num moves to solve should we gen?
 #define GEN_EACH_DIFF 150
+
+#define WRITE_TO_DISK 0
 #define DISK_BATCH 50
+
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
@@ -1250,7 +1253,9 @@ void write_hillclimb(sstack *gen_seen) {
                 {
                     printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
                     print_boardhash(bs);
-                    write_board(bs, &bs->sr, out_id);
+                    if (WRITE_TO_DISK) {
+                        write_board(bs, &bs->sr, out_id);
+                    }
                     out_id++;
                     bs->disk = 1;
                 }
