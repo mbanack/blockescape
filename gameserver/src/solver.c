@@ -922,67 +922,88 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     return;
 }
 
+int place_horiz_h(bsref *out, int idx, int id, int three) {
+    if (out->s[idx + 1] == ID_BLANK) {
+        out->s[idx] = id;
+        out->s[idx + 1] = id;
+        if (three) {
+            if (out->s[idx + 2] == ID_BLANK) {
+                out->s[idx + 2] = id;
+            }
+            return 1;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int place_vert_h(bsref *out, int idx, int id, int three) {
+    if (out->s[idx + 6] == ID_BLANK) {
+        out->s[idx] = id;
+        out->s[idx + 6] = id;
+        if (three) {
+            if (out->s[idx + 12] == ID_BLANK) {
+                out->s[idx + 12] = id;
+            }
+            return 1;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// try to place a piece horizontally such that some part of it lies in idx
+// precond: idx == ID_BLANK
+// returns 1 if placed successfully
+int place_horiz(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
+
+    if (x == 0) {
+        return place_horiz_h(out, idx, id, 1);
+    } else if (x <= 3) {
+        return place_horiz_h(out, idx, id, 1) ||
+               place_horiz_h(out, idx - 1, id, 1);
+    } else if (x == 4) {
+        return place_horiz_h(out, idx, id, 0) ||
+               place_horiz_h(out, idx - 1, id, 1);
+    }
+    return 0;
+}
+
+int place_vert(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
+
+    if (y == 0) {
+        return place_vert_h(out, idx, id, 1);
+    } else if (y <= 3) {
+        return place_vert_h(out, idx, id, 1) ||
+               place_vert_h(out, idx - 6, id, 1);
+    } else if (y == 4) {
+        return place_vert_h(out, idx, id, 0) ||
+               place_vert_h(out, idx - 6, id, 1);
+    }
+    return 0;
+}
+
 int place_piece(bsref *out, int idx, int id, int pidx) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
         if ((idx / 6) != (pidx / 6) && (random() % 2) == 0) {
-            // horizontal
-            if (x != 0) {
-                if (out->s[idx - 1] == ID_BLANK) {
-                    out->s[idx - 1] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
+            if (place_horiz(out, idx, id)) {
+                return 1;
             } else {
-                if (out->s[idx + 1] == ID_BLANK) {
-                    out->s[idx + 1] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
-            }
-
-            if (y != 0) {
-                if (out->s[idx - 6] == ID_BLANK) {
-                    out->s[idx - 6] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
-            } else {
-                if (out->s[idx + 6] == ID_BLANK) {
-                    out->s[idx + 6] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
+                return place_vert(out, idx, id);
             }
         } else {
-            // vertical
-            if (y != 0) {
-                if (out->s[idx - 6] == ID_BLANK) {
-                    out->s[idx - 6] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
+            if (place_vert(out, idx, id)) {
+                return 1;
             } else {
-                if (out->s[idx + 6] == ID_BLANK) {
-                    out->s[idx + 6] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
-            }
-
-            if (x != 0) {
-                if (out->s[idx - 1] == ID_BLANK) {
-                    out->s[idx - 1] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
-            } else {
-                if (out->s[idx + 1] == ID_BLANK) {
-                    out->s[idx + 1] = id;
-                    out->s[idx] = id;
-                    return 1;
-                }
+                return place_vert(out, idx, id);
             }
         }
     }
