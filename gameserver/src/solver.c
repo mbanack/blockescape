@@ -40,7 +40,7 @@ using namespace std;
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
 #define GEN_EACH_DIFF 100
-#define DISK_BATCH 20
+#define DISK_BATCH 1
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
@@ -83,8 +83,10 @@ bsref null_bstate;
 bsref board_init;
 sstack seen;
 
+int out_id;
 int num_generated;
 int gen_diff[MAX_MOVES];
+int max_move_found = 0;
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -1038,10 +1040,9 @@ int free_id(bsref *bs) {
     return ID_NUM;
 }
 
-int max_move_found = 0;
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
-        printf("add_board(%d moves, %d pieces) -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
+        //printf("add_board(%d moves, %d pieces) -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
@@ -1051,6 +1052,9 @@ void add_board(bsref *bs, sstack *gen_seen) {
 }
 
 // attempt to generate a random board of at least given # moves
+//   tries to find more difficult boards by iterating on
+//   solvable boards
+//   (ie finding local maxima or hillclimbing)
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
     printf("gen_board(>= %d moves) (have %d puzzles so far) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, num_generated);
@@ -1229,9 +1233,9 @@ int get_hint(bsref *bs, int *moved_id, int *dir) {
     }
 }
 
-void write_hillclimb(int *out_id, sstack *gen_seen) {
+void write_hillclimb(sstack *gen_seen) {
+    printf("  max_move_found = %d\n", max_move_found);
     // print out all the puzzles we found while hill-climbing for difficult ones
-    printf("[moves, num_pieces]\n");
     for (int m = 0; m < MAX_MOVES; m++) {
         for (int p = 0; p <= ID_MAX; p++) {
             for (int i = 0; i < gen_seen->idx; i++) {
@@ -1241,8 +1245,8 @@ void write_hillclimb(int *out_id, sstack *gen_seen) {
                 {
                     printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
                     print_boardhash(bs);
-                    write_board(bs, &bs->sr, *out_id);
-                    *out_id++;
+                    write_board(bs, &bs->sr, out_id);
+                    out_id++;
                     bs->disk = 1;
                 }
             }
@@ -1289,7 +1293,7 @@ int main(int argc, char **argv) {
         max_steps = atoi(argv[3]);
     }
 
-    int out_id = 0;
+    out_id = 0;
     num_generated = 0;
     int written_id = 0;
     while (num_generated < num_gen) {
@@ -1297,7 +1301,6 @@ int main(int argc, char **argv) {
         if (gen_diff[min_steps] >= GEN_EACH_DIFF) {
             min_steps++;
         }
-        // the last param to gen_board is the desired num moves
         if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
@@ -1312,13 +1315,15 @@ int main(int argc, char **argv) {
         }
 
         // periodically write to disk
-        if ((out_id - written_id) > DISK_BATCH) {
-            write_hillclimb(&out_id, &gen_seen);
+        if ((num_generated - written_id) > DISK_BATCH) {
+            printf("write_hillclimb with out_id = %d\n", out_id);
+            write_hillclimb(&gen_seen);
+            written_id = out_id;
         }
 
     }
 
-    write_hillclimb(&out_id, &gen_seen);
+    write_hillclimb(&gen_seen);
 
     printf("random seed is %d\n", sd);
     return 0;
