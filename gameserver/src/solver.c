@@ -1057,7 +1057,7 @@ void add_board(bsref *bs, sstack *gen_seen) {
 //   (ie finding local maxima or hillclimbing)
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
-    printf("gen_board(goal %d moves, admit >= %d moves) (have %d puzzles so far with a max_moves of %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, min_moves, num_generated, max_move_found);
+    printf("gen_board(goal %d moves, admit >= %d moves) (total %d puzzles, max_moves %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, min_moves, num_generated, max_move_found);
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
