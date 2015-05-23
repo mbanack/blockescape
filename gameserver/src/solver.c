@@ -40,6 +40,7 @@ using namespace std;
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
 #define GEN_EACH_DIFF 100
+#define DISK_BATCH 20
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
@@ -1304,7 +1305,7 @@ int main(int argc, char **argv) {
         }
 
         // periodically write to disk
-        if ((num_generated % 20) == 0) {
+        if ((num_generated % DISK_BATCH) == 0) {
             write_hillclimb(&out_id, &gen_seen);
         }
 
