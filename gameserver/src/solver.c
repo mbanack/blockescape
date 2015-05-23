@@ -1041,7 +1041,7 @@ int free_id(bsref *bs) {
 int max_move_found = 0;
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
-        printf("add_board(%d) with num_pieces %d -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
+        printf("add_board(%d moves, %d pieces) -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
