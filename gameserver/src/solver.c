@@ -1136,7 +1136,6 @@ int id_to_boardtype(bsref *b, int id) {
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
     sprintf(&path[0], "../data/genboard%d", file_id);
-    printf("{{writing to ../data/genboard/%d}}\n", file_id);
     FILE *fp = fopen(&path[0], "w");
     fprintf(fp, "%d %d\n", sr->moves, sr->num_pieces);
     for (int i = 0; i < 36; i++) {
@@ -1278,7 +1277,7 @@ int main(int argc, char **argv) {
     sstack_init(&gen_seen);
 
     // arg handling
-    int num_gen = 1;
+    int num_gen = 1000;
     int max_steps = MAX_MOVES;
     int min_steps = MIN_MOVES;
     if (argc > 1) {
