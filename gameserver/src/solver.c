@@ -40,7 +40,6 @@ using namespace std;
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
-#define SPIN_DIFFICULT 1
 // TODO: obo check this
 #define MAX_PIECES ID_MAX
 #define MOVE_DIFF_RANGE 20
@@ -224,7 +223,7 @@ void print_board(bsref *bs) {
 
 void print_boardhash(bsref *bs) {
     for (int i = 0; i < 36; i++) {
-        printf("%c", bs->s[i] + '0');
+        printf("%c", id_to_hex(bs->s[i]));
     }
     printf("\n");
 }
@@ -1003,7 +1002,6 @@ int free_id(bsref *bs) {
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
         printf("add_board(%d) with free_id %d\n", bs->sr.moves, free_id(bs));
-        print_board(bs);
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
@@ -1038,6 +1036,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
                 if (sr->moves > moves) {
                     add_board(out, gen_seen);
                     return 1;
+                } else if (sr->moves > MIN_MOVES) {
+                    add_board(out, gen_seen);
                 }
             }
         }
@@ -1207,7 +1207,8 @@ int main(int argc, char **argv) {
     num_generated = 0;
     while (num_generated < num_gen) {
         // the last param to gen_board is the desired num moves
-        if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
+        //if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
+        if (generate_board(&board_init, &board_init.sr, &gen_seen, 20)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
             if (SHOW_MOVES) {
@@ -1223,9 +1224,10 @@ int main(int argc, char **argv) {
     }
 
     // print out all the puzzles we found while hill-climbing for difficult ones
+    printf("[moves, num_pieces, solved]\n");
     for (int i = 0; i < gen_seen.idx; i++) {
         bsref *bs = &gen_seen.arr[i];
-        printf("[%d %d %d] ", bs->sr.moves, bs->sr.num_pieces, bs->sr.solved);
+        printf("[%2d %2d %2d] ", bs->sr.moves, bs->sr.num_pieces, bs->sr.solved);
         print_boardhash(bs);
         // TODO: write them out here (in some order by difficulty?)
     }
