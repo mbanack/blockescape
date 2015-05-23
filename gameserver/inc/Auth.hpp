@@ -36,6 +36,8 @@ public:
         const std::string &password);
     std::string getSalt(const std::string &username);
     std::string genSalt();
+    void updateHints(int numHints, const std::string &username);
+    int getHints(const std::string &username);
     static Auth *getInstance();
     ~Auth();
 private:
