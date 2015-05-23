@@ -31,7 +31,7 @@ SUCH DAMAGES.
 using namespace std;
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
-//        "./solver [NUM_GEN]
+//        "./solver [NUM_GEN] [MIN_MOVES] [MAX_MOVES]
 //
 // TODO: 1x3 pieces at boardgen
 
@@ -1014,7 +1014,7 @@ void add_board(bsref *bs, sstack *gen_seen) {
 
 // attempt to generate a random board of at least given # moves
 // returns 1 on success
-int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
+int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
     printf("gen_board(... , %d) (have %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, num_generated);
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
@@ -1040,7 +1040,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
                 if (sr->moves > moves) {
                     add_board(out, gen_seen);
                     return 1;
-                } else if (sr->moves > MIN_MOVES) {
+                } else if (sr->moves > min_moves) {
                     add_board(out, gen_seen);
                 }
             }
@@ -1199,12 +1199,16 @@ int main(int argc, char **argv) {
     // arg handling
     int num_gen = 1;
     int max_steps = MAX_MOVES;
+    int min_steps = MIN_MOVES;
     if (argc > 1) {
         num_gen = atoi(argv[1]);
         printf("num_gen is %d\n", num_gen);
     }
     if (argc > 2) {
-        max_steps = atoi(argv[2]);
+        min_steps = atoi(argv[2]);
+    }
+    if (argc > 3) {
+        max_steps = atoi(argv[3]);
     }
 
     int out_id = 0;
@@ -1212,7 +1216,7 @@ int main(int argc, char **argv) {
     while (num_generated < num_gen) {
         // the last param to gen_board is the desired num moves
         //if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
-        if (generate_board(&board_init, &board_init.sr, &gen_seen, 20)) {
+        if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
             if (SHOW_MOVES) {
@@ -1234,9 +1238,8 @@ int main(int argc, char **argv) {
                 if (bs->sr.moves == m && bs->sr.num_pieces == p) {
                     printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
                     print_boardhash(bs);
-                    write_board(bs, bs.sr, out_id);
+                    write_board(bs, &bs->sr, out_id);
                     out_id++;
-                    write_board(bs);
                 }
             }
         }
