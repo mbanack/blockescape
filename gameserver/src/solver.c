@@ -31,12 +31,15 @@ SUCH DAMAGES.
 using namespace std;
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
+//        "./solver [NUM_GEN]
 //
 // TODO: hints
 // TODO: 1x3 pieces at boardgen
 
 // the minimum number of moves to solve the puzzle
-#define MIN_MOVES 4
+#define MIN_MOVES 10
+// the theoretical max number of moves for a solvable puzzle
+#define MAX_MOVES 64
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
@@ -999,12 +1002,14 @@ int free_id(bsref *bs) {
     return ID_NUM;
 }
 
+int max_move_found = 0;
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
-        printf("add_board(%d) with free_id %d\n", bs->sr.moves, free_id(bs));
+        printf("add_board(%d) with free_id %d -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
+        max_move_found = MAX(max_move_found, bs->sr.moves);
     }
 }
 
@@ -1031,7 +1036,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
                     break;
                 }
             }
-            ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
+            ai_solve(out, sr, MAX(MAX_MOVES, moves + MOVE_DIFF_RANGE));
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
                     add_board(out, gen_seen);
@@ -1073,7 +1078,7 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
     sprintf(&path[0], "../data/genboard%d", file_id);
     FILE *fp = fopen(&path[0], "w");
-    fprintf(fp, "%d\n", sr->moves);
+    fprintf(fp, "%d %d\n", sr->moves, sr->num_pieces);
     for (int i = 0; i < 36; i++) {
         fprintf(fp, "%d", id_to_boardtype(board, board->s[i]));
         if ((i % 6) == 5) {
@@ -1194,7 +1199,7 @@ int main(int argc, char **argv) {
 
     // arg handling
     int num_gen = 1;
-    int max_steps = 0x30;
+    int max_steps = MAX_MOVES;
     if (argc > 1) {
         num_gen = atoi(argv[1]);
         printf("num_gen is %d\n", num_gen);
@@ -1224,12 +1229,18 @@ int main(int argc, char **argv) {
     }
 
     // print out all the puzzles we found while hill-climbing for difficult ones
-    printf("[moves, num_pieces, solved]\n");
-    for (int i = 0; i < gen_seen.idx; i++) {
-        bsref *bs = &gen_seen.arr[i];
-        printf("[%2d %2d %2d] ", bs->sr.moves, bs->sr.num_pieces, bs->sr.solved);
-        print_boardhash(bs);
-        // TODO: write them out here (in some order by difficulty?)
+    printf("[moves, num_pieces]\n");
+    for (int m = 0; m < MAX_MOVES; m++) {
+        for (int p = 0; p <= ID_MAX; p++) {
+            for (int i = 0; i < gen_seen.idx; i++) {
+                bsref *bs = &gen_seen.arr[i];
+                if (bs->sr.moves == m && bs->sr.num_pieces == p) {
+                    printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
+                    print_boardhash(bs);
+                    // TODO: write them out here (in some order by difficulty?)
+                }
+            }
+        }
     }
 
     printf("random seed is %d\n", sd);
