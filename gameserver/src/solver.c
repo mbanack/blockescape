@@ -33,7 +33,6 @@ using namespace std;
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
 //        "./solver [NUM_GEN]
 //
-// TODO: hints
 // TODO: 1x3 pieces at boardgen
 
 // the minimum number of moves to solve the puzzle

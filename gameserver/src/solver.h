@@ -84,4 +84,6 @@ void clear_depgraph(depgraph *ss);
 void fill_full_depgraph(bsref *bs, depgraph *ss);
 int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode);
 
+int get_hint(bsref *bs, int *moved_id, int *dir);
+
 #endif // SOLVER_H
