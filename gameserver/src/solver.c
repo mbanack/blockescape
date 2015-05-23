@@ -32,8 +32,6 @@ using namespace std;
 
 // run as "g++ -o solver solver.c && ./solver" from src/ dir
 //        "./solver [NUM_GEN] [MIN_MOVES] [MAX_MOVES]
-//
-// TODO: 1x3 pieces at boardgen
 
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 5
@@ -45,7 +43,6 @@ using namespace std;
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
-// TODO: obo check this
 #define MAX_PIECES ID_MAX
 #define MOVE_DIFF_RANGE 20
 
