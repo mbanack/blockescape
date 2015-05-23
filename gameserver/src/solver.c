@@ -37,13 +37,13 @@ using namespace std;
 
 // the minimum number of moves to solve the puzzle
 #define MIN_MOVES 4
-#define SHOW_MOVES 0
+#define SHOW_MOVES 1
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
 #define SPIN_DIFFICULT 1
 // TODO: obo check this
 #define MAX_PIECES ID_MAX
-#define MOVE_DIFF_RANGE 48
+#define MOVE_DIFF_RANGE 20
 
 #define NUM_PIECES_RANGE 24
 
@@ -210,6 +210,7 @@ void print_board(bsref *bs) {
             printf("\n");
         }
     }
+    printf("\n");
 }
 
 void print_boardhash(bsref *bs) {
@@ -347,7 +348,6 @@ void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     }
 }
 
-// TODO: warning: this voids any depgraph that might have been built
 void delete_piece(bsref *bs, int id) {
     int x, y, bidx;
     if (find_piece(bs, id, &x, &y, &bidx)) {
@@ -986,7 +986,7 @@ int free_id(bsref *bs) {
 }
 
 void add_board(bsref *bs, int moves) {
-    printf("add_board(%d)\n", moves);
+    printf("add_board(%d) with free_id %d\n", moves, free_id(bs));
     // TODO: add to global gen_seen
 }
 
@@ -998,17 +998,26 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     int found = 0;
+    int last_id = 0;
 
     for (int k = 0; k < 12; k++) {
         for (int i = 0; i < MAX_PIECES; i++) {
             int idx = random() % 36;
-            place_piece(out, idx, free_id(out), pidx);
+            for (int ii = 0; ii < 10; ii++) {
+                last_id = free_id(out);
+                if (place_piece(out, idx, last_id, pidx)) {
+                    break;
+                }
+            }
             ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
                     add_board(out, sr->moves);
                     found = 1;
                 }
+            } else {
+                // delete that last piece
+                delete_piece(out, last_id);
             }
         }
     }
