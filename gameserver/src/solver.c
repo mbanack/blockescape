@@ -63,9 +63,9 @@ using namespace std;
 //        the ones that heuristically never hit
 
 #define ID_BLANK 0x00
-#define ID_P 0x01
-#define ID_MAX 0x15
-#define ID_NUM 0x16
+#define ID_P 1
+#define ID_MAX 15
+#define ID_NUM 16
 
 #define RIGHT 1
 #define LEFT  0
@@ -1053,7 +1053,6 @@ int free_id(bsref *bs) {
             return i;
         }
     }
-    printf("{!!!} free_id() overflow\n");
     return ID_NUM;
 }
 
@@ -1074,9 +1073,9 @@ void add_board(bsref *bs, sstack *gen_seen) {
 // attempt to generate a random board of at least given # moves
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
-    printf("gen_board(admit >= %d moves) (total %d puzzles, max_moves %d)\n", moves, num_generated, max_move_found);
+    //printf("gen_board(admit >= %d moves) (total %d puzzles, max_moves %d)\n", moves, num_generated, max_move_found);
     clear_bsref(out);
-    int pidx = XY_TO_BIDX(0, random() % 6);
+    int pidx = XY_TO_BIDX(random() % 2, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     int found = 0;
@@ -1084,10 +1083,15 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
 
     for (int k = 0; k < 255; k++) {
         int fid = free_id(out);
+        int num_del = 1 + (random() % 6);
         for (int i = fid; i < ID_MAX; i++) {
             int idx = random() % 36;
             for (int ii = 0; ii < 10; ii++) {
                 last_id = free_id(out);
+                if (last_id == ID_NUM) {
+                    num_del = 8;
+                    break;
+                }
                 if (place_piece(out, idx, last_id, pidx)) {
                     break;
                 }
@@ -1101,15 +1105,12 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             if (sr->solved == 1) {
                 if (sr->moves >= moves) {
                     add_board(out, gen_seen);
-                    printf("solve k=%3d m=%3d\n", k, sr->moves);
-                    print_board(out);
                     return 1;
                 }
             }
         }
 
         // delete some random pieces
-        int num_del = 1 + (random() % 6);
         for (int dx = 0; dx < num_del; dx++) {
             int fid = free_id(out);
             if (fid != ID_P) {
@@ -1128,8 +1129,6 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             }
         }
     }
-    printf("no solve\n");
-    print_board(out);
     return 0;
 }
 
@@ -1253,6 +1252,7 @@ int get_hint(bsref *bs, int *moved_id, int *dir) {
 }
 
 void write_boards(sstack *gen_seen) {
+    printf("write_boards (total %d puzzles, max_moves %d)\n", num_generated, max_move_found);
     // write boards to disk
     for (int m = 0; m < MAX_MOVES; m++) {
         for (int p = 0; p <= ID_MAX; p++) {
