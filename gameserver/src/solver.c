@@ -38,7 +38,7 @@ using namespace std;
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
 // how many puzzles of each "solve-rank" ie num moves to solve should we gen?
-#define GEN_EACH_DIFF 225
+#define GEN_EACH_DIFF 150
 #define DISK_BATCH 50
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
@@ -1065,7 +1065,7 @@ void add_board(bsref *bs, sstack *gen_seen) {
 //   (ie finding local maxima or hillclimbing)
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
-    printf("gen_board(goal %d moves, admit >= %d moves) (total %d puzzles, max_moves %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, min_moves, num_generated, max_move_found);
+    printf("gen_board(goal %d moves, admit >= %d moves) (total %d puzzles, max_moves %d)\n", moves, min_moves, num_generated, max_move_found);
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
@@ -1095,6 +1095,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                     return 1;
                 } else if (sr->moves >= min_moves) {
                     add_board(out, gen_seen);
+                    return 1;
                 }
             }
         }
@@ -1306,12 +1307,12 @@ int main(int argc, char **argv) {
             min_steps++;
         }
         if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
-            printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
-            print_board(&board_init);
             if (SHOW_MOVES) {
+                printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
+                print_board(&board_init);
                 print_moves(&board_init);
+                printf("{/puzzle %d %d}\n", out_id, board_init.sr.moves);
             }
-            printf("{/puzzle %d %d}\n", out_id, board_init.sr.moves);
             add_board(&board_init, &gen_seen);
             sstack_push(&gen_seen, &board_init);
             num_generated++;
