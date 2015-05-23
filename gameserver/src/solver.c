@@ -286,7 +286,8 @@ int is_horiz(bsref *bs, int idx) {
         }
     }
     if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
-        printf("error: piece %d over edge\n", idx);
+        printf("error: piece %d (%d, %d) id=%d over edge\n", idx,
+               BIDX_TO_X(idx), BIDX_TO_Y(idx), bs->s[idx]);
         print_board(bs);
         exit(11);
     }
@@ -1070,7 +1071,13 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
         // delete some random pieces
         int num_del = 1 + (random() % 6);
         for (int dx = 0; dx < num_del; dx++) {
-            int id = ID_P + 1 + (random() % (free_id(out) - 1));
+            int fid = free_id(out);
+            int id = ID_P + 1;
+            if (fid > ID_MAX) {
+                id = ID_MAX;
+            } else {
+                id = ID_P + 1 + (random() % (fid - 1));
+            }
             delete_piece(out, id);
         }
     }
