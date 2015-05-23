@@ -39,6 +39,7 @@ using namespace std;
 #define MIN_MOVES 5
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
+#define GEN_EACH_DIFF 100
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
@@ -82,6 +83,7 @@ bsref board_init;
 sstack seen;
 
 int num_generated;
+int gen_diff[MAX_MOVES];
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -207,13 +209,6 @@ uint8_t id_to_hex(int id) {
 }
 
 void print_board(bsref *bs) {
-    int x, y, bidx;
-    if (find_piece(bs, ID_P, &x, &y, &bidx)) {
-        if (!is_horiz(bs, bidx)) {
-            printf("{!!!} ID_P not horiz\n");
-            exit(-1);
-        }
-    }
     for (int i = 0; i < 36; i++) {
         printf("%c ", id_to_hex(bs->s[i]));
         if ((i + 1) % 6 == 0) {
@@ -289,6 +284,15 @@ int is_horiz(bsref *bs, int idx) {
 }
 
 int is_legal(bsref *bs) {
+    int x, y, bidx;
+    if (find_piece(bs, ID_P, &x, &y, &bidx)) {
+        if (!is_horiz(bs, bidx)) {
+            printf("{!!!} ID_P not horiz\n");
+            print_board(bs);
+            exit(-1);
+        }
+    }
+
     for (int idx = 0; idx < 36; idx++) {
         if (bs->s[idx] != ID_BLANK) {
             int col = idx % 6;
@@ -603,6 +607,7 @@ void clear_bsref(bsref *h) {
     h->sr.solved = 0;
     h->sr.moves = 0;
     h->sr.num_pieces = 0;
+    h->disk = 0;
 }
 
 int is_null_hash(bsref *h) {
@@ -933,7 +938,7 @@ void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
 }
 
 int place_horiz_h(bsref *out, int idx, int id, int three) {
-    if (out->s[idx + 1] == ID_BLANK) {
+    if (out->s[idx] == ID_BLANK && out->s[idx + 1] == ID_BLANK) {
         out->s[idx] = id;
         out->s[idx + 1] = id;
         if (three) {
@@ -949,7 +954,7 @@ int place_horiz_h(bsref *out, int idx, int id, int three) {
 }
 
 int place_vert_h(bsref *out, int idx, int id, int three) {
-    if (out->s[idx + 6] == ID_BLANK) {
+    if (out->s[idx] == ID_BLANK && out->s[idx + 6] == ID_BLANK) {
         out->s[idx] = id;
         out->s[idx + 6] = id;
         if (three) {
@@ -1039,6 +1044,7 @@ void add_board(bsref *bs, sstack *gen_seen) {
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
+        gen_diff[bs->sr.moves]++;
         max_move_found = MAX(max_move_found, bs->sr.moves);
     }
 }
@@ -1217,6 +1223,27 @@ int get_hint(bsref *bs, int *moved_id, int *dir) {
     }
 }
 
+void write_hillclimb(int *out_id, sstack *gen_seen) {
+    // print out all the puzzles we found while hill-climbing for difficult ones
+    printf("[moves, num_pieces]\n");
+    for (int m = 0; m < MAX_MOVES; m++) {
+        for (int p = 0; p <= ID_MAX; p++) {
+            for (int i = 0; i < gen_seen->idx; i++) {
+                bsref *bs = &gen_seen->arr[i];
+                if (bs->disk == 0 &&
+                    bs->sr.moves == m && bs->sr.num_pieces == p)
+                {
+                    printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
+                    print_boardhash(bs);
+                    write_board(bs, &bs->sr, *out_id);
+                    *out_id++;
+                    bs->disk = 1;
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     time_t sd = time(NULL) % 1024;
     //sd = 887;
@@ -1260,7 +1287,9 @@ int main(int argc, char **argv) {
     num_generated = 0;
     while (num_generated < num_gen) {
         // the last param to gen_board is the desired num moves
-        //if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
+        if (gen_diff[min_steps] >= GEN_EACH_DIFF) {
+            min_steps++;
+        }
         if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
@@ -1271,24 +1300,17 @@ int main(int argc, char **argv) {
             add_board(&board_init, &gen_seen);
             sstack_push(&gen_seen, &board_init);
             num_generated++;
+            gen_diff[board_init.sr.moves]++;
         }
+
+        // periodically write to disk
+        if ((num_generated % 20) == 0) {
+            write_hillclimb(&out_id, &gen_seen);
+        }
+
     }
 
-    // print out all the puzzles we found while hill-climbing for difficult ones
-    printf("[moves, num_pieces]\n");
-    for (int m = 0; m < MAX_MOVES; m++) {
-        for (int p = 0; p <= ID_MAX; p++) {
-            for (int i = 0; i < gen_seen.idx; i++) {
-                bsref *bs = &gen_seen.arr[i];
-                if (bs->sr.moves == m && bs->sr.num_pieces == p) {
-                    printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
-                    print_boardhash(bs);
-                    write_board(bs, &bs->sr, out_id);
-                    out_id++;
-                }
-            }
-        }
-    }
+    write_hillclimb(&out_id, &gen_seen);
 
     printf("random seed is %d\n", sd);
     return 0;

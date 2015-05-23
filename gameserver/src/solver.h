@@ -56,9 +56,11 @@ typedef struct solve_result {
 // boardstate/hash
 //   8 bits per square * 36 => 288 bits (9x32)
 //   each square is set to the id of its piece (or ID_BLANK)
+// disk flag is set to 1 once this bs is written to a puzzle file
 typedef struct bsref {
     uint8_t s[36];
     solve_result sr;
+    int disk;
 } bsref;
 
 typedef struct solved_bs {
