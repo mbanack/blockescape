@@ -1287,10 +1287,11 @@ int main(int argc, char **argv) {
     int out_id = 0;
     num_generated = 0;
     while (num_generated < num_gen) {
-        // the last param to gen_board is the desired num moves
+        // only generate 100 (GEN_EACH_DIFF) of each "number of moves"-boards
         if (gen_diff[min_steps] >= GEN_EACH_DIFF) {
             min_steps++;
         }
+        // the last param to gen_board is the desired num moves
         if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
             printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
