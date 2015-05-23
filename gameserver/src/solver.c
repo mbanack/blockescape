@@ -573,10 +573,16 @@ void bsref_clone(bsref *bsb, bsref *bsa) {
     for (int i = 0; i < 36; i++) {
         bsb->s[i] = bsa->s[i];
     }
+    bsb->sr.solved = bsa->sr.solved;
+    bsb->sr.num_pieces = bsa->sr.num_pieces;
+    bsb->sr.moves = bsa->sr.moves;
 }
 
 void clear_bsref(bsref *h) {
     memset(h->s, 0x00, 36);
+    h->sr.solved = 0;
+    h->sr.moves = 0;
+    h->sr.num_pieces = 0;
 }
 
 int is_null_hash(bsref *h) {
@@ -985,9 +991,12 @@ int free_id(bsref *bs) {
     return ID_NUM;
 }
 
-void add_board(bsref *bs, int moves) {
-    printf("add_board(%d) with free_id %d\n", moves, free_id(bs));
-    // TODO: add to global gen_seen
+void add_board(bsref *bs, sstack *gen_seen) {
+    if (!sstack_contains(gen_seen, bs)) {
+        printf("add_board(%d) with free_id %d\n", bs->sr.moves, free_id(bs));
+        bs->sr.num_pieces = free_id(bs);
+        sstack_push(gen_seen, bs);
+    }
 }
 
 // attempt to generate a random board of at least given # moves
@@ -1012,7 +1021,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves) {
             ai_solve(out, sr, moves + MOVE_DIFF_RANGE);
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
-                    add_board(out, sr->moves);
+                    add_board(out, gen_seen);
                     found = 1;
                 }
             } else {
@@ -1162,18 +1171,26 @@ int main(int argc, char **argv) {
 
     int out_id = 0;
     while (out_id < num_gen) {
-        solve_result sr;
-        if (generate_board(&board_init, &sr, &gen_seen, 4 + (out_id + 3) / 3)) {
-            printf("{puzzle %d %d}\n", out_id, sr.moves);
+        if (generate_board(&board_init, &board_init.sr, &gen_seen, 4 + (out_id + 3) / 3)) {
+            printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
             print_board(&board_init);
             if (SHOW_MOVES) {
                 print_moves(&board_init);
             }
-            printf("{/puzzle %d %d}\n", out_id, sr.moves);
-            write_board(&board_init, &sr, out_id);
+            printf("{/puzzle %d %d}\n", out_id, board_init.sr.moves);
+            add_board(&board_init, &gen_seen);
+            write_board(&board_init, &board_init.sr, out_id);
             sstack_push(&gen_seen, &board_init);
             out_id++;
         }
+    }
+
+    // print out all the puzzles we found while hill-climbing for difficult ones
+    for (int i = 0; i < gen_seen.idx; i++) {
+        bsref *bs = &gen_seen.arr[i];
+        printf("[%d %d %d] ", bs->sr.moves, bs->sr.num_pieces, bs->sr.solved);
+        print_boardhash(bs);
+        // TODO: write them out here (in some order by difficulty?)
     }
 
     printf("random seed is %d\n", sd);

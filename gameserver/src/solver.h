@@ -47,12 +47,24 @@ typedef struct depgraph {
     node map[36];
 } depgraph;
 
+typedef struct solve_result {
+    int solved;
+    int moves;
+    int num_pieces;
+} solve_result;
+
 // boardstate/hash
 //   8 bits per square * 36 => 288 bits (9x32)
 //   each square is set to the id of its piece (or ID_BLANK)
 typedef struct bsref {
     uint8_t s[36];
+    solve_result sr;
 } bsref;
+
+typedef struct solved_bs {
+    bsref bs;
+    solve_result sr;
+} solved_bs;
 
 int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
@@ -61,11 +73,6 @@ void bsref_print(bsref *a);
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y);
 void make_move_dir(bsref *bs, int id, int dir);
 int solved(bsref *bs);
-
-typedef struct solve_result {
-    int solved;
-    int moves;
-} solve_result;
 
 void ai_solve(bsref *init, solve_result *r_out);
 void heuristics(bsref *bs, int *dir_out, int *id_out);
