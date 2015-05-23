@@ -1053,7 +1053,7 @@ void add_board(bsref *bs, sstack *gen_seen) {
 // attempt to generate a random board of at least given # moves
 // returns 1 on success
 int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
-    printf("gen_board(%d) (have %d puzzles so far) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, num_generated);
+    printf("gen_board(>= %d moves) (have %d puzzles so far) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, num_generated);
     clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
