@@ -39,7 +39,8 @@ using namespace std;
 #define MIN_MOVES 5
 // the theoretical max number of moves for a solvable puzzle
 #define MAX_MOVES 64
-#define GEN_EACH_DIFF 100
+// how many puzzles of each "solve-rank" ie num moves to solve should we gen?
+#define GEN_EACH_DIFF 225
 #define DISK_BATCH 1
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
