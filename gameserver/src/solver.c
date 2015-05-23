@@ -1072,13 +1072,15 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
         int num_del = 1 + (random() % 6);
         for (int dx = 0; dx < num_del; dx++) {
             int fid = free_id(out);
-            int id = ID_P + 1;
-            if (fid > ID_MAX) {
-                id = ID_MAX;
-            } else {
-                id = ID_P + 1 + (random() % (fid - 1));
+            if (fid != ID_P) {
+                int id = ID_P + 1;
+                if (fid > ID_MAX) {
+                    id = ID_MAX;
+                } else {
+                    id = ID_P + 1 + (random() % (fid - 1));
+                }
+                delete_piece(out, id);
             }
-            delete_piece(out, id);
         }
     }
     return 0;
