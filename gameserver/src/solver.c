@@ -743,7 +743,7 @@ void ai_solve(bsref *init, solve_result *r_out) {
     return;
 }
 
-void place_piece(bsref *out, int idx, int id) {
+void place_piece(bsref *out, int idx, int id, int tries) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
@@ -805,19 +805,29 @@ void place_piece(bsref *out, int idx, int id) {
             }
         }
     }
+    if(tries < 35)
+        place_piece(out, idx, id, ++tries); //try again
 }
 
-// attempt to generate a random board - returns 1 on success
+// Matt, I changed this so that a horizontal piece can't block player
+// Function purpose: attempt to generate a random board - returns 1 on success
 int generate_board(bsref *out) {
     clear_bsref(out);
-    int num_pieces = 4 + random() % 10;
+    int num_pieces = 6 + random() % 10;
 
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
     for (int i = ID_P + 1; i < num_pieces; i++) {
-        int idx = random() % 36;
-        place_piece(out, idx, i);
+        int idx = 0;
+        bsref tmp;
+        do
+        {
+            idx = random() % 36;
+            tmp = *out;
+            place_piece(&tmp, idx, i, 0);
+        } while(idx / 6 == pidx && is_horiz(&tmp, idx));
+        *out = tmp;
     }
     return 0;
 }
@@ -841,7 +851,7 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
-    sprintf(&path[0], "../data/genboard%d", file_id);
+    sprintf(&path[0], "../data/board%d", file_id);
     FILE *fp = fopen(&path[0], "w");
     fprintf(fp, "%d\n", sr->moves);
     for (int i = 0; i < 36; i++) {

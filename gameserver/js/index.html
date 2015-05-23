@@ -24,6 +24,9 @@
     .smallButton {
         width:15px;
     }
+    .undoBtn {
+        width:45px;
+    }
     .smallTextbox {
         width:25px;
     }
@@ -113,6 +116,20 @@
         align:middle;
         text-align: center;
     }
+    #undoBtn1{
+        position:absolute;
+        left:617px;
+        top:690px;
+        display:none;
+        text-align: center;
+    }
+    #undoBtn2{
+        position:absolute;
+        left:617px;
+        top:690px;
+        display:none;
+        text-align: center;
+    }
     #beginner{
         display:none;
         align:middle;
@@ -199,11 +216,16 @@
     <div class="wrapper" id="wrap1">
         <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
     </div>
+    <input class="undoBtn" id="undoBtn1" type="button" value="undo" disabled="true">
     <div class="wrapper2" id="wrap2">
         <canvas id="multiCanvas1" width="0px" height="0px" display="inline"></canvas>
     </div>
+    <input class="undoBtn" id="undoBtn2" type="button" value="undo" disabled="true">
     <div class="wrapper3" id="wrap3">
         <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <div id="numMoves">
+           asdfasdfasdfasdfasdf
     </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
@@ -301,6 +323,11 @@
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
+        function onUndoClick() {
+            websocket.send('undo' + clientId);
+            message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
+            websocket.send('mouse input' + message);
+        }
         function onSingleplayerClick() {
             destroyAll();
             init2(0);
@@ -329,6 +356,10 @@
         function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("newboard", evt.data)){
+                    document.getElementById("undoBtn1").disabled=false;
+                    document.getElementById("undoBtn2").disabled=false;
+                    document.getElementById("undoBtn1").style.display="block";
+                    document.getElementById("undoBtn2").style.display="block";
                     win=false;
                     payload = getPayload('newboard', evt.data);
                     payloadSplit=payload.split(/[ ,]+/);
@@ -361,17 +392,28 @@
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                     websocket.send('mouse input' + message);
                 }
+                if(isMessage("undo", evt.data)){
+                    undoVal = +getPayload('undo', evt.data);
+                    if(undoVal==0){
+                        document.getElementById("undoBtn1").disabled=true;
+                        document.getElementById("undoBtn2").disabled=true;
+                    }
+                }
                 if(isMessage("multiplayer", evt.data)){
                     opponentId = +getPayload('multiplayer', evt.data);
                     websocket.send("newboard " + usernameStr + " random");
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                 }
-                if(isMessage("win", evt.data)){
-                    clientIdWin = +getPayload('win', evt.data);
+                if(isMessage("win", evt.data)){ //get number of moves and time
+                    payload = getPayload('win', evt.data);
+                    data=payload.split(/[ ,]+/);
                     win=true;
-                    if(clientIdWin == clientId){
+                    if(+data[0] == clientId){
                         document.getElementById("completed").style.display="none";
                         document.getElementById("win1Txt").style.display="block";
+                        document.getElementById("numMoves").style.display="block";
+			document.getElementById("numMoves").innerHTML = data[1] + ' ' + data[2]; 
+			console.log(data[1]);
                     }
                     else {
                         document.getElementById("completed").style.display="none";
@@ -463,6 +505,8 @@
             objectsLength[0]=0;
             objectsLength[1]=0;
             objectsLength[2]=0;
+            document.getElementById("undoBtn1").onclick = onUndoClick;
+            document.getElementById("undoBtn2").onclick = onUndoClick;
             document.getElementById("singleBtn").onclick = onSingleplayerClick;
             document.getElementById("multiBtn").onclick = onMultiplayerClick;
             document.getElementById("createBtn").onclick = onCreateClick;

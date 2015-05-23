@@ -47,6 +47,11 @@ typedef struct depgraph {
 //   each square is set to the id of its piece (or ID_BLANK)
 typedef struct bsref {
     uint8_t s[36];
+    bsref operator=(const bsref &rhs){
+        if(&rhs == this ) return *this;
+        for(int i = 0; i < 36; ++i) s[i] = rhs.s[i];
+        return *this;
+    }
 } bsref;
 
 int bsref_equal(bsref *a, bsref *b);
@@ -58,6 +63,11 @@ int is_solvable(bsref *init);
 typedef struct solve_result {
     int solved;
     int moves;
+    solve_result operator=(const solve_result &rhs){
+        if(&rhs == this) return *this;
+        solved = rhs.solved; moves = rhs.moves;
+        return *this;
+    }
 } solve_result;
 
 void ai_solve(bsref *init, solve_result *r_out);
