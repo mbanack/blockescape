@@ -285,13 +285,22 @@ int is_horiz(bsref *bs, int idx) {
             return 1;
         }
     }
-    if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
-        printf("error: piece %d (%d, %d) id=%d over edge\n", idx,
-               BIDX_TO_X(idx), BIDX_TO_Y(idx), bs->s[idx]);
-        print_board(bs);
-        exit(11);
-    }
     return 0;
+}
+
+int is_legal(bsref *bs) {
+    for (int idx = 0; idx < 36; idx++) {
+        if (bs->s[idx] != ID_BLANK) {
+            int col = idx % 6;
+            if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
+                printf("error: piece %d (%d, %d) id=%d over edge\n", idx,
+                       BIDX_TO_X(idx), BIDX_TO_Y(idx), bs->s[idx]);
+                print_board(bs);
+                return 0;
+            }
+        }
+    }
+    return 1;
 }
 
 // attempts to find a piece with given id, and returns its loc in x,y,bidx
@@ -1057,6 +1066,9 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                     break;
                 }
             }
+            if (!is_legal(out)) {
+                return 0;
+            }
             ai_solve(out, sr, MAX(MAX_MOVES, moves + MOVE_DIFF_RANGE));
             if (sr->solved == 1) {
                 if (sr->moves > moves) {
@@ -1080,6 +1092,9 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                     id = ID_P + 1 + (random() % (fid - 1));
                 }
                 delete_piece(out, id);
+                if (!is_legal(out)) {
+                    return 0;
+                }
             }
         }
     }
