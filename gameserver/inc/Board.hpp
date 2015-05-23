@@ -81,6 +81,7 @@ public:
     int getNumberOfMoves();
     std::string getNumberOfSeconds();
     std::string numberOfSeconds;
+    void printHint();
 private:
     void initializeIds();
     void makeLotsOBoards(vvi b, int x, int y, int type);

@@ -7,6 +7,7 @@ using boost::timer::cpu_timer;
 typedef websocketpp::server<websocketpp::config::asio> server;
 
 void Board::printHint() {
+/***************
     bsref board;
     clear_bsref(&board);
     getIds(&board.s[0]);
@@ -14,11 +15,12 @@ void Board::printHint() {
     int id;
     int move_dir;
 
-    if (get_hint(board, &id, &move_dir)) {
+    if (get_hint(&board, &id, &move_dir)) {
         printf("%d %s\n", moved_id, DIRNAMES[dir]);
     } else {
         printf("no move\n");
     }
+*************/
 }
 
 void Board::attemptSolve() {
@@ -383,21 +385,24 @@ void Board::removePiece(int i, vvi &board,
     } 
     else if(piece==PIECE_VERTICAL2){
         ids[i]=0;
-        ids[i+BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS){
+            ids[i+BOARD_COLS]=0;
             board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+        }
         rect.h*=2;
     }  
     else if(piece==PIECE_VERTICAL3){
         ids[i]=0;
-        ids[i+BOARD_COLS]=0;
-        ids[i+2*BOARD_COLS]=0;
         board[i/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS)
+        if(i+BOARD_COLS<BOARD_ROWS*BOARD_COLS) {
             board[(i+BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
-        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS)
+            ids[i+BOARD_COLS]=0;
+        }
+        if(i+BOARD_COLS*2<BOARD_ROWS*BOARD_COLS){
             board[(i+2*BOARD_COLS)/BOARD_COLS][i%BOARD_COLS]=EMPTY_SPACE;
+            ids[i+2*BOARD_COLS]=0;
+        }
         rect.h*=3;
     } 
 }
