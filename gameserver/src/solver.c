@@ -1074,6 +1074,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                 }
             }
             if (!is_legal(out)) {
+                printf("!is_legal after place_piece (%d, %d)\n",
+                       k, i);
                 return 0;
             }
             ai_solve(out, sr, MAX(MAX_MOVES, moves + MOVE_DIFF_RANGE));
@@ -1100,6 +1102,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                 }
                 delete_piece(out, id);
                 if (!is_legal(out)) {
+                    printf("!is_legal after delete_piece (%d, %d)\n",
+                           k, fid);
                     return 0;
                 }
             }
@@ -1287,6 +1291,7 @@ int main(int argc, char **argv) {
 
     int out_id = 0;
     num_generated = 0;
+    int written_id = 0;
     while (num_generated < num_gen) {
         // only generate 100 (GEN_EACH_DIFF) of each "number of moves"-boards
         if (gen_diff[min_steps] >= GEN_EACH_DIFF) {
@@ -1307,7 +1312,7 @@ int main(int argc, char **argv) {
         }
 
         // periodically write to disk
-        if ((num_generated % DISK_BATCH) == 0) {
+        if ((out_id - written_id) > DISK_BATCH) {
             write_hillclimb(&out_id, &gen_seen);
         }
 
