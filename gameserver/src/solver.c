@@ -85,8 +85,11 @@ sstack seen;
 
 int out_id;
 int num_generated;
-int gen_diff[MAX_MOVES];
 int max_move_found = 0;
+
+// how many boards of each "solve-rank" ie num moves to solve
+//   have we generated?
+int gen_diff[MAX_MOVES];
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -1087,7 +1090,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                 if (sr->moves > moves) {
                     add_board(out, gen_seen);
                     return 1;
-                } else if (sr->moves > min_moves) {
+                } else if (sr->moves >= min_moves) {
                     add_board(out, gen_seen);
                 }
             }
