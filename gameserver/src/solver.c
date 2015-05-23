@@ -45,7 +45,7 @@ using namespace std;
 #define DEPGRAPH_DEPTH 3
 #define MOVE_DIFF_RANGE 20
 
-#define PRINT_AT_ADD_BOARD 1
+#define PRINT_AT_ADD_BOARD 0
 
 #define NUM_PIECES_RANGE 24
 
