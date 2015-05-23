@@ -39,12 +39,13 @@ using namespace std;
 #define MAX_MOVES 64
 // how many puzzles of each "solve-rank" ie num moves to solve should we gen?
 #define GEN_EACH_DIFF 225
-#define DISK_BATCH 1
+#define DISK_BATCH 50
 #define SHOW_MOVES 0
 #define SHOW_DEPGRAPH 0
 #define DEPGRAPH_DEPTH 3
-#define MAX_PIECES ID_MAX
 #define MOVE_DIFF_RANGE 20
+
+#define PRINT_AT_ADD_BOARD 1
 
 #define NUM_PIECES_RANGE 24
 
@@ -205,6 +206,9 @@ int dstack_peek(dstack *s) {
 
 
 uint8_t id_to_hex(int id) {
+    if (id == 0) {
+        return '_';
+    }
     if (id < 10) {
         return 48 + id; // decimal conv.
     } else {
@@ -1044,6 +1048,9 @@ int free_id(bsref *bs) {
 void add_board(bsref *bs, sstack *gen_seen) {
     if (!sstack_contains(gen_seen, bs)) {
         //printf("add_board(%d moves, %d pieces) -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
+        if (PRINT_AT_ADD_BOARD) {
+            print_board(bs);
+        }
         bs->sr.num_pieces = free_id(bs);
         sstack_push(gen_seen, bs);
         num_generated++;
@@ -1067,10 +1074,8 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
     int last_id = 0;
 
     for (int k = 0; k < 120; k++) {
-        for (int i = 0; i < MAX_PIECES; i++) {
-            if (free_id(out) == ID_MAX) {
-                break;
-            }
+        int fid = free_id(out);
+        for (int i = fid; i < ID_MAX; i++) {
             int idx = random() % 36;
             for (int ii = 0; ii < 10; ii++) {
                 last_id = free_id(out);
@@ -1107,7 +1112,7 @@ int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, in
                 }
                 delete_piece(out, id);
                 if (!is_legal(out)) {
-                    printf("!is_legal after delete_piece (%d, %d)\n",
+                    printf("!is_legal after delete_piece (k=%d, fid=%d)\n",
                            k, fid);
                     return 0;
                 }
@@ -1315,7 +1320,6 @@ int main(int argc, char **argv) {
 
         // periodically write to disk
         if ((num_generated - written_id) > DISK_BATCH) {
-            printf("write_hillclimb with out_id = %d\n", out_id);
             write_hillclimb(&gen_seen);
             written_id = out_id;
         }
