@@ -213,6 +213,7 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
     Highscore high;
     Highscore newHigh;
     high = accessor->getHighscore(boardIndex);
+    newHigh = high;
     //newscore is higher than topscore
     if(numOfMoves <= high.topMoves)
     { 
