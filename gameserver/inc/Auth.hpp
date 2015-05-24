@@ -25,6 +25,19 @@ SUCH DAMAGES.
 #include <cppconn/statement.h>
 #include <string>
 #include <vector>
+struct Highscore{
+   std::string topUser;
+   int topMoves;
+   std::string topTime;
+
+   std::string topUser2;
+   int topMoves2;
+   std::string topTime2;
+
+   std::string topUser3;
+   int topMoves3;
+   std::string topTime3;
+};
 class Auth {
 public:
     std::vector<int> getCompletedBoards(const std::string &username);
@@ -39,6 +52,8 @@ public:
     void updateHints(int numHints, const std::string &username);
     int getHints(const std::string &username);
     static Auth *getInstance();
+    Highscore getHighscore(int boardId);
+    void updateHighscore(int boardId, Highscore h);
     ~Auth();
 private:
     Auth();

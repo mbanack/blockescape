@@ -199,6 +199,126 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
     }
     catch( const websocketpp::lib::error_code &e){}
 }
+
+double convertTimeStr(const string &str) {
+    stringstream ss(str.substr(0,str.size() - 3));
+    double ret = 0.0;
+    ss >> ret;
+    return ret;
+}
+
+void Update(int boardIndex, string username, int numOfMoves, string time)
+{
+    Auth * accessor = Auth::getInstance();
+    Highscore high;
+    Highscore newHigh;
+    high = accessor->getHighscore(boardIndex);
+    //newscore is higher than topscore
+    if(numOfMoves <= high.topMoves)
+    { 
+        if(numOfMoves == high.topMoves)
+        {
+           if(convertTimeStr(time) < convertTimeStr(high.topTime))
+           {
+                  newHigh.topUser = username;
+                  newHigh.topMoves = numOfMoves;
+                  newHigh.topTime = time;
+                  
+                  newHigh.topUser2 = high.topUser;
+                  newHigh.topUser3 = high.topUser2;
+
+                  newHigh.topTime2 = high.topTime;
+                  newHigh.topTime3 = high.topTime2;
+
+                  newHigh.topMoves2 = high.topMoves;
+                  newHigh.topMoves3 = high.topMoves2;
+            }
+        }
+        else
+        {
+            newHigh.topUser = username;
+            newHigh.topMoves = numOfMoves;
+            newHigh.topTime = time;
+                  
+            newHigh.topUser2 = high.topUser;
+            newHigh.topUser3 = high.topUser2;
+
+            newHigh.topTime2 = high.topTime;
+            newHigh.topTime3 = high.topTime2;
+
+           newHigh.topMoves2 = high.topMoves;
+           newHigh.topMoves3 = high.topMoves2;
+        }
+    }//new score is higher than topUser2 score
+    else if(numOfMoves <= high.topMoves2)
+    { 
+        if(numOfMoves == high.topMoves2)
+        {
+           if(convertTimeStr(time) < convertTimeStr(high.topTime2))
+           {
+                  newHigh.topUser = high.topUser;
+                  newHigh.topMoves = high.topMoves;
+                  newHigh.topTime = high.topTime;
+
+                  newHigh.topUser2 = username;
+                  newHigh.topMoves2 = numOfMoves;
+                  newHigh.topTime2 = time;
+                 
+                  newHigh.topUser3 = high.topUser2;
+                  newHigh.topMoves3 = high.topMoves;
+                  newHigh.topTime3 = high.topTime;
+            }
+        }
+        else
+        {
+            newHigh.topUser = high.topUser;
+            newHigh.topMoves = high.topMoves;
+            newHigh.topTime = high.topTime;
+
+            newHigh.topUser2 = username;
+            newHigh.topMoves2 = numOfMoves;
+            newHigh.topTime2 = time;
+                 
+            newHigh.topUser3 = high.topUser2;
+            newHigh.topMoves3 = high.topMoves;
+            newHigh.topTime3 = high.topTime;
+        }
+    }//new score is higher than topUser3
+    else if(numOfMoves <= high.topMoves3)
+    {
+        if(numOfMoves == high.topMoves3) {
+           if(convertTimeStr(time) < convertTimeStr(high.topTime3))
+           {
+                  newHigh.topUser = high.topUser;
+                  newHigh.topMoves = high.topMoves;
+                  newHigh.topTime = high.topTime;
+
+                  newHigh.topUser2 = high.topUser2;
+                  newHigh.topMoves2 = high.topMoves2;
+                  newHigh.topTime2 = high.topTime2;
+                 
+                  newHigh.topUser3 = username;
+                  newHigh.topMoves3 = numOfMoves;
+                  newHigh.topTime3 = time;
+            }
+        }
+        else
+        {
+            newHigh.topUser = high.topUser;
+            newHigh.topMoves = high.topMoves;
+            newHigh.topTime = high.topTime;
+
+            newHigh.topUser2 = high.topUser2;
+            newHigh.topMoves2 = high.topMoves2;
+            newHigh.topTime2 = high.topTime2;
+                 
+            newHigh.topUser3 = username;
+            newHigh.topMoves3 = high.topMoves3;
+            newHigh.topTime3 = high.topTime3;
+        }
+    }
+    accessor->updateHighscore(boardIndex,newHigh);
+}
 void onMessage(server *s, websocketpp::connection_hdl hdl, 
     message_ptr msg) {
     string askSaltUsername("ask salt username");
@@ -378,7 +498,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
-	    stringstream st;
+	    stringstream st; //numMoves
 	    st << boards.find(tempId)->second.getNumberOfMoves();
             string message = "win" + fromId + " " + st.str() + " " +
 				boards.find(tempId)->second.numberOfSeconds; //add number of moves and time
@@ -403,6 +523,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                     second, username, tempId);
                 auth->updateCompletedBoards(
                     userBoardIndex.find(tempId)->second, username);
+                    Update(userBoardIndex.find(tempId)->second, username,boards.find(tempId)->second.getNumberOfMoves(), boards.find(tempId)->second.numberOfSeconds);
             }
         }
     }

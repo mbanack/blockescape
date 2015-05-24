@@ -204,3 +204,79 @@ string Auth::genSalt(){
     string s(out2);
     return s;
 }
+
+Highscore Auth::getHighscore(int boardId)
+{
+    stringstream ss;
+    ss << boardId;
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    string select("SELECT * FROM highscore WHERE bid = " + ss.str() + ";");
+    sql::ResultSet *r = s->executeQuery(select.c_str());
+    Highscore ret;
+    if(r->next())
+    {
+        string user1=r->getString("topUser");
+        string user2=r->getString("topUser2");
+        string user3=r->getString("topUser3");
+
+        int moves1=atoi(r->getString("topMoves").c_str());
+        int moves2=atoi(r->getString("topMoves2").c_str());
+        int moves3=atoi(r->getString("topMoves3").c_str());
+
+        string time1=r->getString("topTime");
+        string time2=r->getString("topTime2");
+        string time3=r->getString("topTime3");
+
+        ret.topUser = user1;
+        ret.topUser2 = user2;
+        ret.topUser3 = user3;
+
+        ret.topMoves = moves1;
+        ret.topMoves2 = moves2;
+        ret.topMoves3 = moves3;
+
+        ret.topTime = time1;
+        ret.topTime2 = time2;
+        ret.topTime3 = time3;    
+ 
+    }
+    delete s;
+    delete r;
+    return ret;
+}
+
+void Auth::updateHighscore(int boardId, Highscore h)
+{
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    stringstream sstopmoves1;
+    stringstream sstopmoves2;
+    stringstream sstopmoves3;
+    sstopmoves1 << h.topMoves;
+    sstopmoves2 << h.topMoves2;
+    sstopmoves3 << h.topMoves3;
+    string topmoves1 = sstopmoves1.str();
+    string topmoves2 = sstopmoves2.str();
+    string topmoves3 = sstopmoves3.str();
+    stringstream ss;
+    ss << boardId;
+    string boardIdStr = ss.str();
+    stringstream st;
+    cout << "GOT TO A" << endl;
+    st << "UPDATE highscore SET"
+       << " topUser = \"" << h.topUser.c_str() 
+        << "\", topMoves = \"" << topmoves1 
+        << "\", topTime = \"" << h.topTime 
+       << "\", topUser2 = \"" << h.topUser2.c_str() 
+        << "\", topMoves2 = \"" << topmoves2
+        << "\", topTime2 = \"" << h.topTime2
+       << "\", topUser3 = \"" << h.topUser3.c_str() 
+        << "\", topMoves3 = \"" << topmoves3
+        << "\", topTime3 = \"" << h.topTime3
+        << "\" WHERE bid = " << boardIdStr << ";";
+    cout << st.str() << endl;
+    s->execute(st.str().c_str());
+    delete s;
+    cout << "GOT TO B" << endl;
+}
