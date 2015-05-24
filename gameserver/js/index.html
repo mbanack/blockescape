@@ -160,6 +160,16 @@
         align:middle;
         text-align: center;
     }
+<!-- check this tage in case #numMoves doesnt work  -->
+	#numMoves { 
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+        align:middle;
+    }
+
     </style>
     <body>
     <div class="titleText">Block Escape</div>
@@ -212,11 +222,12 @@
     <div id="expert">
         Difficulty: Expert
     </div>
+    <div id="numMoves" align="center">
+    </div>
     <div id="completed">
         (Completed)
     </div>
     <div id="boardNumber">
-                <p></p>
                 <p></p>
                 <input class="smallButton" id="prevBoardBtn" type="button" value="<">
                 <input class="smallTextbox" id="jumpBoardTxt" type="text" value="0" onkeypress="onJumpBoardEnter(event);">
@@ -234,9 +245,6 @@
     <input class="undoBtn" id="undoBtn2" type="button" value="undo" disabled="true">
     <div class="wrapper3" id="wrap3">
         <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
-    </div>
-    <div id="numMoves">
-           asdfasdfasdfasdfasdf
     </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
@@ -306,22 +314,25 @@
             destroyAll();
             init2(0);
             document.getElementById("completed").style.display = "none";
-            document.getElementById("btnTable").style.display = "none";
+            document.getElementById("btnTable").style.display = "none";	
             websocket.send("newboard " + usernameStr + " previous " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
+			document.getElementById("numMoves").style.display = "none";
         }
         function onNextBoardClick(){
             destroyAll();
             init2(0);
             document.getElementById("completed").style.display = "none";
-            document.getElementById("btnTable").style.display = "none";
+			document.getElementById("btnTable").style.display = "none";
             websocket.send("newboard " + usernameStr + " next " + document.getElementById("jumpBoardTxt").value);
             document.getElementById("btnTable").style.display = "none";
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
-        }
+       	    document.getElementById("numMoves").style.display = "none"
+		;}
         function onJumpBoardEnter(event){
+            document.getElementById("numMoves").style.display = "none";
             if (event.keyCode == 13)
                  document.getElementById('jumpBoardBtn').click();
         }
@@ -333,11 +344,13 @@
             websocket.send("newboard " + usernameStr + " jump " + document.getElementById("jumpBoardTxt").value);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
-        }
+        	document.getElementById("numMoves").style.display = "none"
+		;}
         function onUndoClick() {
             websocket.send('undo' + clientId);
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
+			document.getElementById("numMoves").style.display = "none";
         }
         function onHintClick() {
             websocket.send('use hint' + clientId);
@@ -374,7 +387,8 @@
                     document.getElementById("undoBtn2").disabled=false;
                     document.getElementById("hintBtn").style.display="block";
                     document.getElementById("undoBtn1").style.display="block";
-                    document.getElementById("undoBtn2").style.display="block";
+                    document.getElementById("numMoves").style.display = "none";
+					document.getElementById("undoBtn2").style.display="block";
                     win=false;
                     payload = getPayload('newboard', evt.data);
                     payloadSplit=payload.split(/[ ,]+/);
@@ -426,11 +440,13 @@
                     }
                 }
                 if(isMessage("multiplayer", evt.data)){
+					document.getElementById("numMoves").style.display = "none";
                     opponentId = +getPayload('multiplayer', evt.data);
                     websocket.send("newboard " + usernameStr + " random");
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                 }
                 if(isMessage("win", evt.data)){ //get number of moves and time
+            		document.getElementById("numMoves").style.display = "block";
                     payload = getPayload('win', evt.data);
                     data=payload.split(/[ ,]+/);
                     win=true;
@@ -438,7 +454,7 @@
                         document.getElementById("completed").style.display="none";
                         document.getElementById("win1Txt").style.display="block";
                         document.getElementById("numMoves").style.display="block";
-			document.getElementById("numMoves").innerHTML = data[1] + ' ' + data[2]; 
+			document.getElementById("numMoves").innerHTML = 'Number of moves: ' + data[1] + '<br>' + 'Time to complete: ' + data[2]; 
 			console.log(data[1]);
                     }
                     else {
