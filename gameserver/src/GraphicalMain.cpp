@@ -457,7 +457,8 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             int iFromId = atoi(fromId.c_str());
             if(userHints.count(iFromId)>0)
             {
-                userHints.find(iFromId)->second--;
+				if(userHints.find(iFromId)->second > 0)
+                	userHints.find(iFromId)->second--;
                 string username;
                 for(map<string, int>::iterator it = userId.begin(); it !=
                     userId.end(); ++it) {
