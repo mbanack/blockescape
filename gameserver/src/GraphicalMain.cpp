@@ -43,6 +43,7 @@ map<int, bool> down;
 map<int, bool> newInput;
 map<int, Board> boards;
 map<int, int> userBoardIndex;
+map<int, int> userHints;
 map<string, int> userId;
 set<int> ids;
 map<string, string> userSalts1;
@@ -64,9 +65,18 @@ void login(server *s, websocketpp::connection_hdl hdl,
         if(userId.count(username)>0)
             userId.erase(userId.find(username));
         userId.insert(make_pair(username,id));
+        int hints = Auth::getInstance()->getHints(username);
+        userHints.insert(make_pair(identification, hints));
         string message("login");
         message+=ss.str();
         s->send(hdl, message, websocketpp::frame::opcode::text);
+        message = "num hints";
+        stringstream ss2;
+        ss2 << hints;
+        cout << "num hints" << ss2.str() << hints;
+        message += ss2.str();
+        s->send(hdl, message, 
+            websocketpp::frame::opcode::text);
     }
     catch( const websocketpp::lib::error_code &e){}
 }
@@ -78,6 +88,30 @@ void loginFail(server *s, websocketpp::connection_hdl hdl,
         s->send(hdl, message, websocketpp::frame::opcode::text);
     }
     catch( const websocketpp::lib::error_code &e){}
+}
+void giveHints(server *s, websocketpp::connection_hdl hdl, 
+    const vector<int> &hints, 
+    int justCompletedIndex, const string &username, int tempId){
+    if(hints[justCompletedIndex] == 1)
+        return;
+    int firstOfGroup = justCompletedIndex - (justCompletedIndex % 10);
+    for(int i = firstOfGroup; i < firstOfGroup + 10; ++i) {
+        if(hints[i] == 0 && i != justCompletedIndex)
+            return;
+    }
+    if(userHints.count(tempId) == 0)
+        userHints.insert(make_pair(tempId, 3));
+    else
+        userHints.find(tempId)->second += 3;
+    Auth::getInstance()->updateHints(userHints.find(tempId)->second,
+        username);
+    string message = "num hints";
+    stringstream ss2;
+    ss2 << userHints.find(tempId)->second;
+    cout << "num hints" << ss2.str();
+    message += ss2.str();
+    s->send(hdl, message, 
+        websocketpp::frame::opcode::text);
 }
 int levelIndexOkay(int index, const vector<int> &completed){
     if(index < 0)
@@ -158,7 +192,6 @@ void newBoard(server *s, websocketpp::connection_hdl hdl,
             message+="completed ";
         else
             message+="notcompleted ";
-        cout << "index: " << index << endl;
         stringstream ss2;
         ss2 << b.getMinMoves();
         message += ss2.str();
@@ -177,10 +210,11 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     string createUser("create user");
     string newBoardStr("newboard");
     string undoStr("undo");
+    string useHintStr("use hint");
+    string numHintsStr("num hints");
     if(msg->get_payload().substr(0,multiplayer.size())==
         multiplayer){
         try {
-			cout << "inside multiplayer line 182" << endl;
             string str(msg->get_payload().substr(multiplayer.size()));
             if(waitingPlayer){
                 waitingPlayer=false;
@@ -204,8 +238,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     if(msg->get_payload().substr(0,newBoardStr.size())==
         newBoardStr){
         try {
-            cout << "inside newBoardStr line 206" << endl;
-			string str(msg->get_payload().substr(newBoardStr.size()));
+            string str(msg->get_payload().substr(newBoardStr.size()));
             stringstream ss(str);
             string username;
             string action;
@@ -236,7 +269,6 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     if(msg->get_payload().substr(0,askSaltUsername.size())==
         askSaltUsername){
         try {
-			cout << "inside username line 238" << endl;
             string message("get salt username");
             string str(msg->get_payload().substr(askSaltUsername.size()));
             Auth *auth = Auth::getInstance();
@@ -266,8 +298,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     else if(msg->get_payload().substr(0,createUser.size())==
         createUser){
         try {
-            cout << "inside create user line 267" << endl;
-			string str(msg->get_payload().substr(createUser.size()));
+            string str(msg->get_payload().substr(createUser.size()));
             stringstream usernamePhashStream(str);
             string username;
             string phash;
@@ -288,8 +319,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     }
     else if(msg->get_payload().substr(0,loginStr.size())==
         loginStr){
-        cout << "inside login line 290" << endl;
-		string str(msg->get_payload().substr(loginStr.size()));
+        string str(msg->get_payload().substr(loginStr.size()));
         stringstream userPassStream(str);
         string username;
         string phash;
@@ -313,8 +343,7 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
     }
     else if(msg->get_payload().substr(0,mouseInput.size())==
         mouseInput){
-        //cout << "inside mouseInput line 315" << endl;
-		stringstream ss;
+        stringstream ss;
         ss.str(msg->get_payload().substr(mouseInput.size()));
         string downStr;
         string xStr;
@@ -324,7 +353,6 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         ss >> downStr;
         ss >> xStr;
         ss >> yStr;
-        //cout << "inside mouseInput line 326" << endl;
         int tempId = atoi(fromId.c_str());
         if(newInput.count(tempId)>0)
             newInput.find(tempId)->second=true;
@@ -336,62 +364,52 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
             if(down.count(tempId)>0)
                 down.find(tempId)->second = true;
         }
-        //cout << "inside mouseInput line 338" << endl;
         if(coordinates.count(tempId)>0){
-			//cout << "inside mouseInput line 340" << endl;
             coordinates.find(tempId)->second.x = atoi(xStr.c_str());
             coordinates.find(tempId)->second.y = atoi(yStr.c_str());
         }
-        if(down.find(tempId)->second==true){
-			//cout << "inside mouseInput line 344" << endl;
+        if(down.find(tempId)->second==true)
             boards.find(tempId)->second.mouseDrag(  
                 coordinates.find(tempId)->second);
-		}
         else
-        {
-			//cout << "inside mouseInput line 349" << endl;
             boards.find(tempId)->second.mouseRelease();
-            //cout << "inside mouseInput line 353" << endl;
-        }
         boards.find(tempId)->second.sendPieceLocations(*s, hdl, tempId);
-        //cout << "inside mouseInput line 354" << endl;
         if(opponentConnection.count(fromId)>0){
-			//cout << "inside mouseInput line 355" << endl;
             boards.find(tempId)->second.sendPieceLocations(*s, opponentConnection.find(fromId)->second, tempId);
         }
         if(boards.find(tempId)->second.win()){
-			//cout << "inside mouseInput line 359" << endl;
 	    stringstream st;
 	    st << boards.find(tempId)->second.getNumberOfMoves();
             string message = "win" + fromId + " " + st.str() + " " +
 				boards.find(tempId)->second.numberOfSeconds; //add number of moves and time
             s->send(hdl, message, websocketpp::frame::opcode::text);
             if(opponentConnection.count(fromId)>0){
-				//cout << "inside mouseInput line 366" << endl;
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
                 opponentConnection.erase(opponentConnection.find(fromId));
             }
             else{ 
-				//cout << "inside mouseInput line 371" << endl;
                 Auth *auth = Auth::getInstance();
                 string username;
-                //cout << "inside mouseInput line 374" << endl;
                 for(map<string, int>::iterator it = userId.begin(); it !=
                     userId.end(); ++it) {
                     if(it->second==tempId){
                         username = it->first;
                     }
                 }
-                auth->updateCompletedBoards(userBoardIndex.find(tempId)->second,
-                    username);
+                vector<int> completedBoards = 
+                    auth->getCompletedBoards(username);
+                giveHints(s, hdl, completedBoards, 
+                    userBoardIndex.find(tempId)->
+                    second, username, tempId);
+                auth->updateCompletedBoards(
+                    userBoardIndex.find(tempId)->second, username);
             }
         }
     }
     else if(msg->get_payload().substr(0,undoStr.size())==
         undoStr){
         try {
-            //cout << "inside undo line 377" << endl;
- 			stringstream ss;
+            stringstream ss;
             ss.str(msg->get_payload().substr(undoStr.size()));
             string fromId;
             ss >> fromId;
@@ -407,7 +425,58 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
         }
         catch( const websocketpp::lib::error_code &e){}
     }
-    //cout << "finished onMessage line 410" << endl;
+    else if(msg->get_payload().substr(0,numHintsStr.size())==
+        numHintsStr){
+        try {
+            stringstream ss;
+            ss.str(msg->get_payload().substr(numHintsStr.size()));
+            string fromId;
+            ss >> fromId;
+            int iFromId = atoi(fromId.c_str());
+            string message = "num hints"; 
+            if(userHints.count(iFromId)>0)
+            {
+                stringstream ss;
+                ss << userHints.find(iFromId)->second;
+                message += ss.str();
+            }
+            else
+                message += '0';
+            s->send(hdl, message, 
+                websocketpp::frame::opcode::text);
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
+    else if(msg->get_payload().substr(0,useHintStr.size())==
+        useHintStr){
+        try {
+            stringstream ss;
+            ss.str(msg->get_payload().substr(useHintStr.size()));
+            string fromId;
+            ss >> fromId;
+            int iFromId = atoi(fromId.c_str());
+            if(userHints.count(iFromId)>0)
+            {
+                userHints.find(iFromId)->second--;
+                string username;
+                for(map<string, int>::iterator it = userId.begin(); it !=
+                    userId.end(); ++it) {
+                    if(it->second==iFromId){
+                        username = it->first;
+                    }
+                }
+                Auth::getInstance()->updateHints(userHints.find(iFromId)->
+                    second, username);
+                string message = "num hints"; 
+                stringstream ss;
+                ss << userHints.find(iFromId)->second;
+                message += ss.str();
+                s->send(hdl, message, 
+                    websocketpp::frame::opcode::text);
+            }
+        }
+        catch( const websocketpp::lib::error_code &e){}
+    }
 }
 void startServer(server &s){
     try {

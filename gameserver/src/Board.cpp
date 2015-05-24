@@ -8,6 +8,22 @@ using namespace std;
 //using boost::timer::cpu_timer;
 typedef websocketpp::server<websocketpp::config::asio> server;
 
+void Board::printHint() {
+/***************
+    bsref board;
+    clear_bsref(&board);
+    getIds(&board.s[0]);
+
+    int id;
+    int move_dir;
+
+    if (get_hint(&board, &id, &move_dir)) {
+        printf("%d %s\n", moved_id, DIRNAMES[dir]);
+    } else {
+        printf("no move\n");
+    }
+*************/
+}
 int first_time;
 int second_time;
 int first_clock;
@@ -19,8 +35,6 @@ time_t st;
 
 struct timeb tstart, tend;
 double difference;
-
-
 void Board::attemptSolve() {
     bsref board_init;
     getIds(&board_init.s[0]);
@@ -578,6 +592,7 @@ int Board::playerRow(){
         if(board[i/BOARD_COLS][i%BOARD_COLS]==PIECE_PLAYER)
             return i/BOARD_COLS;
     }
+
 }
 bool Board::isCollision(int x, int y, int pieceType){
     return isCollision(board, x, y, pieceType);

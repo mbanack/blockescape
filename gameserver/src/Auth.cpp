@@ -19,6 +19,7 @@ SUCH DAMAGES.
 */
 #include "../inc/Auth.hpp"
 #include <string>
+#include <sstream>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
@@ -44,6 +45,28 @@ Auth *Auth::getInstance(){
 }
 Auth::~Auth(){
     delete con;
+}
+void Auth::updateHints(int numHints, const string &username){
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    stringstream ss;
+    ss << numHints;
+    string update("UPDATE users SET hints = \"" + ss.str() + "\" WHERE username = \"" + username + "\";");
+    s->execute(update.c_str());
+    delete s;
+}
+int Auth::getHints(const string &username) {
+    con->setSchema("users");
+    sql::Statement *s = con->createStatement();
+    string select("SELECT hints FROM users WHERE username = \"" + username
+        + "\";");
+    sql::ResultSet *r = s->executeQuery(select.c_str());
+    int ret = 0;
+    if(r->next())
+        ret=r->getInt("hints");
+    delete s;
+    delete r;
+    return ret;
 }
 void Auth::updateCompletedBoards(int index, const string &username){
     con->setSchema("users");
@@ -110,7 +133,7 @@ bool Auth::createUser(const string &username,
     bool success=true;
     con->setSchema("users");
     sql::Statement *s = con->createStatement();
-    string insert("INSERT INTO users (username, password, salt, levels) VALUES (\"");
+    string insert("INSERT INTO users (username, password, salt, levels, hints) VALUES (\"");
     insert += username;
     insert += "\", \"";
     insert += password;
@@ -119,7 +142,8 @@ bool Auth::createUser(const string &username,
     insert += "\", \"";
     for(int i=0;i<3000;++i)
         insert.push_back('0');
-    insert += "\");";
+    insert += "\", 0";
+    insert += ");";
     try{
         s->execute(insert.c_str());
     }

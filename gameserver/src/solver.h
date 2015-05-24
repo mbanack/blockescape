@@ -25,7 +25,12 @@ SUCH DAMAGES.
 
 typedef struct blocker {
     uint8_t id;
+    // dir refers to the blocker of depth 0 in this chain
+    // ie for depth > 0 keep the same block direction as depth 0
+    //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
     uint8_t dir;
+    // 0 is "immediate blocker"
+    uint8_t depth;
 } blocker;
 
 #define NUM_BLOCKERS 20
@@ -42,34 +47,45 @@ typedef struct depgraph {
     node map[36];
 } depgraph;
 
+typedef struct solve_result {
+    int solved;
+    int moves;
+    int num_pieces;
+} solve_result;
+
 // boardstate/hash
 //   8 bits per square * 36 => 288 bits (9x32)
 //   each square is set to the id of its piece (or ID_BLANK)
+// disk flag is set to 1 once this bs is written to a puzzle file
 typedef struct bsref {
     uint8_t s[36];
-    bsref operator=(const bsref &rhs){
-        if(&rhs == this ) return *this;
-        for(int i = 0; i < 36; ++i) s[i] = rhs.s[i];
-        return *this;
-    }
+    solve_result sr;
+    int disk;
 } bsref;
+
+typedef struct solved_bs {
+    bsref bs;
+    solve_result sr;
+} solved_bs;
 
 int bsref_equal(bsref *a, bsref *b);
 int is_topleft(bsref *, int);
 void bsref_clone(bsref *bsb, bsref *bsa);
+void bsref_print(bsref *a);
+void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y);
+void make_move_dir(bsref *bs, int id, int dir);
+int solved(bsref *bs);
 
+int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out);
+int is_horiz(bsref *bs, int idx);
 int is_solvable(bsref *init);
 
-typedef struct solve_result {
-    int solved;
-    int moves;
-    solve_result operator=(const solve_result &rhs){
-        if(&rhs == this) return *this;
-        solved = rhs.solved; moves = rhs.moves;
-        return *this;
-    }
-} solve_result;
-
 void ai_solve(bsref *init, solve_result *r_out);
+void heuristics(bsref *bs, int *dir_out, int *id_out);
+void clear_depgraph(depgraph *ss);
+void fill_full_depgraph(bsref *bs, depgraph *ss);
+int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode);
+
+int get_hint(bsref *bs, int *moved_id, int *dir);
 
 #endif // SOLVER_H

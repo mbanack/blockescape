@@ -24,6 +24,9 @@
     .smallButton {
         width:15px;
     }
+    .hintBtn {
+        width:70px;
+    }
     .undoBtn {
         width:45px;
     }
@@ -114,6 +117,13 @@
     #boardNumber{
         display:none;
         align:middle;
+        text-align: center;
+    }
+    #hintBtn{
+        position:absolute;
+        left:672px;
+        top:690px;
+        display:none;
         text-align: center;
     }
     #undoBtn1{
@@ -217,6 +227,7 @@
         <canvas id="singleCanvas" width="0px" height="0px" display="inline"></canvas>
     </div>
     <input class="undoBtn" id="undoBtn1" type="button" value="undo" disabled="true">
+    <input class="hintBtn" id="hintBtn" type="button" value="hint" disabled="true">
     <div class="wrapper2" id="wrap2">
         <canvas id="multiCanvas1" width="0px" height="0px" display="inline"></canvas>
     </div>
@@ -328,6 +339,9 @@
             message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
             websocket.send('mouse input' + message);
         }
+        function onHintClick() {
+            websocket.send('use hint' + clientId);
+        }
         function onSingleplayerClick() {
             destroyAll();
             init2(0);
@@ -358,6 +372,7 @@
                 if(isMessage("newboard", evt.data)){
                     document.getElementById("undoBtn1").disabled=false;
                     document.getElementById("undoBtn2").disabled=false;
+                    document.getElementById("hintBtn").style.display="block";
                     document.getElementById("undoBtn1").style.display="block";
                     document.getElementById("undoBtn2").style.display="block";
                     win=false;
@@ -391,6 +406,17 @@
                     }
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
                     websocket.send('mouse input' + message);
+                }
+                if(isMessage("num hints", evt.data)){
+                    numHints = getPayload('num hints', evt.data);
+                    if(+numHints==0){
+                        document.getElementById("hintBtn").disabled=true;
+                    }
+                    else {
+                        document.getElementById("hintBtn").disabled=false;
+                    }
+                    document.getElementById("hintBtn").value='Hint x' +
+                        numHints;
                 }
                 if(isMessage("undo", evt.data)){
                     undoVal = +getPayload('undo', evt.data);
@@ -507,6 +533,7 @@
             objectsLength[2]=0;
             document.getElementById("undoBtn1").onclick = onUndoClick;
             document.getElementById("undoBtn2").onclick = onUndoClick;
+            document.getElementById("hintBtn").onclick = onHintClick;
             document.getElementById("singleBtn").onclick = onSingleplayerClick;
             document.getElementById("multiBtn").onclick = onMultiplayerClick;
             document.getElementById("createBtn").onclick = onCreateClick;

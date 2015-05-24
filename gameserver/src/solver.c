@@ -28,14 +28,28 @@ SUCH DAMAGES.
 #include "solver.h"
 #include "sstack.h"
 
-// run as "g++ -o solver solver.c && ./solver" from src/ dir
-
-#define NUM_GEN 10
-// the minimum number of moves to solve the puzzle
-#define MIN_MOVES 1
-#define SHOW_MOVES 1
-
 using namespace std;
+
+// run as "g++ -o solver solver.c && ./solver" from src/ dir
+//        "./solver [NUM_GEN] [MIN_MOVES] [MAX_MOVES]
+
+// the minimum number of moves to solve the puzzle
+#define MIN_MOVES 5
+// the theoretical max number of moves for a solvable puzzle
+#define MAX_MOVES 64
+// how many puzzles of each "solve-rank" ie num moves to solve should we gen?
+#define GEN_EACH_DIFF 225
+#define DISK_BATCH 50
+#define SHOW_MOVES 0
+#define SHOW_DEPGRAPH 0
+#define DEPGRAPH_DEPTH 3
+#define MOVE_DIFF_RANGE 20
+
+#define PRINT_AT_ADD_BOARD 0
+
+#define NUM_PIECES_RANGE 24
+
+#define MAX(a, b) (((a) < (b)) ? (b) : (a))
 
 // board is 6x6
 
@@ -56,6 +70,8 @@ using namespace std;
 #define DOWN  3
 #define NULL_DIR -1
 
+const char *DIRNAMES[] = {"LEFT", "RIGHT", "UP", "DOWN"};
+
 // convert board idx in 0 .. 35 to x, y in 0 .. 5
 #define BIDX_TO_X(bidx) ((bidx) % 6)
 #define BIDX_TO_Y(bidx) ((bidx) / 6)
@@ -66,8 +82,13 @@ bsref null_bstate;
 bsref board_init;
 sstack seen;
 
-// should we consider free moves of other pieces such as the player piece
-const int HEURISTIC_CREEP = 0;
+int out_id;
+int num_generated;
+int max_move_found = 0;
+
+// how many boards of each "solve-rank" ie num moves to solve
+//   have we generated?
+int gen_diff[MAX_MOVES];
 
 void sstack_init(sstack *s) {
     s->idx = 0;
@@ -120,6 +141,14 @@ void sstack_peek(sstack *s, bsref *key_out) {
     }
 
     bsref_clone(key_out, &s->arr[s->idx - 1]);
+}
+
+void sstack_print(sstack *s) {
+    for (int i = 0; i < s->idx; i++) {
+        printf("[%3d] ", i);
+        bsref_print(&s->arr[i]);
+        printf("\n");
+    }
 }
 
 void dstack_init(dstack *s) {
@@ -177,6 +206,9 @@ int dstack_peek(dstack *s) {
 
 
 uint8_t id_to_hex(int id) {
+    if (id == 0) {
+        return '_';
+    }
     if (id < 10) {
         return 48 + id; // decimal conv.
     } else {
@@ -191,11 +223,12 @@ void print_board(bsref *bs) {
             printf("\n");
         }
     }
+    printf("\n");
 }
 
 void print_boardhash(bsref *bs) {
     for (int i = 0; i < 36; i++) {
-        printf("%c", bs->s[i] + '0');
+        printf("%c", id_to_hex(bs->s[i]));
     }
     printf("\n");
 }
@@ -205,11 +238,14 @@ void print_depgraph(depgraph *ss) {
     for (int i = 0; i < 36; i++) {
         node *n = &ss->map[i];
         if (n->init == 1) {
-            printf("node %d\n", n->id);
             for (int i = 0; i < NUM_BLOCKERS; i++) {
                 if (n->blockers[i].id != ID_BLANK) {
-                    printf("  %d (%d)\n", n->blockers[i].id,
-                                          n->blockers[i].dir);
+                    if (i == 0) {
+                        printf("node %d\n", n->id);
+                    }
+                    printf("  %d %s depth %d\n", n->blockers[i].id,
+                                                 DIRNAMES[n->blockers[i].dir],
+                                                 n->blockers[i].depth);
                 }
             }
         }
@@ -239,6 +275,9 @@ void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y
 
 int is_horiz(bsref *bs, int idx) {
     int col = idx % 6;
+    if (bs->s[idx] == ID_BLANK) {
+        return 0;
+    }
     if (col != 0) {
         if (bs->s[idx - 1] == bs->s[idx]) {
             return 1;
@@ -252,24 +291,50 @@ int is_horiz(bsref *bs, int idx) {
     return 0;
 }
 
-// attempts to find a piece with given id, and returns its loc in x,y
-void find_piece(bsref *bs, int id, int *x, int *y) {
-    *x = -1;
-    *y = -1;
+int is_legal(bsref *bs) {
+    int x, y, bidx;
+    if (find_piece(bs, ID_P, &x, &y, &bidx)) {
+        if (!is_horiz(bs, bidx)) {
+            printf("{!!!} ID_P not horiz\n");
+            print_board(bs);
+            exit(-1);
+        }
+    }
+
+    for (int idx = 0; idx < 36; idx++) {
+        if (bs->s[idx] != ID_BLANK) {
+            int col = idx % 6;
+            if (col == 5 && (bs->s[idx + 1] == bs->s[idx])) {
+                printf("error: piece %d (%d, %d) id=%d over edge\n", idx,
+                       BIDX_TO_X(idx), BIDX_TO_Y(idx), bs->s[idx]);
+                print_board(bs);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+// attempts to find a piece with given id, and returns its loc in x,y,bidx
+int find_piece(bsref *bs, int id, int *x_out, int *y_out, int *bidx_out) {
+    *x_out = -1;
+    *y_out = -1;
+    *bidx_out = -1;
 
     for (int i = 0; i < 36; i++) {
         if (bs->s[i] == id && is_topleft(bs, i)) {
-            *x = BIDX_TO_X(i);
-            *y = BIDX_TO_Y(i);
-            return;
+            *bidx_out = i;
+            *x_out = BIDX_TO_X(i);
+            *y_out = BIDX_TO_Y(i);
+            return 1;
         }
     }
+    return 0;
 }
 
 int calc_width(bsref *bs, int id) {
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x != -1) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
         int w = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx++) {
             if (bs->s[bidx] != id) {
@@ -282,13 +347,15 @@ int calc_width(bsref *bs, int id) {
 }
 
 int calc_height(bsref *bs, int id) {
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x != -1) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
         int h = 0;
         for (int bidx = XY_TO_BIDX(x, y); bidx < 36; bidx+=6) {
             if (bs->s[bidx] != id) {
                 return h;
+            }
+            if (bidx >= 30) {
+                return h + 1;
             }
             h++;
         }
@@ -298,18 +365,78 @@ int calc_height(bsref *bs, int id) {
 
 void make_move(bsref *bs, int id, int old_x, int old_y, int new_x, int new_y) {
     int bidx = XY_TO_BIDX(old_x, old_y);
+    if (id == ID_BLANK) {
+        printf("cannot make_move(ID_BLANK)\n");
+        exit(12);
+    }
     if (is_horiz(bs, bidx)) {
         int width = calc_width(bs, id);
         insert_piece(bs, ID_BLANK, width, 1, old_x, old_y);
-        insert_piece(bs, id, width, 1, new_x, new_y);
+        insert_piece(bs, id,       width, 1, new_x, new_y);
     } else {
         int height = calc_height(bs, id);
         insert_piece(bs, ID_BLANK, 1, height, old_x, old_y);
-        insert_piece(bs, id, 1, height, new_x, new_y);
+        insert_piece(bs, id,       1, height, new_x, new_y);
     }
-    printf("==>\n");
-    print_board(bs);
-    printf("\n");
+}
+
+void delete_piece(bsref *bs, int id) {
+    int x, y, bidx;
+    if (find_piece(bs, id, &x, &y, &bidx)) {
+        if (is_horiz(bs, bidx)) {
+            int width = calc_width(bs, id);
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            for (int i = 0; i < 36; i++) {
+                if (bs->s[i] > id) {
+                    bs->s[i] = bs->s[i] - 1;
+                }
+            }
+        } else {
+            int height = calc_height(bs, id);
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            for (int i = 0; i < 36; i++) {
+                if (bs->s[i] > id) {
+                    bs->s[i] = bs->s[i] - 1;
+                }
+            }
+        }
+    }
+}
+
+void make_move_dir(bsref *bs, int id, int dir) {
+    int x, y, bidx;
+    if (!find_piece(bs, id, &x, &y, &bidx)) {
+        printf("cannot find piece %d\n", id);
+        return;
+    }
+
+    if (id == ID_BLANK) {
+        printf("cannot make_move_dir(ID_BLANK)\n");
+        exit(12);
+    }
+
+    int width = calc_width(bs, id);
+    int height = calc_height(bs, id);
+    switch (dir) {
+        case RIGHT:
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            insert_piece(bs, id,       width, 1, x + 1, y);
+            break;
+        case LEFT:
+            insert_piece(bs, ID_BLANK, width, 1, x, y);
+            insert_piece(bs, id,       width, 1, x - 1, y);
+            break;
+        case DOWN:
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            insert_piece(bs, id,       1, height, x, y + 1);
+            break;
+        case UP:
+            insert_piece(bs, ID_BLANK, 1, height, x, y);
+            insert_piece(bs, id,       1, height, x, y - 1);
+            break;
+        default:
+            break;
+    }
 }
 
 int is_piece(bsref *bs, int x, int y) {
@@ -349,6 +476,12 @@ bool operator==(const bsref& l, const bsref& r) {
 
 int bsref_equal(bsref *a, bsref *b) {
     return memcmp(a->s, b->s, 36) == 0;
+}
+
+void bsref_print(bsref *a) {
+    for (int i = 0; i < 36; i++) {
+        printf("%c", id_to_hex(a->s[i]));
+    }
 }
 
 bool operator!=(const bsref& l, const bsref& r) {
@@ -394,8 +527,7 @@ int blocker_exists(node *c, int id) {
     return 0;
 }
 
-// TODO: this currently allows multiple adds of same blocker
-void add_blocker(node *c, int id, int dir) {
+void add_blocker(node *c, int id, int dir, int depth) {
     if (id == c->id) {
         return;
     }
@@ -407,6 +539,7 @@ void add_blocker(node *c, int id, int dir) {
         if (c->blockers[i].id == ID_BLANK) {
             c->blockers[i].id = id;
             c->blockers[i].dir = dir;
+            c->blockers[i].depth = depth;
             return;
         }
     }
@@ -422,7 +555,7 @@ void fill_node(node *c, int id) {
 }
 
 // calculates the blockers and fills in ss.map
-int calc_blockers(bsref *bs, depgraph *ss, int id) {
+int calc_blockers(bsref *bs, depgraph *ss, int id, int depth) {
     if (id == ID_BLANK) {
         return -1;
     }
@@ -435,8 +568,8 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
     c->init = 1;
     c->id = id;
     // look in either direction of move axis and add all seen to list
-    int x, y;
-    find_piece(bs, id, &x, &y);
+    int x, y, bidx;
+    find_piece(bs, id, &x, &y, &bidx);
     if (x == -1) {
         return -1;
     }
@@ -445,9 +578,9 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
             int other_id = bs->s[XY_TO_BIDX(i, y)];
             if (is_piece(bs, i, y) && id != other_id) {
                 if (i < x) {
-                    add_blocker(c, other_id, LEFT);
+                    add_blocker(c, other_id, LEFT, depth);
                 } else {
-                    add_blocker(c, other_id, RIGHT);
+                    add_blocker(c, other_id, RIGHT, depth);
                 }
             }
         }
@@ -456,9 +589,9 @@ int calc_blockers(bsref *bs, depgraph *ss, int id) {
             int other_id = bs->s[XY_TO_BIDX(x, i)];
             if (is_piece(bs, x, i) && id != other_id) {
                 if (i < y) {
-                    add_blocker(c, other_id, UP);
+                    add_blocker(c, other_id, UP, depth);
                 } else {
-                    add_blocker(c, other_id, DOWN);
+                    add_blocker(c, other_id, DOWN, depth);
                 }
             }
         }
@@ -472,10 +605,17 @@ void bsref_clone(bsref *bsb, bsref *bsa) {
     for (int i = 0; i < 36; i++) {
         bsb->s[i] = bsa->s[i];
     }
+    bsb->sr.solved = bsa->sr.solved;
+    bsb->sr.num_pieces = bsa->sr.num_pieces;
+    bsb->sr.moves = bsa->sr.moves;
 }
 
 void clear_bsref(bsref *h) {
     memset(h->s, 0x00, 36);
+    h->sr.solved = 0;
+    h->sr.moves = 0;
+    h->sr.num_pieces = 0;
+    h->disk = 0;
 }
 
 int is_null_hash(bsref *h) {
@@ -486,23 +626,113 @@ int is_new_hash(bsref *bs) {
     return !sstack_contains(&seen, bs);
 }
 
-// enum all possible moves of the piece at bidx (ie x, y)
-//   and if they aren't already in seen, explore them (by ret 1)
-bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
-    int id = bs->s[bidx];
-    //printf("predict_next(%d @ %d, %d)\n", id, x, y);
+// assumes move is valid for piece
+int move_unseen(bsref *bs, int id, int x, int y, int bidx, int dir) {
+    bsref work;
+    bsref_clone(&work, bs);
+    switch (dir) {
+        case RIGHT:
+            break;
+        case LEFT:
+            break;
+        case DOWN:
+            break;
+        case UP:
+            break;
+        default:
+            return 0;
+            break;
+    }
+}
+
+// if a move is found, returns 1 and sets dir_out to the direction to be moved
+// else returns 0
+int piece_moves(bsref *bs, int id, int *dir_out) {
+    int x, y, bidx;
+    if (id == ID_BLANK || !find_piece(bs, id, &x, &y, &bidx)) {
+        return 0;
+    }
+
     if (is_horiz(bs, bidx)) {
-        if (x != 5) {
+        if ((x + calc_width(bs, bidx) - 1) != 5) {
             for (int ix = 1; ix < 6; ix++) {
                 if (bidx + ix >= 36) {
+                    break;
+                }
+                if (((bidx + ix) % 6) < (bidx % 6)) {
+                    break;
+                }
+                if (bs->s[bidx + ix] == ID_BLANK) {
+                    if (move_unseen(bs, id, x, y, bidx, RIGHT)) {
+                        *dir_out = RIGHT;
+                        return 1;
+                    }
+                } else if (bs->s[bidx + ix] != id) {
+                    break;
+                }
+            }
+        }
+        if (x != 0) {
+            if (bs->s[bidx - 1] == ID_BLANK) {
+                if (move_unseen(bs, id, x, y, bidx, LEFT)) {
+                    *dir_out = LEFT;
+                    return 1;
+                }
+            }
+        }
+    } else {
+        if (y != 0) {
+            if (bs->s[bidx - 6] == ID_BLANK) {
+                if (move_unseen(bs, id, x, y, bidx, UP)) {
+                    *dir_out = UP;
+                    return 1;
+                }
+            }
+        }
+        if ((y + calc_height(bs, bs->s[bidx]) - 1) != 5) {
+            for (int iy = 1; iy < 6; iy++) {
+                if ((bidx + 6 * iy) >= 36) {
+                    break;
+                }
+                if (bs->s[bidx + 6 * iy] == ID_BLANK) {
+                    if (move_unseen(bs, id, x, y, bidx, DOWN)) {
+                        *dir_out = DOWN;
+                        return 1;
+                    }
+                } else if (bs->s[bidx + 6 * iy] != id) {
+                    break;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+// enum all possible moves of the piece at bidx (ie x, y)
+//   and if they aren't already in seen, explore them (by ret 1)
+int predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
+    int id = bs->s[bidx];
+    if (id == ID_BLANK) {
+        return 0;
+    }
+    if (is_horiz(bs, bidx)) {
+        if ((x + calc_width(bs, bidx) - 1) != 5) {
+            for (int ix = 1; ix < 6; ix++) {
+                if (bidx + ix >= 36) {
+                    break;
+                }
+                if (((bidx + ix) % 6) < (bidx % 6)) {
                     break;
                 }
                 if (bs->s[bidx + ix] == ID_BLANK) {
                     make_move(c_out, id, x, y, x + 1, y);
                     if (is_new_hash(c_out)) {
                         // this is our new move
+                        if (SHOW_MOVES) {
+                            printf("MOVE %d RIGHT\n", id);
+                        }
                         sstack_push(&seen, c_out);
-                        return 1;
+                        return RIGHT;
                     }
                     make_move(c_out, id, x + 1, y, x , y);
                 } else if (bs->s[bidx + ix] != id) {
@@ -514,24 +744,34 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             if (bs->s[bidx - 1] == ID_BLANK) {
                 make_move(c_out, id, x, y, x - 1, y);
                 if (is_new_hash(c_out)) {
+                    if (SHOW_MOVES) {
+                        printf("MOVE %d LEFT\n", id);
+                    }
                     sstack_push(&seen, c_out);
-                    return 1;
+                    return LEFT;
                 }
                 make_move(c_out, id, x - 1, y, x, y);
             }
         }
     } else {
         if (y != 0) {
+            printf("id is %d y not 0 vert\n", id);
             if (bs->s[bidx - 6] == ID_BLANK) {
+                printf("!! id is %d y not 0 vert\n", id);
                 make_move(c_out, id, x, y, x, y - 1);
                 if (is_new_hash(c_out)) {
+                    if (SHOW_MOVES) {
+                        printf("MOVE %d UP\n", id);
+                    }
                     sstack_push(&seen, c_out);
-                    return 1;
+                    return UP;
+                } else {
+                    printf("old news...\n");
                 }
                 make_move(c_out, id, x, y - 1, x, y);
             }
         }
-        if (y != 5) {
+        if ((y + calc_height(bs, bs->s[bidx]) - 1) != 5) {
             for (int iy = 1; iy < 6; iy++) {
                 if ((bidx + 6 * iy) >= 36) {
                     break;
@@ -539,8 +779,11 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
                 if (bs->s[bidx + 6 * iy] == ID_BLANK) {
                     make_move(c_out, id, x, y, x, y + 1);
                     if (is_new_hash(c_out)) {
+                        if (SHOW_MOVES) {
+                            printf("MOVE %d DOWN\n", id);
+                        }
                         sstack_push(&seen, c_out);
-                        return 1;
+                        return DOWN;
                     }
                     make_move(c_out, id, x, y + 1, x, y);
                 } else if (bs->s[bidx + 6 * iy] != id) {
@@ -549,14 +792,57 @@ bool predict_next(bsref *bs, bsref *c_out, uint8_t bidx, int x, int y) {
             }
         }
     }
-    return 0;
+    return NULL_DIR;
+}
+
+void clear_depgraph(depgraph *ss) {
+    for (int id = 0; id <= ID_MAX; id++) {
+        node *a = &ss->map[id];
+        a->id = id;
+        a->init = 0;
+        memset(&a->blockers, 0x00, sizeof(blocker) * NUM_BLOCKERS);
+    }
+}
+
+// fill entire depgraph (automatically clears/inits the depgraph)
+void fill_full_depgraph(bsref *bs, depgraph *ss) {
+    clear_depgraph(ss);
+    // calculate the immediate blockers (depth 0)
+    for (int id = ID_P; id <= ID_MAX; id++) {
+        node *a = &ss->map[id];
+        a->init = 1;
+        calc_blockers(bs, ss, id, 0);
+    }
+
+    // propagate dependencies
+    for (int n = 0; n < DEPGRAPH_DEPTH; n++) {
+        for (int id = ID_P; id <= ID_MAX; id++) {
+            node *blocked = &ss->map[id];
+            for (int bx = 0; bx < NUM_BLOCKERS; bx++) {
+                blocker *b = &blocked->blockers[bx];
+                if (b->id != ID_BLANK) {
+                    // add to blocked all of b's blockers with depth + 1
+                    for (int bxx = 0; bxx < NUM_BLOCKERS; bxx++) {
+                        blocker *sub = &ss->map[b->id].blockers[bxx];
+                        if (sub->id != ID_BLANK) {
+                            if (!blocker_exists(blocked, sub->id)) {
+                                // keep the same block direction
+                                //   ie ID_P is blocked RIGHT by id8, sub id2, sub id4
+                                add_blocker(blocked, sub->id, b->dir, b->depth + 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // fill partial depgraph starting from curnode->id
 void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
     int curid = curnode->id;
     ss->map[curid].init = 1;
-    calc_blockers(bs, ss, curid);
+    calc_blockers(bs, ss, curid, 0);
 
     // walk the current set of blockers and continue graph generation
     for (int i = 0; i < NUM_BLOCKERS; i++) {
@@ -566,7 +852,7 @@ void fill_depgraph(bsref *bs, depgraph *ss, node *curnode) {
             if (a->init == 0) {
                 a->init = 1;
                 a->id = curnode->blockers[i].id;
-                calc_blockers(bs, ss, a->id);
+                calc_blockers(bs, ss, a->id, 0);
             }
         }
     }
@@ -598,80 +884,19 @@ int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode) {
     return 0;
 }
 
-// consider "free moves" of cur
-//   and moves of cur's blockers
-// returns 1 if we have a viable move,
-//   and sets c_out with the updated board state
-int apply_heuristics(bsref *bs, depgraph *ss, node *curnode, bsref *c_out, int *cid_out) {
-    int id = curnode->id;
-    int x, y;
-    find_piece(bs, id, &x, &y);
-    if (x == -1) {
-        printf("error in apply_heuristics\n");
-    }
-    int bidx = XY_TO_BIDX(x, y);
-
-    bsref_clone(c_out, bs);
-    // consider free moves for this piece, then player piece, then all other pieces
-    if (predict_next(bs, c_out, bidx, x, y)) {
-        *cid_out = id;
-        return 1;
-    }
-
-    if (HEURISTIC_CREEP) {
-        for (int i = ID_P; i < ID_MAX; i++) {
-            if (i == id) {
-                // we already did ourself
-                continue;
-            }
-            int ox, oy;
-            find_piece(bs, i, &ox, &oy);
-            int obidx = XY_TO_BIDX(ox, oy);
-            if (predict_next(bs, c_out, obidx, ox, oy)) {
-                *cid_out = id;
-                return 1;
-            }
+int solved(bsref *bs) {
+    int px, py, pbidx;
+    if (find_piece(bs, ID_P, &px, &py, &pbidx)) {
+        if (px == 4) {
+            return 1;
         }
     }
-
-
-    // consider blocker moves
-    for (int i = 0; i < NUM_BLOCKERS; i++) {
-        int b_id = curnode->blockers[i].id;
-        if (b_id != ID_BLANK) {
-            int b_x, b_y;
-            find_piece(bs, b_id, &b_x, &b_y);
-            if (predict_next(bs, c_out, XY_TO_BIDX(b_x, b_y), b_x, b_y)) {
-                *cid_out = b_id;
-                return 1;
-            }
-        }
-    }
-
-    // try again for all of the possible other pieces to move
-    //   that are *NOT* on our depgraph?
-    fill_depgraph(bs, ss, curnode);
-    for (int i = ID_P; i < 36; i++) {
-        node *newnode = &ss->map[i];
-        fill_depgraph(bs, ss, newnode);
-        if (newnode->id != id) {
-            if (!on_depgraph(bs, ss, curnode, newnode)) {
-                int o_id = newnode->id;
-                int o_x, o_y;
-                find_piece(bs, o_id, &o_x, &o_y);
-                if (predict_next(bs, c_out, XY_TO_BIDX(o_x, o_y), o_x, o_y)) {
-                    *cid_out = o_id;
-                    return 1;
-                }
-            }
-        }
-    }
-
     return 0;
 }
 
-void ai_solve(bsref *init, solve_result *r_out) {
+void ai_solve(bsref *init, solve_result *r_out, int max_steps) {
     sstack_init(&seen);
+    sstack_push(&seen, init);
 
     r_out->solved = 0;
     r_out->moves = -1;
@@ -682,46 +907,22 @@ void ai_solve(bsref *init, solve_result *r_out) {
     sstack_push(&board_history, init);
 
     int steps = 0;
-    // the id of the current piece to move
-    int curid = ID_P;
     bsref curboard;
     memset(&curboard, 0x00, sizeof(curboard));
     bsref_clone(&curboard, init);
-    while (steps < 0x20) {
-        depgraph ss;
-        node *curnode = &ss.map[curid];
-
-        // is it solved right now?
-        int px, py;
-        find_piece(&curboard, ID_P, &px, &py);
-        if (px == 4) {
+    while (steps < max_steps) {
+        if (solved(&curboard)) {
             r_out->solved = 1;
             r_out->moves = steps;
             return;
         }
 
-        // create depgraph with default node values
-        //  (ie all pre-allocated)
-        // we need to re-wipe the depgraph if steps != 1
-        //       because we just moved a piece.
-        for (int i = 0; i < 36; i++) {
-            fill_node(&ss.map[i], i);
-        }
-
-        fill_depgraph(&curboard, &ss, curnode);
-
-        // now that we have generated the "blocking dependency graph" in ss
-        // we try to pick a reasonable move based on heuristics
-        // once a move has been exhausted, it is no longer considered,
-        //   and we fall through to subsequent weighted heuristics
-
-        // XXX: can we update the depgraph faster than wipe+regen?
-
-        bsref c;
-        if (!apply_heuristics(&curboard, &ss, curnode, &c, &curid)) {
+        int moved_id = ID_BLANK;
+        int dir = NULL_DIR;
+        heuristics(&curboard, &dir, &moved_id);
+        if (dir == NULL_DIR) {
             // this is a dead end, so pop it off the stack
             if (sstack_empty(&board_history)) {
-                //printf("error in is_solvable (board_history empty)\n");
                 r_out->solved = 0;
                 r_out->moves = steps;
                 return;
@@ -730,104 +931,193 @@ void ai_solve(bsref *init, solve_result *r_out) {
             bsref top;
             sstack_pop(&board_history, &top);
             steps++;
-            //printf("dead end, board_history size is %d\n", sstack_size(&board_history));
+            r_out->solved = 0;
+            r_out->moves = steps;
+            return;
         } else {
-            sstack_push(&board_history, &c);
-            bsref_clone(&curboard, &c);
+            make_move_dir(&curboard, moved_id, dir);
+            sstack_push(&board_history, &curboard);
             steps++;
         }
     }
-    //printf("hit max step length -- give up\n");
     r_out->solved = 0;
     r_out->moves = steps;
     return;
 }
 
-void place_piece(bsref *out, int idx, int id, int tries) {
+int place_horiz_h(bsref *out, int idx, int id, int three) {
+    if (out->s[idx] == ID_BLANK && out->s[idx + 1] == ID_BLANK) {
+        out->s[idx] = id;
+        out->s[idx + 1] = id;
+        if (three) {
+            if (out->s[idx + 2] == ID_BLANK) {
+                out->s[idx + 2] = id;
+            }
+            return 1;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int place_vert_h(bsref *out, int idx, int id, int three) {
+    if (out->s[idx] == ID_BLANK && out->s[idx + 6] == ID_BLANK) {
+        out->s[idx] = id;
+        out->s[idx + 6] = id;
+        if (three) {
+            if (out->s[idx + 12] == ID_BLANK) {
+                out->s[idx + 12] = id;
+            }
+            return 1;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// try to place a piece horizontally such that some part of it lies in idx
+// precond: idx == ID_BLANK
+// returns 1 if placed successfully
+int place_horiz(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
+
+    if (x == 0) {
+        return place_horiz_h(out, idx, id, 1);
+    } else if (x <= 3) {
+        return place_horiz_h(out, idx, id, 1) ||
+               place_horiz_h(out, idx - 1, id, 1);
+    } else if (x == 4) {
+        return place_horiz_h(out, idx, id, 0) ||
+               place_horiz_h(out, idx - 1, id, 1);
+    }
+    return 0;
+}
+
+int place_vert(bsref *out, int idx, int id) {
+    int x = BIDX_TO_X(idx);
+    int y = BIDX_TO_Y(idx);
+
+    if (y == 0) {
+        return place_vert_h(out, idx, id, 1);
+    } else if (y <= 3) {
+        return place_vert_h(out, idx, id, 1) ||
+               place_vert_h(out, idx - 6, id, 1);
+    } else if (y == 4) {
+        return place_vert_h(out, idx, id, 0) ||
+               place_vert_h(out, idx - 6, id, 1);
+    }
+    return 0;
+}
+
+int place_piece(bsref *out, int idx, int id, int pidx) {
     int x = BIDX_TO_X(idx);
     int y = BIDX_TO_Y(idx);
     if (out->s[idx] == ID_BLANK) {
-        if ((random() % 2) == 0) {
-            if (x != 0) {
-                if (out->s[idx - 1] == ID_BLANK) {
-                    out->s[idx - 1] = id;
-                    out->s[idx] = id;
-                    return;
-                }
+        if ((idx / 6) != (pidx / 6) && (random() % 2) == 0) {
+            if (place_horiz(out, idx, id)) {
+                return 1;
             } else {
-                if (out->s[idx + 1] == ID_BLANK) {
-                    out->s[idx + 1] = id;
-                    out->s[idx] = id;
-                    return;
-                }
-            }
-
-            if (y != 0) {
-                if (out->s[idx - 6] == ID_BLANK) {
-                    out->s[idx - 6] = id;
-                    out->s[idx] = id;
-                    return;
-                }
-            } else {
-                if (out->s[idx + 6] == ID_BLANK) {
-                    out->s[idx + 6] = id;
-                    out->s[idx] = id;
-                    return;
-                }
+                return place_vert(out, idx, id);
             }
         } else {
-            if (y != 0) {
-                if (out->s[idx - 6] == ID_BLANK) {
-                    out->s[idx - 6] = id;
-                    out->s[idx] = id;
-                    return;
-                }
+            if (place_vert(out, idx, id)) {
+                return 1;
             } else {
-                if (out->s[idx + 6] == ID_BLANK) {
-                    out->s[idx + 6] = id;
-                    out->s[idx] = id;
-                    return;
-                }
-            }
-
-            if (x != 0) {
-                if (out->s[idx - 1] == ID_BLANK) {
-                    out->s[idx - 1] = id;
-                    out->s[idx] = id;
-                    return;
-                }
-            } else {
-                if (out->s[idx + 1] == ID_BLANK) {
-                    out->s[idx + 1] = id;
-                    out->s[idx] = id;
-                    return;
-                }
+                return place_vert(out, idx, id);
             }
         }
     }
-    if(tries < 35)
-        place_piece(out, idx, id, ++tries); //try again
+    return 0;
 }
 
-// Matt, I changed this so that a horizontal piece can't block player
-// Function purpose: attempt to generate a random board - returns 1 on success
-int generate_board(bsref *out) {
-    clear_bsref(out);
-    int num_pieces = 6 + random() % 10;
+// next avail id
+int free_id(bsref *bs) {
+    for (int i = ID_P; i <= ID_MAX; i++) {
+        int x, y, bidx;
+        if (!find_piece(bs, i, &x, &y, &bidx)) {
+            return i;
+        }
+    }
+    printf("{!!!} free_id() overflow\n");
+    return ID_NUM;
+}
 
+void add_board(bsref *bs, sstack *gen_seen) {
+    if (!sstack_contains(gen_seen, bs)) {
+        //printf("add_board(%d moves, %d pieces) -- current max_move_found %d\n", bs->sr.moves, free_id(bs), max_move_found);
+        if (PRINT_AT_ADD_BOARD) {
+            print_board(bs);
+        }
+        bs->sr.num_pieces = free_id(bs);
+        sstack_push(gen_seen, bs);
+        num_generated++;
+        gen_diff[bs->sr.moves]++;
+        max_move_found = MAX(max_move_found, bs->sr.moves);
+    }
+}
+
+// attempt to generate a random board of at least given # moves
+//   tries to find more difficult boards by iterating on
+//   solvable boards
+//   (ie finding local maxima or hillclimbing)
+// returns 1 on success
+int generate_board(bsref *out, solve_result *sr, sstack *gen_seen, int moves, int min_moves) {
+    printf("gen_board(goal %d moves, admit >= %d moves) (total %d puzzles, max_moves %d) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n", moves, min_moves, num_generated, max_move_found);
+    clear_bsref(out);
     int pidx = XY_TO_BIDX(0, random() % 6);
     out->s[pidx] = ID_P;
     out->s[pidx + 1] = ID_P;
-    for (int i = ID_P + 1; i < num_pieces; i++) {
-        int idx = 0;
-        bsref tmp;
-        do
-        {
-            idx = random() % 36;
-            tmp = *out;
-            place_piece(&tmp, idx, i, 0);
-        } while(idx / 6 == pidx && is_horiz(&tmp, idx));
-        *out = tmp;
+    int found = 0;
+    int last_id = 0;
+
+    for (int k = 0; k < 120; k++) {
+        int fid = free_id(out);
+        for (int i = fid; i < ID_MAX; i++) {
+            int idx = random() % 36;
+            for (int ii = 0; ii < 10; ii++) {
+                last_id = free_id(out);
+                if (place_piece(out, idx, last_id, pidx)) {
+                    break;
+                }
+            }
+            if (!is_legal(out)) {
+                printf("!is_legal after place_piece (%d, %d)\n",
+                       k, i);
+                return 0;
+            }
+            ai_solve(out, sr, MAX(MAX_MOVES, moves + MOVE_DIFF_RANGE));
+            if (sr->solved == 1) {
+                if (sr->moves > moves) {
+                    add_board(out, gen_seen);
+                    return 1;
+                } else if (sr->moves >= min_moves) {
+                    add_board(out, gen_seen);
+                }
+            }
+        }
+
+        // delete some random pieces
+        int num_del = 1 + (random() % 6);
+        for (int dx = 0; dx < num_del; dx++) {
+            int fid = free_id(out);
+            if (fid != ID_P) {
+                int id = ID_P + 1;
+                if (fid > ID_MAX) {
+                    id = ID_MAX;
+                } else {
+                    id = ID_P + 1 + (random() % (fid - 1));
+                }
+                delete_piece(out, id);
+                if (!is_legal(out)) {
+                    printf("!is_legal after delete_piece (k=%d, fid=%d)\n",
+                           k, fid);
+                    return 0;
+                }
+            }
+        }
     }
     return 0;
 }
@@ -839,9 +1129,9 @@ int id_to_boardtype(bsref *b, int id) {
         case ID_P:
             return 0;
         default:
-            int x, y;
-            find_piece(b, id, &x, &y);
-            if (is_horiz(b, XY_TO_BIDX(x, y))) {
+            int x, y, bidx;
+            find_piece(b, id, &x, &y, &bidx);
+            if (is_horiz(b, bidx)) {
                 return 2;
             } else {
                 return 4;
@@ -851,9 +1141,9 @@ int id_to_boardtype(bsref *b, int id) {
 
 void write_board(bsref *board, solve_result *sr, int file_id) {
     char path[1024];
-    sprintf(&path[0], "../data/board%d", file_id);
+    sprintf(&path[0], "../data/genboard%d", file_id);
     FILE *fp = fopen(&path[0], "w");
-    fprintf(fp, "%d\n", sr->moves);
+    fprintf(fp, "%d %d\n", sr->moves, sr->num_pieces);
     for (int i = 0; i < 36; i++) {
         fprintf(fp, "%d", id_to_boardtype(board, board->s[i]));
         if ((i % 6) == 5) {
@@ -863,8 +1153,117 @@ void write_board(bsref *board, solve_result *sr, int file_id) {
     fclose(fp);
 }
 
-int main() {
-    srandom(time(NULL));
+// if there is a viable move, it is returned in dir_out and id_out
+//   we probably dont care which block is "current" -- move the best one
+// after generating the "blocking dependency graph" in ss
+//   we try to pick a reasonable move based on heuristics
+//   once a move has been exhausted, it is no longer considered,
+//   and we fall through to subsequent weighted heuristics
+void heuristics(bsref *bs, int *dir_out, int *id_out) {
+    bsref work;
+    bsref_clone(&work, bs);
+    depgraph ss;
+    clear_depgraph(&ss);
+    fill_full_depgraph(bs, &ss);
+    *dir_out = NULL_DIR;
+    *id_out = ID_BLANK;
+
+    // consider the depgraph of ID_P
+    for (int bid = 0; bid < NUM_BLOCKERS; bid++) {
+        blocker *b = &ss.map[ID_P].blockers[bid];
+        if (b->id == ID_BLANK) {
+            break;
+        }
+        if (piece_moves(bs, b->id, dir_out)) {
+            *id_out = b->id;
+            return;
+        }
+    }
+
+    // consider free moves for the player piece
+    if (piece_moves(bs, ID_P, dir_out)) {
+        *id_out = ID_P;
+        return;
+    }
+
+    // consider free moves for all other pieces
+    //   that are *NOT* on ID_P's depgraph (else we already did them)
+    node *p_node = &ss.map[ID_P];
+    for (int id = ID_P + 1; id <= ID_MAX; id++) {
+        node *newnode = &ss.map[id];
+        if (newnode->id == ID_BLANK) {
+            break;
+        }
+        if (!on_depgraph(bs, &ss, p_node, newnode)) {
+            int o_id = newnode->id;
+            int o_x, o_y, o_bidx;
+            if (find_piece(bs, o_id, &o_x, &o_y, &o_bidx)) {
+                if (piece_moves(bs, o_id, dir_out)) {
+                    *id_out = o_id;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void print_moves(bsref *b_init) {
+    bsref work;
+    bsref_clone(&work, b_init);
+    int num_moves = 0;
+    while (!solved(&work) && num_moves < 1024) {
+        int moved_id = ID_BLANK;
+        int dir = NULL_DIR;
+        heuristics(&work, &dir, &moved_id);
+        if (dir == NULL_DIR) {
+            return;
+        } else {
+            printf("%d %s\n", moved_id, DIRNAMES[dir]);
+            make_move_dir(&work, moved_id, dir);
+            num_moves++;
+        }
+    }
+}
+
+int get_hint(bsref *bs, int *moved_id, int *dir) {
+    bsref work;
+    bsref_clone(&work, bs);
+    *moved_id = ID_BLANK;
+    *dir = NULL_DIR;
+    heuristics(&work, dir, moved_id);
+    if (*dir == NULL_DIR) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+void write_hillclimb(sstack *gen_seen) {
+    // print out all the puzzles we found while hill-climbing for difficult ones
+    for (int m = 0; m < MAX_MOVES; m++) {
+        for (int p = 0; p <= ID_MAX; p++) {
+            for (int i = 0; i < gen_seen->idx; i++) {
+                bsref *bs = &gen_seen->arr[i];
+                if (bs->disk == 0 &&
+                    bs->sr.moves == m && bs->sr.num_pieces == p)
+                {
+                    printf("[%2d %2d] ", bs->sr.moves, bs->sr.num_pieces);
+                    print_boardhash(bs);
+                    write_board(bs, &bs->sr, out_id);
+                    out_id++;
+                    bs->disk = 1;
+                }
+            }
+        }
+    }
+}
+
+int main(int argc, char **argv) {
+    time_t sd = time(NULL) % 1024;
+    //sd = 887;
+    printf("random seed is %d\n", sd);
+    srandom(sd);
+
     memset(&null_bstate, 0x00, sizeof(null_bstate));
     memset(&board_init, 0x00, sizeof(board_init));
     clear_bsref(&null_bstate);
@@ -883,23 +1282,52 @@ int main() {
     sstack gen_seen;
     sstack_init(&gen_seen);
 
-    int out_id = 0;
-    while (out_id < NUM_GEN) {
-        generate_board(&board_init);
-        solve_result sr;
-        write_board(&board_init, &sr, out_id++);
-        ai_solve(&board_init, &sr);
-        if (sr.solved == 1 && sr.moves > MIN_MOVES) {
-            if (!sstack_contains(&gen_seen, &board_init)) {
-                print_board(&board_init);
-                fprintf(stderr, "solve in %d\n", sr.moves);
-                write_board(&board_init, &sr, out_id++);
-                sstack_push(&gen_seen, &board_init);
-            }
-        } else {
-            fprintf(stderr, "no solve\n");
-        }
+    // arg handling
+    int num_gen = 1000;
+    int max_steps = MAX_MOVES;
+    int min_steps = MIN_MOVES;
+    if (argc > 1) {
+        num_gen = atoi(argv[1]);
+        printf("num_gen is %d\n", num_gen);
+    }
+    if (argc > 2) {
+        min_steps = atoi(argv[2]);
+    }
+    if (argc > 3) {
+        max_steps = atoi(argv[3]);
     }
 
+    out_id = 0;
+    num_generated = 0;
+    int written_id = 0;
+    while (num_generated < num_gen) {
+        // only generate 100 (GEN_EACH_DIFF) of each "number of moves"-boards
+        if (gen_diff[min_steps] >= GEN_EACH_DIFF) {
+            min_steps++;
+        }
+        if (generate_board(&board_init, &board_init.sr, &gen_seen, 20, min_steps)) {
+            printf("{puzzle %d %d}\n", out_id, board_init.sr.moves);
+            print_board(&board_init);
+            if (SHOW_MOVES) {
+                print_moves(&board_init);
+            }
+            printf("{/puzzle %d %d}\n", out_id, board_init.sr.moves);
+            add_board(&board_init, &gen_seen);
+            sstack_push(&gen_seen, &board_init);
+            num_generated++;
+            gen_diff[board_init.sr.moves]++;
+        }
+
+        // periodically write to disk
+        if ((num_generated - written_id) > DISK_BATCH) {
+            write_hillclimb(&gen_seen);
+            written_id = out_id;
+        }
+
+    }
+
+    write_hillclimb(&gen_seen);
+
+    printf("random seed is %d\n", sd);
     return 0;
 }

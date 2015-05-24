@@ -40,6 +40,7 @@ int sstack_size(sstack *s);
 void sstack_push(sstack *s, bsref *key);
 void sstack_pop(sstack *s, bsref *key_out);
 void sstack_peek(sstack *s, bsref *key_out);
+void sstack_print(sstack *s);
 
 // dep stack
 #define DSTACK_SIZE 32
