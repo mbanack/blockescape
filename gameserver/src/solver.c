@@ -1258,6 +1258,7 @@ void write_hillclimb(sstack *gen_seen) {
     }
 }
 
+/***********************************************************************
 int main(int argc, char **argv) {
     time_t sd = time(NULL) % 1024;
     //sd = 887;
@@ -1331,3 +1332,4 @@ int main(int argc, char **argv) {
     printf("random seed is %d\n", sd);
     return 0;
 }
+***********************************************************************/

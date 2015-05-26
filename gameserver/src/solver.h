@@ -83,6 +83,8 @@ int is_solvable(bsref *init);
 void ai_solve(bsref *init, solve_result *r_out);
 void heuristics(bsref *bs, int *dir_out, int *id_out);
 void clear_depgraph(depgraph *ss);
+void clear_bsref(bsref *h);
+void insert_piece(bsref *bs, int id, int width, int height, int new_x, int new_y);
 void fill_full_depgraph(bsref *bs, depgraph *ss);
 int on_depgraph(bsref *bs, depgraph *ss, node *curnode, node *newnode);
 

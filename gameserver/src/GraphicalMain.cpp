@@ -614,6 +614,10 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                 message += ss.str();
                 s->send(hdl, message, 
                     websocketpp::frame::opcode::text);
+                string message2 = "show hint";
+                message2 += boards.find(iFromId)->second.getHint();
+                s->send(hdl, message2, 
+                    websocketpp::frame::opcode::text);
             }
         }
         catch( const websocketpp::lib::error_code &e){}

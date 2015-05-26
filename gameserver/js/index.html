@@ -175,6 +175,14 @@
         top:390px;
         display:none;
     }
+    #hintDiv {
+        float:left;
+        width:100%;
+        clear:both;
+        text-align: center;
+        display:none;
+        align:middle;
+    }
 
     </style>
     <body>
@@ -229,6 +237,8 @@
         Difficulty: Expert
     </div>
     <div id="numMoves" align="center">
+    </div>
+    <div id="hintDiv" align="center">
     </div>
     <div id="completed" align="center">
         (Completed)
@@ -415,16 +425,16 @@
                     document.getElementById("average").style.display = "none";
                     document.getElementById("skilled").style.display = "none";
                     document.getElementById("expert").style.display = "none";
-                    if(difficulty <= 15) {
+                    if(difficulty <= 5) {
                         document.getElementById("beginner").style.display = "block";
                     }
-                    if(difficulty > 15 && difficulty <= 19) {
+                    if(difficulty > 5 && difficulty <= 10) {
                         document.getElementById("average").style.display = "block";
                     }
-                    if(difficulty > 19 && difficulty <= 23) {
+                    if(difficulty > 10 && difficulty <= 15) {
                         document.getElementById("skilled").style.display = "block";
                     }
-                    if(difficulty > 23) {
+                    if(difficulty > 15) {
                         document.getElementById("expert").style.display = "block";
                     }
                     message = clientId + ' ' + md + ' ' + 0 + ' ' + 0;
@@ -440,6 +450,11 @@
                     }
                     document.getElementById("hintBtn").value='Hint x' +
                         numHints;
+                }
+                if(isMessage("show hint", evt.data)){
+                    showHint = getPayload('show hint', evt.data);
+                    document.getElementById("hintDiv").style.display="block";
+                    document.getElementById("hintDiv").innerHTML = showHint;
                 }
                 if(isMessage("undo", evt.data)){
                     undoVal = +getPayload('undo', evt.data);
@@ -713,6 +728,7 @@
                     mouseLeave=0;
                 }
                 if(md==1&&(canvas[index].mouse.buttonState=="up"||mouseLeave==1)){
+                    document.getElementById("hintDiv").style.display="None";
                     md=0;
                     newInput=1;
                     canvas[index].mouse.buttonState="up";

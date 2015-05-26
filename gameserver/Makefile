@@ -1,11 +1,14 @@
-SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp
-OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o 
+SRC=src/GraphicalMain.cpp src/Board.cpp src/GenerateMain.cpp src/SolverMain.cpp src/solver.c
+OBJ=obj/Board.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o obj/solver.o
 LDFLAGS=-std=c++11 -Ilib/libsodium/src/libsodium/include -Ilib/libsodium/builds/msvc -Ilib/websocketpp -Ilib/rapidjson -Ilib/rapidjson/include -ggdb -lsodium -lmysqlcppconn -I/usr/local/include/websocketpp/ -I/opt/local/include -D_GNU_SOURCE=1 -D_THREAD_SAFE -L/opt/local/lib 
-graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
+graphical: obj/Board.o obj/GraphicalMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o obj/solver.o
 	g++ -o obj/$@ $(OBJ) obj/GraphicalMain.o $(LDFLAGS) -L/opt/local/lib -lboost_system -lboost_date_time -lboost_random -lboost_timer -pthread
 
 dbtest:
 	g++ dbtest.cpp $(LDFLAGS)
+
+obj/solver.o: src/solver.c src/solver.h
+	g++ $(LDFLAGS) -c src/solver.c -o $@
 
 obj/Auth.o: src/Auth.cpp inc/Auth.hpp
 	g++ $(LDFLAGS) -c src/Auth.cpp -o $@
@@ -34,13 +37,10 @@ obj/sio_client.o: src/sio_client.cpp
 obj/sio_client_impl.o: src/internal/sio_client_impl.cpp
 	g++ $(LDFLAGS) -c src/internal/sio_client_impl.cpp -o $@
 
-all: solver graphical generator
+all: graphical generator
 	
-generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
+generate: obj/Board.o obj/GenerateMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o obj/solver.o
 	g++ -o obj/$@ $(OBJ) obj/GenerateMain.o $(LDFLAGS) -lboost_system -lboost_date_time -lboost_random -pthread
-
-solver: obj/Board.o obj/SolverMain.o obj/sio_packet.o obj/sio_socket.o obj/sio_client_impl.o obj/sio_client.o obj/Auth.o
-	g++ -o obj/$@ $(OBJ) obj/SolverMain.o $(LDFLAGS) -lboost_system -lboost_date_time -lboost_random -pthread
 
 clean:
 	rm -f $(OBJ)

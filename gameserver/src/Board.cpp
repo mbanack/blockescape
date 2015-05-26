@@ -3,26 +3,52 @@
 #include <sstream>
 #include <stdio.h>
 #include <sys/timeb.h>
+#include <sstream>
 #include "solver.h"
 using namespace std;
 //using boost::timer::cpu_timer;
 typedef websocketpp::server<websocketpp::config::asio> server;
 
-void Board::printHint() {
-/***************
-    bsref board;
-    clear_bsref(&board);
-    getIds(&board.s[0]);
+const char *DIRNAMES2[] = {"LEFT", "RIGHT", "UP", "DOWN"};
+void Board::getIds(uint8_t *ids){
+    for(int i = 0; i < 36; ++i)
+        ids[i] = this->ids[i];
+}
 
-    int id;
-    int move_dir;
-
-    if (get_hint(&board, &id, &move_dir)) {
-        printf("%d %s\n", moved_id, DIRNAMES[dir]);
-    } else {
-        printf("no move\n");
+string Board::getHint() {
+    bsref bs;
+    clear_bsref(&bs);
+    uint8_t ids[36];
+    getIds(ids);
+    vvi boardCopy = board;
+    for(int i = 0; i < boardCopy.size() * boardCopy.size(); ++i){
+        int width=1;
+        int height=1;
+        int pieceType=board[i/6][i%6];
+        if(pieceType==PIECE_HORIZONTAL2 || pieceType == PIECE_PLAYER)
+            width=2;
+        if(pieceType==PIECE_HORIZONTAL3)
+            width=3;
+        if(pieceType==PIECE_VERTICAL2)
+            height=2;
+        if(pieceType==PIECE_VERTICAL3)
+            height=3;
+        insert_piece(&bs, ids[i], width, height, i % 6, i / 6);
     }
-*************/
+    int id;
+    int dir;
+
+    if (get_hint(&bs, &id, &dir)) {
+        for(int i = 0; i < 36; ++i){
+            if(ids[i] == id){
+                stringstream ss;
+                ss << "HINT: Move (row, col) " << i / 6 + 1 <<  " " << 
+                    " " << i % 6 + 1 << " " << DIRNAMES2[dir]; 
+                return ss.str();
+            }
+        }
+    }
+    return "No hint available";
 }
 int first_time;
 int second_time;
@@ -40,11 +66,6 @@ void Board::attemptSolve() {
     getIds(&board_init.s[0]);
     solve_result sr;
     //ai_solve(&board_init, &sr);
-}
-
-void Board::getIds(uint8_t *ids){
-    for(int i = 0; i < 36; ++i)
-        ids[i] = this->ids[i];
 }
 
 int Board::getMinMoves() {
