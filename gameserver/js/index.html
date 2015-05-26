@@ -285,6 +285,7 @@
         var initedCanvases=-1;
         var objectsLength = [];
         var mouseLeave = 0;
+        var undoAvailable = false;
         onload = init;
 
         function destroyAll(){
@@ -401,8 +402,9 @@
         function setupMessages() {
             websocket.onmessage = function(evt){
                 if(isMessage("newboard", evt.data)){
-                    document.getElementById("undoBtn1").disabled=false;
-                    document.getElementById("undoBtn2").disabled=false;
+                    undoAvailable = true;
+                    document.getElementById("undoBtn1").disabled=true;
+                    document.getElementById("undoBtn2").disabled=true;
                     document.getElementById("hintBtn").style.display="block";
                     document.getElementById("undoBtn1").style.display="block";
                     document.getElementById("numMoves").style.display = "none";
@@ -729,6 +731,11 @@
                 }
                 if(md==1&&(canvas[index].mouse.buttonState=="up"||mouseLeave==1)){
                     document.getElementById("hintDiv").style.display="None";
+                    if(undoAvailable == true){
+                        document.getElementById("undoBtn1").disabled=false;
+                        document.getElementById("undoBtn2").disabled=false;
+                        undoAvailable = false;
+                    }
                     md=0;
                     newInput=1;
                     canvas[index].mouse.buttonState="up";
