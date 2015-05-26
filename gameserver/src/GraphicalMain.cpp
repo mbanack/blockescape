@@ -215,6 +215,7 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
     high = accessor->getHighscore(boardIndex);
     newHigh = high;
     //newscore is higher than topscore
+    bool added = false;
     if(numOfMoves <= high.topMoves)
     { 
         if(numOfMoves == high.topMoves)
@@ -233,6 +234,7 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
 
                   newHigh.topMoves2 = high.topMoves;
                   newHigh.topMoves3 = high.topMoves2;
+                  added = true;
             }
         }
         else
@@ -240,18 +242,18 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
             newHigh.topUser = username;
             newHigh.topMoves = numOfMoves;
             newHigh.topTime = time;
-                  
+
             newHigh.topUser2 = high.topUser;
-            newHigh.topUser3 = high.topUser2;
-
             newHigh.topTime2 = high.topTime;
+            newHigh.topMoves2 = high.topMoves;
+                  
+            newHigh.topUser3 = high.topUser2;
             newHigh.topTime3 = high.topTime2;
-
-           newHigh.topMoves2 = high.topMoves;
-           newHigh.topMoves3 = high.topMoves2;
+            newHigh.topMoves3 = high.topMoves2;
+            added = true;
         }
     }//new score is higher than topUser2 score
-    else if(numOfMoves <= high.topMoves2)
+    if(numOfMoves <= high.topMoves2 && !added)
     { 
         if(numOfMoves == high.topMoves2)
         {
@@ -266,8 +268,9 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
                   newHigh.topTime2 = time;
                  
                   newHigh.topUser3 = high.topUser2;
-                  newHigh.topMoves3 = high.topMoves;
-                  newHigh.topTime3 = high.topTime;
+                  newHigh.topMoves3 = high.topMoves2;
+                  newHigh.topTime3 = high.topTime2;
+                  added = true;
             }
         }
         else
@@ -281,11 +284,12 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
             newHigh.topTime2 = time;
                  
             newHigh.topUser3 = high.topUser2;
-            newHigh.topMoves3 = high.topMoves;
-            newHigh.topTime3 = high.topTime;
+            newHigh.topMoves3 = high.topMoves2;
+            newHigh.topTime3 = high.topTime2;
+            added = true;
         }
     }//new score is higher than topUser3
-    else if(numOfMoves <= high.topMoves3)
+    if(numOfMoves <= high.topMoves3 && !added)
     {
         if(numOfMoves == high.topMoves3) {
            if(convertTimeStr(time) < convertTimeStr(high.topTime3))
@@ -303,19 +307,18 @@ void Update(int boardIndex, string username, int numOfMoves, string time)
                   newHigh.topTime3 = time;
             }
         }
-        else
-        {
-            newHigh.topUser = high.topUser;
-            newHigh.topMoves = high.topMoves;
-            newHigh.topTime = high.topTime;
+        else {
+                  newHigh.topUser = high.topUser;
+                  newHigh.topMoves = high.topMoves;
+                  newHigh.topTime = high.topTime;
 
-            newHigh.topUser2 = high.topUser2;
-            newHigh.topMoves2 = high.topMoves2;
-            newHigh.topTime2 = high.topTime2;
+                  newHigh.topUser2 = high.topUser2;
+                  newHigh.topMoves2 = high.topMoves2;
+                  newHigh.topTime2 = high.topTime2;
                  
-            newHigh.topUser3 = username;
-            newHigh.topMoves3 = high.topMoves3;
-            newHigh.topTime3 = high.topTime3;
+                  newHigh.topUser3 = username;
+                  newHigh.topMoves3 = numOfMoves;
+                  newHigh.topTime3 = time;
         }
     }
     accessor->updateHighscore(boardIndex,newHigh);
@@ -503,7 +506,6 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
 	    st << boards.find(tempId)->second.getNumberOfMoves();
             string message = "win" + fromId + " " + st.str() + " " +
 				boards.find(tempId)->second.numberOfSeconds; //add number of moves and time
-            s->send(hdl, message, websocketpp::frame::opcode::text);
             if(opponentConnection.count(fromId)>0){
                 s->send(opponentConnection.find(fromId)->second, message, websocketpp::frame::opcode::text);
                 opponentConnection.erase(opponentConnection.find(fromId));
@@ -525,6 +527,22 @@ void onMessage(server *s, websocketpp::connection_hdl hdl,
                 auth->updateCompletedBoards(
                     userBoardIndex.find(tempId)->second, username);
                     Update(userBoardIndex.find(tempId)->second, username,boards.find(tempId)->second.getNumberOfMoves(), boards.find(tempId)->second.numberOfSeconds);
+                Highscore high = Auth::getInstance()->getHighscore(userBoardIndex.
+                    find(tempId)->second);
+                stringstream su;
+                su << high.topMoves;
+                string topMoves = su.str();
+                stringstream sv;
+                sv << high.topMoves2;
+                string topMoves2 = sv.str();
+                stringstream sw;
+                sw << high.topMoves3;
+                string topMoves3 = sw.str();
+                message += " " + high.topUser + " " + topMoves + " " +
+                    high.topTime + " " + high.topUser2 + " " + topMoves2 +
+                    " " + high.topTime2 + " " + high.topUser3 + " " +
+                    topMoves3 + " " + high.topTime3;
+                s->send(hdl, message, websocketpp::frame::opcode::text);
             }
         }
     }

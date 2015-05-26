@@ -169,6 +169,12 @@
         display:none;
         align:middle;
     }
+    #rankingDiv {
+        position:absolute;
+        left:1000px;
+        top:390px;
+        display:none;
+    }
 
     </style>
     <body>
@@ -245,6 +251,8 @@
     <input class="undoBtn" id="undoBtn2" type="button" value="undo" disabled="true">
     <div class="wrapper3" id="wrap3">
         <canvas id="multiCanvas2" width="0px" height="0px" display="inline"></canvas>
+    </div>
+    <di id="rankingDiv">
     </div>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/ocanvas/2.7.3/ocanvas.min.js"></script>
     <script src="./sha256.js"></script>
@@ -401,6 +409,7 @@
                     else {
                         document.getElementById("completed").style.display = "none";
                     }
+                    document.getElementById("rankingDiv").style.display = "none";
                     difficulty = +payloadSplit[2];
                     document.getElementById("beginner").style.display = "none";
                     document.getElementById("average").style.display = "none";
@@ -454,8 +463,10 @@
                         document.getElementById("completed").style.display="none";
                         document.getElementById("win1Txt").style.display="block";
                         document.getElementById("numMoves").style.display="block";
-			document.getElementById("numMoves").innerHTML = 'Number of moves: ' + data[1] + '<br>' + 'Time to complete: ' + data[2]; 
-			console.log(data[1]);
+			            document.getElementById("numMoves").innerHTML = 'Number of moves: ' + data[1] + '<br>' + 'Time to complete: ' + data[2]; 
+                        document.getElementById("rankingDiv").style.display="block";
+                        document.getElementById("rankingDiv").innerHTML = "High Score<br> 1st " + data[3] + " " + data[4] + " " + data[5] + 
+                            "<br> 2nd " + data[6] + " " + data[7] + " " + data[8] + "<br> 3rd " + data[9] + " " + data[10] + " " + data[11];
                     }
                     else {
                         document.getElementById("completed").style.display="none";
